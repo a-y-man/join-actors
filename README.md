@@ -8,6 +8,6 @@ rules   = ( "{" , { rule } , "}" ) | rule ;
 rule    = "(" , varargs , ")" , [ filter ] , "=>" , term ;
 filter  = "if" , "(" , expr , ")" ;
 expr    = "scala.quoted.Expr[Boolean]" ;
-term    = "scala.quoted.Quotes.reflectModule.Tree.Statement.Term" ;
+term    = "quotes.reflect.Term" ;
 varargs = "scala.quoted.Varargs" ;
 ```
