@@ -4,5 +4,5 @@ ThisBuild / scalaVersion := "3.1.1"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "join-patterns"
+    name := "join_patterns"
   )
