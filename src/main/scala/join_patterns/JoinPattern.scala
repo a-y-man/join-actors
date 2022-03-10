@@ -4,39 +4,38 @@ import java.util.concurrent.LinkedTransferQueue
 import scala.quoted.*
 import join_patterns.Message
 
-case class Login(id: String) extends Message
-case class Logout(id: String) extends Message
-case class OAuth(id: String) extends Message
-
 def _println[T](x: Expr[T])(using Quotes) = {
 	import quotes.reflect.*
 
 	val tree: Tree = x.asTerm
-	println(tree.show(using Printer.TreeStructure))
-	x
+	//println(tree.show(using Printer.TreeStructure))
+	println(prettyPrint(tree))
 }
 
 /**
- * Check thqt casedef guard is an Apply()
+ * Check that casedef guard is an Apply()
+ * https://docs.scala-lang.org/scala3/reference/metaprogramming/macros.html#pattern-matching-on-quoted-expressions
 */
-def _match[T <: Message](x: Expr[Seq[T => Unit]])(using Quotes) =
+def _match[T](x: Expr[T])(using Quotes) = {
 	import quotes.reflect.*
 
-	x match
-		case CaseDef(pattern, guard, handler) => x
-		case _ => println(f"x")
+	x.asTerm match
+		case Inlined(_, _, Block(_, Block(n, _))) => {
+			n(0) match
+				case DefDef(_, _, _, Some(b)) => b match
+					case Block(_, Match(_, cases)) => {
+						for (_case <- cases)
+							println(prettyPrint(_case))
+					}
+		}
 
-/*
-def handleBody[R](y: Expr[R])(using Quotes): Unit =
-	y match
-		case '{ x match $mc } => handleMatchClauses(mc) // mc: Expr[R]
-*/
+	// generate code
+	x
+}
 
 // top-level
 inline def receive[R](queue: LinkedTransferQueue[Message])(inline expr : R): Unit = ${
-	_println('{expr}) // see what is there
-	//_match('{expr}) // check well-formed
-	// generate code
+	_match('{expr}) // check well-formed
 }
 
 /*

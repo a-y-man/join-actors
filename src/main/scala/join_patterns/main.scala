@@ -1,9 +1,7 @@
 package join_patterns
 
-import join_patterns.{Login, Logout, Message, OAuth}
-
 import java.util.concurrent.LinkedTransferQueue
-import scala.quoted.*
+
 /*
 def test(using Quotes): Unit =
 	import quotes.reflect.*
@@ -24,13 +22,13 @@ def test(using Quotes): Unit =
 @main
 def main(): Unit =
 	println("Hello, world")
-	val queue: LinkedTransferQueue[Message] = LinkedTransferQueue[Message]()
 
-	receive (queue) { (x: Message) => x match
-		case Login(name) if name != "" => println(name)
-		case (l: Logout) => println("here")
-		case (a: OAuth) => {
-			val y = 1
-			println(y)
-		}
+	val queue: LinkedTransferQueue[Message] = LinkedTransferQueue[Message]()
+	val i: Int = 0;
+
+	receive (queue) {
+		(x: Message) => x match
+			case c: Any if i == 0 => 8
+			case c: Any if i == 1 => 9
 	}
+
