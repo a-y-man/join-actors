@@ -3,6 +3,7 @@ package join_patterns
 import java.util.concurrent.LinkedTransferQueue
 import scala.quoted.*
 import join_patterns.Message
+import scala.compiletime.error
 
 def _println[T](x: Expr[T])(using Quotes) = {
 	import quotes.reflect.*
@@ -12,45 +13,41 @@ def _println[T](x: Expr[T])(using Quotes) = {
 	println(prettyPrint(tree))
 }
 
+/**
+ * Checks that if there is a guard, it is a function application
+*/
 def checkGuard(using Quotes)(guard: Option[quotes.reflect.Term]): Boolean = {
 	import quotes.reflect.*
 
 	guard match
-		case Some(Apply(Select(_, "apply"), _)) =>
-			//println("[Join-Patterns] Guard is function application")
-			true
-		case Some(_) =>
-			Console.err.println("[Join-Patterns] Error: Guard was not a function application")
-			false
-		case None =>
-			//println("[Join-Patterns] No guard")
-			true
+		case Some(Apply(Select(_, "apply"), _)) | None => true
+		case Some(_) => false
 }
 
 /**
  * https://docs.scala-lang.org/scala3/reference/metaprogramming/macros.html#pattern-matching-on-quoted-expressions
 */
-def _match[T](x: Expr[T])(using Quotes) = {
+def _match[T](x: Expr[T])(using Quotes): Expr[Either[Unit, String]] = {
 	import quotes.reflect.*
 
 	x.asTerm match
-		case Inlined(_, _, Block(_, Block(n, _))) => {
-			n(0) match
+		case Inlined(_, _, Block(_, Block(stmts, _))) => {
+			stmts(0) match
 				case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) => {
 					for (_case <- cases) {
 						_case match
 							case CaseDef(pattern, guard, _) =>
 								//println(prettyPrint(guard))
-								checkGuard(guard)
+								if !checkGuard(guard) then
+									'{ Right(_err("Guard was not a function application")) }
 					}
 				}
 		}
 
-	// generate code
-	x
+	'{Left(())}
 }
 
-def _match2(x: Expr[Any])(using Quotes) = {
+def _match2(x: Expr[Any])(using Quotes): Expr[Either[Unit, String]] = {
 	import quotes.reflect.*
 
 	x match
@@ -68,11 +65,13 @@ def _match2(x: Expr[Any])(using Quotes) = {
 				case '{($stmts: List[t1], $trm: t2)} => println(stmts)
 				*/
 
-	x
+	'{Left(())}
 }
 
-// top-level
-inline def receive[R](queue: LinkedTransferQueue[Message])(inline expr : R): Unit = ${
+/**
+ * Should call to Console.err.println if macro is ill-formed
+*/
+inline def receive[R](queue: LinkedTransferQueue[Message])(inline expr : R): Either[Unit, String] = ${
 	_match('{expr})
 }
 

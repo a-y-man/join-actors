@@ -1,4 +1,5 @@
 package join_patterns
+
 import scala.quoted.*
 
 def to[T: Type, R: Type](f: Expr[T] => Expr[R])(using Quotes): Expr[T => R] = '{(x: T) => ${f('x)}}
@@ -16,7 +17,10 @@ def showExpr[T](expr: Expr[T])(using Quotes): Expr[String] =
 	val code: String = expr.show
 	Expr(code)
 
-inline def _err(s: String)(using Quotes) =
-	import scala.compiletime.error
+def _out(msg: String): String = {
+	s"[Join-Patterns] ${msg}"
+}
 
-	error(s"[Join-Patterns] $s")
+def _err(msg: String): String = {
+	_out(s"Error: ${msg}")
+}
