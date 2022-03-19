@@ -30,6 +30,8 @@ def checkGuard(using Quotes)(guard: Option[quotes.reflect.Term]): Boolean = {
 def _match[T](x: Expr[T])(using Quotes): Expr[Either[Unit, String]] = {
 	import quotes.reflect.*
 
+	var well_formed = false
+
 	x.asTerm match
 		case Inlined(_, _, Block(_, Block(stmts, _))) => {
 			stmts(0) match
@@ -38,32 +40,35 @@ def _match[T](x: Expr[T])(using Quotes): Expr[Either[Unit, String]] = {
 						_case match
 							case CaseDef(pattern, guard, _) =>
 								//println(prettyPrint(guard))
-								if !checkGuard(guard) then
-									'{ Right(_err("Guard was not a function application")) }
+								if checkGuard(guard) then
+									well_formed = true
 					}
 				}
 		}
 
-	'{Left(())}
+	if well_formed then '{Left(())}
+	else '{error("Guard was not a function application, got :" /*+ codeOf(guard)*/)}
 }
 
-def _match2(x: Expr[Any])(using Quotes): Expr[Either[Unit, String]] = {
+def _match2[T: Type](x: Expr[T])(using Quotes): Expr[Either[Unit, String]] = {
 	import quotes.reflect.*
+	import scala.language.postfixOps
 
 	x match
 		case '{ $y: (Message => Int) } =>
-			println(y)
-			print("first")
+			println("first")
+			println(y.asTerm.symbol.declarations)
+		//case '{ ${expr @ Expr(value)}: Inlined } => ()
 		case '{ $block0: t } =>
 			println(Type.show[t])
 			println()
 			println(block0)
-			print("second")
+			println("second")
 
-/*
+			/*
 			block0 match
 				case '{($stmts: List[t1], $trm: t2)} => println(stmts)
-				*/
+			*/
 
 	'{Left(())}
 }
@@ -71,9 +76,8 @@ def _match2(x: Expr[Any])(using Quotes): Expr[Either[Unit, String]] = {
 /**
  * Should call to Console.err.println if macro is ill-formed
 */
-inline def receive[R](queue: LinkedTransferQueue[Message])(inline expr : R): Either[Unit, String] = ${
-	_match('{expr})
-}
+inline def receive[R](queue: LinkedTransferQueue[Message])(inline expr : R): Either[Unit, String] =
+	${_match('{expr})}
 
 /*
  primitive / composite event
