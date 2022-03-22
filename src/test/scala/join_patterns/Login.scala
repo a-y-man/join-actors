@@ -10,10 +10,11 @@ case class OAuth(id: String) extends Message
 class LoginTest() extends AnyFunSuite {
 	test("LoginTest") {
 		val queue: LinkedTransferQueue[Message] = LinkedTransferQueue[Message]()
+		val checkId = (id: String) => id.size > 0
 
-		receive (queue) {
+		receive {
 		(x: Message) => x match
-			case Login(name) if name != "" => println(name)
+			case l: Login if checkId(l.id) => println(l.id)
 			case (l: Logout) => println("here")
 			case (a: OAuth) => {
 				val y = 1

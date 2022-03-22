@@ -17,10 +17,10 @@ def showExpr[T](expr: Expr[T])(using Quotes): Expr[String] =
 	val code: String = expr.show
 	Expr(code)
 
-def _out(msg: String): String = {
-	s"[Join-Patterns] ${msg}"
-}
+def _println[T](x: Expr[T])(using Quotes) = {
+	import quotes.reflect.*
 
-def _err(msg: String): String = {
-	_out(s"Error: ${msg}")
+	val tree: Tree = x.asTerm
+	//println(tree.show(using Printer.TreeStructure))
+	println(prettyPrint(tree))
 }
