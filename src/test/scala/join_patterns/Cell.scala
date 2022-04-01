@@ -17,7 +17,7 @@ class Cell[T](queue: LinkedTransferQueue[Message]) {
 			case Get() if isDefined(element) => println(element)
 			case Get() if isEmpty(element) => println("empty")
 			case Set() => println("Set")
-			//case _ => println("unknown message")
+			case _ => println("unknown message")
 	}
 }
 

@@ -42,24 +42,31 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
           (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
           () => ${rhs.asExprOf[T]}
         )}
-      case ua @ Unapply(_/*TupleN*/, Nil, pats) =>
+      case ua @ Unapply(_, Nil, pats) =>
         val classes: Expr[List[String]] = Expr(pats.map {
           case TypedOrTest(ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil), _) =>
             extractClassName(ua)
+          case Wildcard() => ""
           case default =>
-            report.error(f"Unsupported test: ${default.show(using Printer.TreeStructure)}")
+            report.error(f"Unsupported pattern: ${default.show(using Printer.TreeStructure)}")
             ""
         })
 
         '{(
-          (m: List[M]) => ${classes}.forall(
-            c_c => m.find(_.getClass.getName == c_c.getClass.getName).isDefined
-          ),
+          (m: List[M]) =>
+            m.length >= ${classes}.length && ${classes}.forall(
+              c_c => c_c.isEmpty || m.find(_.getClass.getName == c_c.getClass.getName).isDefined
+            ),
           () => ${rhs.asExprOf[T]} )
         }
       case default =>
         report.error(f"Unsupported test: ${default.show(using Printer.TreeStructure)}")
         null
+    case CaseDef(Wildcard(), guard, rhs) =>
+      '{(
+          (m: List[M]) => true,
+          () => ${rhs.asExprOf[T]}
+        )}
     case default =>
       report.error(f"Unsupported match clause: ${default.show(using Printer.TreeStructure)}")
       null
