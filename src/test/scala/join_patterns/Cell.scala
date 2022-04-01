@@ -4,7 +4,7 @@ import org.scalatest.funsuite._
 import java.util.concurrent.LinkedTransferQueue
 
 case class Get() extends Message
-case class Set[T](element: T) extends Message
+case class Set(/*element: Int*/) extends Message
 
 class Cell[T](queue: LinkedTransferQueue[Message]) {
 	var element: Option[T] = None
@@ -14,16 +14,16 @@ class Cell[T](queue: LinkedTransferQueue[Message]) {
 
 	receive {
 		(x: Message) => x match
-			case g: Get if isDefined(element) => println(element)
-			case g: Get if isEmpty(element) => println("empty")
-			case s: Set[Int] => println("Set")
-			case _ => println("unknown message")
+			case Get() if isDefined(element) => println(element)
+			case Get() if isEmpty(element) => println("empty")
+			case Set() => println("Set")
+			//case _ => println("unknown message")
 	}
 }
 
 class CellTest() extends AnyFunSuite {
 	test("CellTest") {
-		val queue: LinkedTransferQueue[Message] = LinkedTransferQueue[Message]()
-		var cell: Cell[Int] = Cell[Int](queue)
+		val queue = LinkedTransferQueue[Message]()
+		var cell = Cell[Int](queue)
 	}
 }

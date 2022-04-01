@@ -3,9 +3,9 @@ package join_patterns
 import org.scalatest.funsuite._
 import java.util.concurrent.LinkedTransferQueue
 
-case class Login(id: String) extends Message
-case class Logout(id: String) extends Message
-case class OAuth(id: String) extends Message
+case class Login(/*id: String*/) extends Message
+case class Logout(/*id: String*/) extends Message
+case class OAuth(/*id: String*/) extends Message
 
 class LoginTest() extends AnyFunSuite {
 	test("LoginTest") {
@@ -14,9 +14,9 @@ class LoginTest() extends AnyFunSuite {
 
 		receive {
 		(x: Message) => x match
-			case l: Login if checkId(l.id) => println(l.id)
-			case (l: Logout) => println("here")
-			case (a: OAuth) => {
+			case Login() /*if checkId(l.id)*/ => println(""/*l.id*/)
+			case Logout() => println("here")
+			case OAuth() => {
 				val y = 1
 				println(y)
 			}
