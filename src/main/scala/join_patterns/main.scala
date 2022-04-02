@@ -19,6 +19,7 @@ def main(): Unit =
 		case (A(), B()) => 44
 		case _ => 45
 		case (A(), _) => 46
+		case (A(), B(), C()) => 47
 	}
 
 	val q = LinkedTransferQueue[Msg]()
@@ -31,7 +32,17 @@ def main(): Unit =
 	val ret2 = f(q)
 	println(f"After receiving B, f returned: ${ret2}")
 
-	q.add(C())
+	q.add(A())
+	q.add(B())
 	val ret3 = f(q)
-	println(f"After receiving C, f returned: ${ret3}")
+	println(f"After receiving A & B, f returned: ${ret3}")
+
+	q.add(C())
+	val ret4 = f(q)
+	println(f"After receiving C, f returned: ${ret4}")
+
+	q.add(A())
+	q.add(C())
+	val ret5 = f(q)
+	println(f"After receiving A & C, f returned: ${ret5}")
 

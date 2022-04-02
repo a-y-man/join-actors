@@ -4,6 +4,25 @@ import java.util.concurrent.{LinkedTransferQueue => Queue}
 
 import scala.quoted.{Expr, Type, Quotes}
 
+def error[T](using quotes: Quotes)
+            (msg: String, token: T, pos: Option[quotes.reflect.Position] = None): Unit =
+  import quotes.reflect.*
+
+  var show = token match
+    case t: Tree => t.show(using Printer.TreeStructure)
+    case t: TypeRepr => t.show(using Printer.TypeReprStructure)
+    case s: Signature => s.resultSig
+    case s: String => s
+    case _ => token.toString
+
+  val _pos = token match
+    case t: Tree if t.symbol.pos.isDefined => "at " + t.symbol.pos
+    case t: TypeRepr if t.termSymbol.pos.isDefined => "at " + t.termSymbol.pos
+    case _ if pos.isDefined => "at " + pos
+    case _ => ""
+
+  report.error(f"$msg: $show $_pos")
+
 def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
   import quotes.reflect.*
 
@@ -17,15 +36,11 @@ def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
             case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"), trepr :: _) =>
               trepr.dealias.simplified match
                 case tp: TypeRef => return tp.classSymbol.get.fullName
-                case default =>
-                  report.error(f"Unsupported TypeRepr: ${default.show(using Printer.TypeReprStructure)}")
-            case default =>
-              report.error(f"Unsupported extractor type: ${extractor.tpe.show(using Printer.TypeReprStructure)}")
-        else
-          report.error(f"Unsupported unapply return type: ${sig.resultSig}")
-      case None => report.error(f"Unsupported Select: ${sel.show(using Printer.TreeStructure)}")
-    case default =>
-      report.error(f"Unsupported unapply function: ${ua.fun.show(using Printer.TreeStructure)}")
+                case default => error("Unsupported TypeRepr", default)
+            case default => error("Unsupported extractor type", extractor.tpe)
+        else error("Unsupported Signature", sig, sel.symbol.pos)
+      case None => error("Unsupported Select", sel)
+    case default => error("Unsupported unapply function", ua.fun)
 
   return ""
 
@@ -34,43 +49,48 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
   import quotes.reflect.*
 
   _case match
-    case CaseDef(TypedOrTest(tree, tpd), guard, rhs) => tree match
-      case ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil) =>
-        val tpName = Expr(extractClassName(ua))
+    case CaseDef(TypedOrTest(tree, tpd), guard, rhs) =>
+      guard match
+        case Some(Apply(Select(_, "apply"), _)) | None => ()
+        case Some(default) => error("Unsupported guard", default)
 
-        '{(
-          (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
-          () => ${rhs.asExprOf[T]}
-        )}
-      case ua @ Unapply(_, Nil, pats) =>
-        val classes: Expr[List[String]] = Expr(pats.map {
-          case TypedOrTest(ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil), _) =>
-            extractClassName(ua)
-          case Wildcard() => ""
-          case default =>
-            report.error(f"Unsupported pattern: ${default.show(using Printer.TreeStructure)}")
-            ""
-        })
+      tree match
+        case ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil) =>
+          val tpName = Expr(extractClassName(ua))
 
-        '{(
-          (m: List[M]) =>
-            m.length >= ${classes}.length && ${classes}.forall(
-              c_c => c_c.isEmpty || m.find(_.getClass.getName == c_c.getClass.getName).isDefined
-            ),
-          () => ${rhs.asExprOf[T]} )
-        }
-      case default =>
-        report.error(f"Unsupported test: ${default.show(using Printer.TreeStructure)}")
-        null
+          '{(
+            (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
+            () => ${rhs.asExprOf[T]}
+          )}
+        case ua @ Unapply(_, Nil, pats) =>
+          val classes = pats.map {
+            case TypedOrTest(ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil), _) =>
+              extractClassName(ua)
+            case w: Wildcard => w.name
+            case default =>
+              error("Unsupported pattern", default)
+              ""
+          }
+          val length = Expr(classes.length)
+
+          '{(
+            (m: List[M]) =>
+              m.length >= ${length} && ${Expr(classes)}.forall(
+                c_c => m.find(_.getClass.getName == c_c.getClass.getName).isDefined || c_c == "_"
+              ),
+            () => ${rhs.asExprOf[T]} )
+          }
+        case default =>
+          error("Unsupported test", default)
+          null
     case CaseDef(Wildcard(), guard, rhs) =>
       '{(
           (m: List[M]) => true,
           () => ${rhs.asExprOf[T]}
         )}
     case default =>
-      report.error(f"Unsupported match clause: ${default.show(using Printer.TreeStructure)}")
+      error("Unsupported match clause", default)
       null
-
 
 // Translate a series of match clause into a list of pairs, each one
 // containing a test function to check whether a message has a certain type,
@@ -85,10 +105,10 @@ def getCases[M, T](expr: Expr[M => T])
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           cases.map {generate[M, T](_)}
         case default =>
-          report.error(f"Unsupported code: ${default.show(using Printer.TreeStructure)}")
+          error("Unsupported code", default)
           List()
     case default =>
-      report.error(f"Unsupported code: ${default.show(using Printer.TreeStructure)}")
+      error("Unsupported expression", default)
       List()
 
 // Generate the code returned by the receive macro
