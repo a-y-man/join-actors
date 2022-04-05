@@ -27,7 +27,7 @@ def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
   import quotes.reflect.*
 
   ua.fun match
-    case sel @ Select(Ident(x), "unapply") => sel.signature match
+    case sel @ Select(Ident(_), "unapply") => sel.signature match
       case Some(sig) =>
         if (sig.resultSig == "scala.Boolean")
           val extractor = ua.fun.etaExpand(ua.symbol)
@@ -44,15 +44,23 @@ def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
 
   return ""
 
+def generateGuard(using quotes: Quotes)(guard: Option[quotes.reflect.Term]): Expr[Function0[Boolean]] =
+  import quotes.reflect.*
+
+  guard match
+    case Some(apply: Apply) => return apply.fun.etaExpand(apply.symbol).asExprOf[Function0[Boolean]]
+    case None => ()
+    case Some(default) => error("Unsupported guard", default)
+
+  '{() => true}
+
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
-            (_case: quotes.reflect.CaseDef): Expr[(List[M] => Boolean, () => T)] =
+            (_case: quotes.reflect.CaseDef): Expr[(List[M] => Boolean, () => Boolean, () => T)] =
   import quotes.reflect.*
 
   _case match
     case CaseDef(TypedOrTest(tree, tpd), guard, rhs) =>
-      guard match
-        case Some(Apply(Select(_, "apply"), _)) | None => ()
-        case Some(default) => error("Unsupported guard", default)
+      val _guard = generateGuard(guard)
 
       tree match
         case ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil) =>
@@ -60,6 +68,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
           '{(
             (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
+            $_guard,
             () => ${rhs.asExprOf[T]}
           )}
         case ua @ Unapply(_, Nil, pats) =>
@@ -78,14 +87,18 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
               m.length >= ${length} && ${Expr(classes)}.forall(
                 c_c => m.find(_.getClass.getName == c_c.getClass.getName).isDefined || c_c == "_"
               ),
-            () => ${rhs.asExprOf[T]} )
-          }
+            $_guard,
+            () => ${rhs.asExprOf[T]}
+          )}
         case default =>
           error("Unsupported test", default)
           null
     case CaseDef(Wildcard(), guard, rhs) =>
+      val _guard = generateGuard(guard)
+
       '{(
           (m: List[M]) => true,
+          $_guard,
           () => ${rhs.asExprOf[T]}
         )}
     case default =>
@@ -96,7 +109,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 // containing a test function to check whether a message has a certain type,
 // and a closure (returning T) to execute if the test returns true
 def getCases[M, T](expr: Expr[M => T])
-                  (using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[(List[M] => Boolean, () => T)]] =
+                  (using quotes: Quotes, tm: Type[M], tt: Type[T]):
+                    List[Expr[(List[M] => Boolean, () => Boolean, () => T)]] =
   import quotes.reflect.*
 
   expr.asTerm match
@@ -123,7 +137,7 @@ def receiveCodegen[M, T](expr: Expr[M => T])
       while (matched.isEmpty)
         val msg = q.take()
         matchTable.find(_._1(msg :: Nil)) match
-          case Some(m) => matched = Some(m._2())
+          case Some(m) => if m._2() then matched = Some(m._3())
           case _ => ()
 
       matched.get

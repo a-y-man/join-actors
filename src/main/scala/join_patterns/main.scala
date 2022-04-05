@@ -6,13 +6,14 @@ sealed abstract class Msg
 case class A() extends Msg
 case class B() extends Msg
 case class C() extends Msg
+case class D() extends Msg
 
 @main
 def main(): Unit =
 	val i: Int = 0;
 
-	val iZero: Int => Boolean = (i: Int) => i == 0
-	val iOne: Int => Boolean = (i: Int) => i != 0
+	val iZero: () => Boolean = () => i == 0
+	val iOne: () => Boolean = () => i != 0
 	val f = receive { (y: Msg) => y match
 		case A() => 42
 		case B() => 43
@@ -20,6 +21,7 @@ def main(): Unit =
 		case _ => 45
 		case (A(), _) => 46
 		case (A(), B(), C()) => 47
+		case D() if iZero() => 48
 	}
 
 	val q = LinkedTransferQueue[Msg]()
