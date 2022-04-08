@@ -4,24 +4,41 @@ import java.util.concurrent.{LinkedTransferQueue => Queue}
 
 import scala.quoted.{Expr, Type, Quotes}
 
+def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
+  import quotes.reflect.*
+
+  val t = token.show(using Printer.TreeStructure)
+
+  token.symbol.pos match
+    case Some(pos) => report.error(f"$msg: $t", pos)
+    case None => report.error(f"$msg: $t")
+
+def errorTypeRepr(using quotes: Quotes)(msg: String, token: quotes.reflect.TypeRepr): Unit =
+  import quotes.reflect.*
+
+  val t = token.show(using Printer.TypeReprStructure)
+
+  token.termSymbol.pos match
+    case Some(pos) => report.error(f"$msg: $t", pos)
+    case None => report.error(f"$msg: $t")
+
+def errorSig(using quotes: Quotes)(msg: String, token: quotes.reflect.Signature): Unit =
+  import quotes.reflect.*
+
+  report.error(f"$msg: ${token.paramSigs} => ${token.resultSig}")
+
 def error[T](using quotes: Quotes)
             (msg: String, token: T, pos: Option[quotes.reflect.Position] = None): Unit =
   import quotes.reflect.*
 
-  var show = token match
-    case t: Tree => t.show(using Printer.TreeStructure)
-    case t: TypeRepr => t.show(using Printer.TypeReprStructure)
-    case s: Signature => s.resultSig
+  val show: String = token match
     case s: String => s
     case _ => token.toString
 
-  val _pos = token match
-    case t: Tree if t.symbol.pos.isDefined => "at " + t.symbol.pos
-    case t: TypeRepr if t.termSymbol.pos.isDefined => "at " + t.termSymbol.pos
-    case _ if pos.isDefined => "at " + pos
-    case _ => ""
+  val _pos: Position = token match
+    case _ if pos.isDefined => pos.get
 
-  report.error(f"$msg: $show $_pos")
+  report.error(f"$msg: $show", _pos)
 
 def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
   import quotes.reflect.*
@@ -33,16 +50,16 @@ def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
           val extractor = ua.fun.etaExpand(ua.symbol)
 
           extractor.tpe match
-            case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"), trepr :: _) =>
-              trepr.dealias.simplified match
+            case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"),
+              trepr :: _) => trepr.dealias.simplified match
                 case tp: TypeRef => return tp.classSymbol.get.fullName
-                case default => error("Unsupported TypeRepr", default)
-            case default => error("Unsupported extractor type", extractor.tpe)
-        else error("Unsupported Signature", sig, sel.symbol.pos)
+                case default => errorTypeRepr("Unsupported TypeRepr", default)
+            case default => errorTypeRepr("Unsupported extractor type", extractor.tpe)
+        else errorSig("Unsupported Signature", sig)
       case None => error("Unsupported Select", sel)
     case default => error("Unsupported unapply function", ua.fun)
 
-  return ""
+  ""
 
 def generateGuard(using quotes: Quotes)(guard: Option[quotes.reflect.Term]): Expr[Function0[Boolean]] =
   import quotes.reflect.*
@@ -55,55 +72,105 @@ def generateGuard(using quotes: Quotes)(guard: Option[quotes.reflect.Term]): Exp
   '{() => true}
 
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
-            (_case: quotes.reflect.CaseDef): Expr[(List[M] => Boolean, () => Boolean, () => T)] =
+            (_case: quotes.reflect.CaseDef):
+              Expr[(List[M] => Boolean, () => Boolean, () => T)] =
   import quotes.reflect.*
 
   _case match
-    case CaseDef(TypedOrTest(tree, tpd), guard, rhs) =>
+    case CaseDef(pattern, guard, rhs) =>
       val _guard = generateGuard(guard)
 
-      tree match
-        case ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil) =>
-          val tpName = Expr(extractClassName(ua))
+      pattern match
+        case TypedOrTest(tree, tpd) =>
+          tree match
+            case ua @ Unapply(sel @ Select(Ident(_), "unapply"), Nil, patterns) =>
+              patterns match
+                case Nil =>
+                  println("Nil")
+                  val tpName = Expr(extractClassName(ua))
 
-          '{(
-            (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
+                  return '{(
+                    (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
+                    $_guard,
+                    () => ${rhs.asExprOf[T]}
+                  )}
+                case List(bind @ Bind(name, typed @ Typed(Wildcard(), TypeIdent(_type)))) =>
+                  println("List(Bind)")
+                  val _class = Expr(ua.fun match
+                      case sel @ Select(Ident(_), "unapply") => sel.signature match
+                        case Some(sig) => sig.resultSig
+                        case None => ""
+                      case _ => ""
+                    )
+
+                  println(prettyPrint(rhs))
+
+                  var new_rhs =  rhs match
+                    case block @ Block(stmts, expr @ Apply(fun @ Select(qualifier @ Ident(_), _), args: List[Term])) =>
+                      val new_args = NamedArg(name, Typed(Wildcard(), TypeIdent(typed.symbol))) :: args
+                      Block(stmts, Apply(fun, new_args))
+
+
+
+                  println(prettyPrint(new_rhs))
+
+                  return '{(
+                    (m: List[M]) => m.find(_.getClass.getName == ${_class}).isDefined,
+                    $_guard,
+                    () => ${new_rhs.asExprOf[T]}
+                  )}
+                /*
+                case List(_) =>
+                  println("List(_)")
+                  val classes = patterns.map {
+                    case TypedOrTest(ua1 @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil), _) =>
+                      extractClassName(ua1)
+                    case w: Wildcard => w.name
+                    case default =>
+                      errorTree("Unsupported pattern", default)
+                      ""
+                  }
+                  val length = Expr(classes.length)
+
+                  return '{(
+                    (m: List[M]) =>
+                      m.length >= ${length} && ${Expr(classes)}.forall(
+                        c_c => m.find(_.getClass.getName == c_c.getClass.getName).isDefined || c_c == "_"
+                      ),
+                    $_guard,
+                    () => ${rhs.asExprOf[T]}
+                  )}
+                */
+                case default => error("Unsupported patterns", default)
+            // (A, B, ...)
+            /*
+            case Unapply(TypeApply(Select(Ident(_Tuple), "unapply"), args), Nil, classes) =>
+              // args : List(Inferred(), Inferred())
+              classes.map {
+                case TypedOrTest(Unapply(Select(Ident(typename), "unapply"), Nil, Nil), Inferred()) => ()
+                case default => ()
+              }
+
+              val typenames = args.map {
+                t => t.tpe.dealias.simplified.classSymbol.get.fullName
+              }
+
+              return '{(
+                (m: List[M]) => true,
+                $_guard,
+                () => ${rhs.asExprOf[T]}
+              )}
+            */
+            case default => errorTree("Unsupported test", default)
+        case Wildcard() =>
+          return '{(
+            (m: List[M]) => true,
             $_guard,
             () => ${rhs.asExprOf[T]}
           )}
-        case ua @ Unapply(_, Nil, pats) =>
-          val classes = pats.map {
-            case TypedOrTest(ua @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil), _) =>
-              extractClassName(ua)
-            case w: Wildcard => w.name
-            case default =>
-              error("Unsupported pattern", default)
-              ""
-          }
-          val length = Expr(classes.length)
+        case default => errorTree("Unsupported case pattern", default)
 
-          '{(
-            (m: List[M]) =>
-              m.length >= ${length} && ${Expr(classes)}.forall(
-                c_c => m.find(_.getClass.getName == c_c.getClass.getName).isDefined || c_c == "_"
-              ),
-            $_guard,
-            () => ${rhs.asExprOf[T]}
-          )}
-        case default =>
-          error("Unsupported test", default)
-          null
-    case CaseDef(Wildcard(), guard, rhs) =>
-      val _guard = generateGuard(guard)
-
-      '{(
-          (m: List[M]) => true,
-          $_guard,
-          () => ${rhs.asExprOf[T]}
-        )}
-    case default =>
-      error("Unsupported match clause", default)
-      null
+  null
 
 // Translate a series of match clause into a list of pairs, each one
 // containing a test function to check whether a message has a certain type,
@@ -117,12 +184,16 @@ def getCases[M, T](expr: Expr[M => T])
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts(0) match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          cases.map {generate[M, T](_)}
+          cases.map {
+            x =>
+              println(x.show(using Printer.TreeStructure))
+              generate[M, T](x)
+          }
         case default =>
-          error("Unsupported code", default)
+          errorTree("Unsupported code", default)
           List()
     case default =>
-      error("Unsupported expression", default)
+      errorTree("Unsupported expression", default)
       List()
 
 // Generate the code returned by the receive macro
@@ -151,8 +222,7 @@ def receiveCodegen[M, T](expr: Expr[M => T])
  *  @param f the block to use as source of the pattern-matching code.
  *  @return a comptime function performing pattern-matching on a message queue at runtime.
  */
-inline def receive[M, T](inline f: M => T): Queue[M] => T =
-  ${ receiveCodegen('f) }
+inline def receive[M, T](inline f: M => T): Queue[M] => T = ${ receiveCodegen('f) }
 
 /*
  primitive / composite event
