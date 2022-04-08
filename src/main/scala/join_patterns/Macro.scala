@@ -94,8 +94,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                     $_guard,
                     () => ${rhs.asExprOf[T]}
                   )}
-                case List(bind @ Bind(name, typed @ Typed(Wildcard(), TypeIdent(_type)))) =>
-                  println("List(Bind)")
+                case List(bind @ Bind(varName, typed @ Typed(Wildcard(), varType @ TypeIdent(_type)))) =>
+                  report.info(bind.show(using Printer.TreeStructure), bind.pos)
                   val _class = Expr(ua.fun match
                       case sel @ Select(Ident(_), "unapply") => sel.signature match
                         case Some(sig) => sig.resultSig
@@ -103,21 +103,46 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                       case _ => ""
                     )
 
-                  println(prettyPrint(rhs))
+                  // report.info(rhs.show(using Printer.TreeStructure), rhs.pos)
 
-                  var new_rhs =  rhs match
-                    case block @ Block(stmts, expr @ Apply(fun @ Select(qualifier @ Ident(_), _), args: List[Term])) =>
-                      val new_args = NamedArg(name, Typed(Wildcard(), TypeIdent(typed.symbol))) :: args
-                      Block(stmts, Apply(fun, new_args))
+                  // val new_rhs =  rhs match
+                  //   case block @ Block(stmts, expr @ Apply(fun @ Select(qualifier @ Ident(_), _), args: List[Term])) =>
+                  //     val new_args = NamedArg(name, Typed(Wildcard(), TypeIdent(typed.symbol))) :: args
+                  //     Block(stmts, Apply(fun, new_args))
 
+                  // val newRhs = DefDef(List(TermParamClause(List(ValDef(symbol, None)))), Inferred(), Some(rhs))
+                  // val eta = rhs.etaExpand(Symbol.spliceOwner)
+                  // report.info(eta.show(using Printer.TreeStructure), rhs.pos)
 
+                  val newVarName = f"${varName}_renamed"
+                  val lambdaTpe = MethodType(List(newVarName))(_ => List(varType.tpe), _ => TypeRepr.of[T])
+                  val newRhs = Lambda(
+                    owner = Symbol.spliceOwner,
+                    tpe = lambdaTpe,
+                    rhsFn = (sym: Symbol, params: List[Tree]) => {
+                      val p0 = params.head.asInstanceOf[Ident]
 
-                  println(prettyPrint(new_rhs))
+                      val transform = new TreeMap {
+                        override def transformTerm(term: Term)(owner: Symbol): Term = {
+                          val nt: Term = term match {
+                            case Ident(n) if (n == varName) => p0
+                            case x => super.transformTerm(x)(owner)
+                          }
+                          nt
+                        }
+                      }
+                      transform.transformTerm(rhs.changeOwner(sym))(sym)
+                    }
+                  )
+                  // val rhsFn: List[List[Tree]] => Option[Term] = l => Some(rhs)
+                  // val newRhs = DefDef(Symbol.spliceOwner, rhsFn)
+
+                  println(prettyPrint(newRhs))
 
                   return '{(
                     (m: List[M]) => m.find(_.getClass.getName == ${_class}).isDefined,
                     $_guard,
-                    () => ${new_rhs.asExprOf[T]}
+                    () => { val test = ${ newRhs.asExprOf[Int => T] }; test(42) }
                   )}
                 /*
                 case List(_) =>

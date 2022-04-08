@@ -27,8 +27,10 @@ def main(): Unit =
 		case (A(), B(), C()) => 47
 		case D() if iZero() => 48
 		*/
-		case E(n: Int) => n + 1
+		case E(n: Int) => { { val n = "hi"; println(n) }; n + 1 }
 	}
+
+	// val test = receive { (n: Int) => n + 1 }dfsadf
 
 	val q = LinkedTransferQueue[Msg]()
 
