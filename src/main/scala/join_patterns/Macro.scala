@@ -61,41 +61,113 @@ def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
 
   ""
 
-def generateGuard(using quotes: Quotes)(guard: Option[quotes.reflect.Term]): Expr[Function0[Boolean]] =
+// REFACTOR
+def generateGuard(using quotes: Quotes)
+                 (guard: Option[quotes.reflect.Term],
+                  variable: Option[(String, quotes.reflect.TypeIdent)] = None): quotes.reflect.Block =
   import quotes.reflect.*
 
   guard match
-    case Some(apply: Apply) => return apply.fun.etaExpand(apply.symbol).asExprOf[Function0[Boolean]]
+    case Some(apply: Apply) =>
+      variable match
+        case Some(name, _type) => _type.tpe.asType match
+          case '[t] => ()//return apply.fun.etaExpand(apply.symbol).asExprOf[Function[t, Boolean]]
+          return Lambda(
+            owner = Symbol.spliceOwner,
+            tpe = MethodType(List(name))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
+            rhsFn = (sym: Symbol, params: List[Tree]) => {
+              val p0 = params.head.asInstanceOf[Ident]
+
+              val transform = new TreeMap {
+                override def transformTerm(term: Term)(owner: Symbol): Term = {
+                  val nt: Term = term match {
+                    case Ident(n) if (n == name) => p0
+                    case x => super.transformTerm(x)(owner)
+                  }
+                  nt
+                }
+              }
+              transform.transformTerm(apply.changeOwner(sym))(sym)
+            }
+          )
+        case None =>
+          return Lambda(
+            owner = Symbol.spliceOwner,
+            tpe = MethodType(List("m"))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
+            rhsFn = (sym: Symbol, params: List[Tree]) => {
+              val transform = new TreeMap {
+                override def transformTerm(term: Term)(owner: Symbol): Term =
+                  super.transformTerm(term)(owner)
+              }
+              transform.transformTerm(apply.changeOwner(sym))(sym)
+            }
+          )
     case None => ()
     case Some(default) => error("Unsupported guard", default)
 
-  '{() => true}
+  Lambda(
+    owner = Symbol.spliceOwner,
+    tpe = MethodType(List("m"))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
+    rhsFn = (sym: Symbol, params: List[Tree]) => {
+      val transform = new TreeMap {
+        override def transformTerm(term: Term)(owner: Symbol): Term =
+          super.transformTerm(term)(owner)
+      }
+      transform.transformTerm(('{true}).asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
+    }
+  )
+
+def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
+                 (name: String, _type: quotes.reflect.TypeRepr, rhs: quotes.reflect.Term): quotes.reflect.Block =
+  import quotes.reflect.*
+
+  Lambda(
+    owner = Symbol.spliceOwner,
+    tpe = MethodType(List(name))(_ => List(_type), _ => TypeRepr.of[T]),
+    rhsFn = (sym: Symbol, params: List[Tree]) => {
+      val p0 = params.head.asInstanceOf[Ident]
+
+      val transform = new TreeMap {
+        override def transformTerm(term: Term)(owner: Symbol): Term = {
+          val nt: Term = term match {
+            case Ident(n) if (n == name) => p0
+            case x => super.transformTerm(x)(owner)
+          }
+          nt
+        }
+      }
+      transform.transformTerm(rhs.changeOwner(sym))(sym)
+    }
+  )
 
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             (_case: quotes.reflect.CaseDef):
-              Expr[(List[M] => Boolean, () => Boolean, () => T)] =
+              Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, () => T)] =
   import quotes.reflect.*
 
   _case match
     case CaseDef(pattern, guard, rhs) =>
-      val _guard = generateGuard(guard)
 
       pattern match
         case TypedOrTest(tree, tpd) =>
           tree match
             case ua @ Unapply(sel @ Select(Ident(_), "unapply"), Nil, patterns) =>
+              println(patterns)
               patterns match
                 case Nil =>
-                  println("Nil")
                   val tpName = Expr(extractClassName(ua))
+                  val _guard = generateGuard(guard)
 
                   return '{(
                     (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
-                    $_guard,
+                    (m: List[M]) => None,
+                    (p: Any) => { val test = ${_guard.asExprOf[Any => Boolean] }; test(p)},
                     () => ${rhs.asExprOf[T]}
                   )}
-                case List(bind @ Bind(varName, typed @ Typed(Wildcard(), varType @ TypeIdent(_type)))) =>
-                  report.info(bind.show(using Printer.TreeStructure), bind.pos)
+                case List(bind @ Bind(varName, typed @ Typed(_, varType @ TypeIdent(_type)))) =>
+                  //report.info(bind.show(using Printer.TreeStructure), bind.pos)
+
+                  // REFACTOR
                   val _class = Expr(ua.fun match
                       case sel @ Select(Ident(_), "unapply") => sel.signature match
                         case Some(sig) => sig.resultSig
@@ -103,45 +175,15 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                       case _ => ""
                     )
 
-                  // report.info(rhs.show(using Printer.TreeStructure), rhs.pos)
+                  val _guard = generateGuard(guard, Some(varName, varType))
+                  val newRhs = makeNewRhs[T](varName, varType.tpe, rhs)
 
-                  // val new_rhs =  rhs match
-                  //   case block @ Block(stmts, expr @ Apply(fun @ Select(qualifier @ Ident(_), _), args: List[Term])) =>
-                  //     val new_args = NamedArg(name, Typed(Wildcard(), TypeIdent(typed.symbol))) :: args
-                  //     Block(stmts, Apply(fun, new_args))
-
-                  // val newRhs = DefDef(List(TermParamClause(List(ValDef(symbol, None)))), Inferred(), Some(rhs))
-                  // val eta = rhs.etaExpand(Symbol.spliceOwner)
-                  // report.info(eta.show(using Printer.TreeStructure), rhs.pos)
-
-                  val newVarName = f"${varName}_renamed"
-                  val lambdaTpe = MethodType(List(newVarName))(_ => List(varType.tpe), _ => TypeRepr.of[T])
-                  val newRhs = Lambda(
-                    owner = Symbol.spliceOwner,
-                    tpe = lambdaTpe,
-                    rhsFn = (sym: Symbol, params: List[Tree]) => {
-                      val p0 = params.head.asInstanceOf[Ident]
-
-                      val transform = new TreeMap {
-                        override def transformTerm(term: Term)(owner: Symbol): Term = {
-                          val nt: Term = term match {
-                            case Ident(n) if (n == varName) => p0
-                            case x => super.transformTerm(x)(owner)
-                          }
-                          nt
-                        }
-                      }
-                      transform.transformTerm(rhs.changeOwner(sym))(sym)
-                    }
-                  )
-                  // val rhsFn: List[List[Tree]] => Option[Term] = l => Some(rhs)
-                  // val newRhs = DefDef(Symbol.spliceOwner, rhsFn)
-
-                  println(prettyPrint(newRhs))
+                  println(prettyPrint(_guard))
 
                   return '{(
                     (m: List[M]) => m.find(_.getClass.getName == ${_class}).isDefined,
-                    $_guard,
+                    (m: List[M]) => Some(${Expr(varName)}),
+                    (p: Any) => { val test = ${_guard.asExprOf[Any => Boolean] }; test(p)},
                     () => { val test = ${ newRhs.asExprOf[Int => T] }; test(42) }
                   )}
                 /*
@@ -188,9 +230,12 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             */
             case default => errorTree("Unsupported test", default)
         case Wildcard() =>
+          val _guard = generateGuard(guard)
+
           return '{(
             (m: List[M]) => true,
-            $_guard,
+            (m: List[M]) => None,
+            (p: Any) => { val test = ${_guard.asExprOf[Any => Boolean] }; test(p)},
             () => ${rhs.asExprOf[T]}
           )}
         case default => errorTree("Unsupported case pattern", default)
@@ -202,18 +247,14 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 // and a closure (returning T) to execute if the test returns true
 def getCases[M, T](expr: Expr[M => T])
                   (using quotes: Quotes, tm: Type[M], tt: Type[T]):
-                    List[Expr[(List[M] => Boolean, () => Boolean, () => T)]] =
+                    List[Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, () => T)]] =
   import quotes.reflect.*
 
   expr.asTerm match
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts(0) match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          cases.map {
-            x =>
-              println(x.show(using Printer.TreeStructure))
-              generate[M, T](x)
-          }
+          cases.map { generate[M, T](_) }
         case default =>
           errorTree("Unsupported code", default)
           List()
@@ -230,10 +271,15 @@ def receiveCodegen[M, T](expr: Expr[M => T])
     (q: Queue[M]) =>
       val matchTable = ${ Expr.ofList(getCases(expr)) }
       var matched: Option[T] = None
+
       while (matched.isEmpty)
         val msg = q.take()
-        matchTable.find(_._1(msg :: Nil)) match
-          case Some(m) => if m._2() then matched = Some(m._3())
+        val messages = msg :: Nil
+
+        matchTable.find(_._1(messages)) match
+          case Some(m) => m._2(messages) match
+            case Some(inners) => if m._3(inners) then matched = Some(m._4())
+            case None => if m._3(None) then matched = Some(m._4())
           case _ => ()
 
       matched.get
