@@ -70,8 +70,7 @@ def generateGuard(using quotes: Quotes)
   guard match
     case Some(apply: Apply) =>
       variable match
-        case Some(name, _type) => _type.tpe.asType match
-          case '[t] => ()//return apply.fun.etaExpand(apply.symbol).asExprOf[Function[t, Boolean]]
+        case Some(name, _type) =>
           return Lambda(
             owner = Symbol.spliceOwner,
             tpe = MethodType(List(name))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
@@ -118,7 +117,8 @@ def generateGuard(using quotes: Quotes)
   )
 
 def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
-                 (name: String, _type: quotes.reflect.TypeRepr, rhs: quotes.reflect.Term): quotes.reflect.Block =
+                 (name: String, _type: quotes.reflect.TypeRepr,
+                  rhs: quotes.reflect.Term): quotes.reflect.Block =
   import quotes.reflect.*
 
   Lambda(
@@ -142,7 +142,7 @@ def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
 
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             (_case: quotes.reflect.CaseDef):
-              Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, () => T)] =
+              Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, Any => T)] =
   import quotes.reflect.*
 
   _case match
@@ -150,9 +150,9 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
       pattern match
         case TypedOrTest(tree, tpd) =>
+          report.info(_case.show(using Printer.TreeStructure), _case.pos)
           tree match
             case ua @ Unapply(sel @ Select(Ident(_), "unapply"), Nil, patterns) =>
-              println(patterns)
               patterns match
                 case Nil =>
                   val tpName = Expr(extractClassName(ua))
@@ -161,11 +161,11 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                   return '{(
                     (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
                     (m: List[M]) => None,
-                    (p: Any) => { val test = ${_guard.asExprOf[Any => Boolean] }; test(p)},
-                    () => ${rhs.asExprOf[T]}
+                    ${ _guard.asExprOf[Any => Boolean] },
+                    (p: Any) => ${rhs.asExprOf[T]}
                   )}
                 case List(bind @ Bind(varName, typed @ Typed(_, varType @ TypeIdent(_type)))) =>
-                  //report.info(bind.show(using Printer.TreeStructure), bind.pos)
+                  report.info(bind.show(using Printer.TreeStructure), bind.pos)
 
                   // REFACTOR
                   val _class = Expr(ua.fun match
@@ -178,14 +178,16 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                   val _guard = generateGuard(guard, Some(varName, varType))
                   val newRhs = makeNewRhs[T](varName, varType.tpe, rhs)
 
-                  println(prettyPrint(_guard))
-
-                  return '{(
-                    (m: List[M]) => m.find(_.getClass.getName == ${_class}).isDefined,
-                    (m: List[M]) => Some(${Expr(varName)}),
-                    (p: Any) => { val test = ${_guard.asExprOf[Any => Boolean] }; test(p)},
-                    () => { val test = ${ newRhs.asExprOf[Int => T] }; test(42) }
-                  )}
+                  varType.tpe.asType match
+                    case '[t] =>
+                      return '{(
+                        (m: List[M]) => m.find(_.getClass.getName == ${_class}).isDefined,
+                        // (m: List[E]) => m(0).unapply()
+                        (m: List[M]) => Some(m(0)),// Some(${bind.asExprOf[t]}), // use ua.fun; m(0).unapply => Some(Int)
+                        (m: Any) => ${ _guard.asExprOf[t => Boolean] }(m.asInstanceOf[t]),
+                        (m: Any) => ${ newRhs.asExprOf[t => T] }(m.asInstanceOf[t])
+                      )}
+                    case default => error("Unsupported type", default)
                 /*
                 case List(_) =>
                   println("List(_)")
@@ -235,8 +237,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
           return '{(
             (m: List[M]) => true,
             (m: List[M]) => None,
-            (p: Any) => { val test = ${_guard.asExprOf[Any => Boolean] }; test(p)},
-            () => ${rhs.asExprOf[T]}
+            ${ _guard.asExprOf[Any => Boolean] },
+            (p: Any) => ${rhs.asExprOf[T]}
           )}
         case default => errorTree("Unsupported case pattern", default)
 
@@ -247,7 +249,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 // and a closure (returning T) to execute if the test returns true
 def getCases[M, T](expr: Expr[M => T])
                   (using quotes: Quotes, tm: Type[M], tt: Type[T]):
-                    List[Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, () => T)]] =
+                  List[Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, Any => T)]] =
   import quotes.reflect.*
 
   expr.asTerm match
@@ -272,14 +274,16 @@ def receiveCodegen[M, T](expr: Expr[M => T])
       val matchTable = ${ Expr.ofList(getCases(expr)) }
       var matched: Option[T] = None
 
+      //strategy function
       while (matched.isEmpty)
         val msg = q.take()
         val messages = msg :: Nil
 
         matchTable.find(_._1(messages)) match
-          case Some(m) => m._2(messages) match
-            case Some(inners) => if m._3(inners) then matched = Some(m._4())
-            case None => if m._3(None) then matched = Some(m._4())
+          case Some(m) =>
+            m._2(messages) match
+              case Some(inners) => if m._3(inners) then matched = Some(m._4(inners))
+              case None => if m._3(None) then matched = Some(m._4(None))
           case _ => ()
 
       matched.get

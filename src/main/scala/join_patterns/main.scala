@@ -27,13 +27,15 @@ def main(): Unit =
 		case (A(), B(), C()) => 47
 		case D() if iZero() => 48
 		*/
-		case E(n: Int) if(n == 8) => { { val n = "hi"; println(n) }; n + 1 }
+		case E(n: Int) if(n == 8) => { { val z = "hi"; println(z) }; n + 1 }
 	}
 
 	// val test = receive { (n: Int) => n + 1 }dfsadf
 
 	val q = LinkedTransferQueue[Msg]()
 
+	val g = receive {(m: List[Msg]) => E.unapply(m(0).asInstanceOf[E])}
+	/*
 	q.add(A())
 	val ret1 = f(q)
 	println(f"After receiving A, f returned: ${ret1}")
@@ -45,7 +47,7 @@ def main(): Unit =
 	q.add(D())
 	val ret3 = f(q)
 	println(f"After receiving D, f returned: ${ret3}")
-
+	*/
 	q.add(E(8))
 	val ret4 = f(q)
 	println(f"After receiving E(8), f returned: ${ret4}")
