@@ -24,3 +24,39 @@ def _println[T](x: Expr[T])(using Quotes) = {
 	//println(tree.show(using Printer.TreeStructure))
 	println(prettyPrint(tree))
 }
+
+def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
+  import quotes.reflect.*
+
+  val t = token.show(using Printer.TreeStructure)
+
+  token.symbol.pos match
+    case Some(pos) => report.error(f"$msg: $t", pos)
+    case None => report.error(f"$msg: $t")
+
+def errorTypeRepr(using quotes: Quotes)(msg: String, token: quotes.reflect.TypeRepr): Unit =
+  import quotes.reflect.*
+
+  val t = token.show(using Printer.TypeReprStructure)
+
+  token.termSymbol.pos match
+    case Some(pos) => report.error(f"$msg: $t", pos)
+    case None => report.error(f"$msg: $t")
+
+def errorSig(using quotes: Quotes)(msg: String, token: quotes.reflect.Signature): Unit =
+  import quotes.reflect.*
+
+  report.error(f"$msg: ${token.paramSigs} => ${token.resultSig}")
+
+def error[T](using quotes: Quotes)
+            (msg: String, token: T, pos: Option[quotes.reflect.Position] = None): Unit =
+  import quotes.reflect.*
+
+  val show: String = token match
+    case s: String => s
+    case _ => token.toString
+
+  val _pos: Position = token match
+    case _ if pos.isDefined => pos.get
+
+  report.error(f"$msg: $show", _pos)

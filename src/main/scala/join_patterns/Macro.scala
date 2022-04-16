@@ -4,116 +4,68 @@ import java.util.concurrent.{LinkedTransferQueue => Queue}
 
 import scala.quoted.{Expr, Type, Quotes}
 
-def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
-  import quotes.reflect.*
-
-  val t = token.show(using Printer.TreeStructure)
-
-  token.symbol.pos match
-    case Some(pos) => report.error(f"$msg: $t", pos)
-    case None => report.error(f"$msg: $t")
-
-def errorTypeRepr(using quotes: Quotes)(msg: String, token: quotes.reflect.TypeRepr): Unit =
-  import quotes.reflect.*
-
-  val t = token.show(using Printer.TypeReprStructure)
-
-  token.termSymbol.pos match
-    case Some(pos) => report.error(f"$msg: $t", pos)
-    case None => report.error(f"$msg: $t")
-
-def errorSig(using quotes: Quotes)(msg: String, token: quotes.reflect.Signature): Unit =
-  import quotes.reflect.*
-
-  report.error(f"$msg: ${token.paramSigs} => ${token.resultSig}")
-
-def error[T](using quotes: Quotes)
-            (msg: String, token: T, pos: Option[quotes.reflect.Position] = None): Unit =
-  import quotes.reflect.*
-
-  val show: String = token match
-    case s: String => s
-    case _ => token.toString
-
-  val _pos: Position = token match
-    case _ if pos.isDefined => pos.get
-
-  report.error(f"$msg: $show", _pos)
-
-def extractClassName(using quotes: Quotes)(ua: quotes.reflect.Unapply): String =
+def extractClassNames(using quotes: Quotes)(ua: quotes.reflect.Unapply): (String, String) =
   import quotes.reflect.*
 
   ua.fun match
     case sel @ Select(Ident(_), "unapply") => sel.signature match
       case Some(sig) =>
-        if (sig.resultSig == "scala.Boolean")
-          val extractor = ua.fun.etaExpand(ua.symbol)
+        val extractor = ua.fun.etaExpand(ua.symbol)
 
-          extractor.tpe match
-            case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"),
-              trepr :: _) => trepr.dealias.simplified match
-                case tp: TypeRef => return tp.classSymbol.get.fullName
-                case default => errorTypeRepr("Unsupported TypeRepr", default)
-            case default => errorTypeRepr("Unsupported extractor type", extractor.tpe)
-        else errorSig("Unsupported Signature", sig)
+        extractor.tpe match
+          case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"),
+            trepr :: _) => trepr.dealias.simplified match
+              case tp: TypeRef => return (sig.resultSig, tp.classSymbol.get.fullName)
+              case default => errorTypeRepr("Unsupported TypeRepr", default)
+          case default => errorTypeRepr("Unsupported extractor type", extractor.tpe)
       case None => error("Unsupported Select", sel)
     case default => error("Unsupported unapply function", ua.fun)
 
-  ""
+  ("", "")
 
-// REFACTOR
 def generateGuard(using quotes: Quotes)
                  (guard: Option[quotes.reflect.Term],
-                  variable: Option[(String, quotes.reflect.TypeIdent)] = None): quotes.reflect.Block =
+                  variable: Option[(String, quotes.reflect.TypeIdent)] = None):
+                    quotes.reflect.Block =
   import quotes.reflect.*
+
+  val _transform = new TreeMap {
+    override def transformTerm(term: Term)(owner: Symbol): Term =
+      super.transformTerm(term)(owner)
+  }
+
+  var _rhsFn = (sym: Symbol, params: List[Tree]) =>
+    _transform.transformTerm(('{true}).asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
 
   guard match
     case Some(apply: Apply) =>
       variable match
         case Some(name, _type) =>
-          return Lambda(
-            owner = Symbol.spliceOwner,
-            tpe = MethodType(List(name))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
-            rhsFn = (sym: Symbol, params: List[Tree]) => {
-              val p0 = params.head.asInstanceOf[Ident]
+          _rhsFn = (sym: Symbol, params: List[Tree]) =>
+            val p0 = params.head.asInstanceOf[Ident]
 
-              val transform = new TreeMap {
-                override def transformTerm(term: Term)(owner: Symbol): Term = {
-                  val nt: Term = term match {
-                    case Ident(n) if (n == name) => p0
-                    case x => super.transformTerm(x)(owner)
-                  }
-                  nt
-                }
+            val transform = new TreeMap {
+              override def transformTerm(term: Term)(owner: Symbol): Term =
+                val nt: Term = term match
+                  case Ident(n) if (n == name) => p0
+                  case x => super.transformTerm(x)(owner)
+
+                nt
               }
-              transform.transformTerm(apply.changeOwner(sym))(sym)
-            }
-          )
-        case None =>
-          return Lambda(
-            owner = Symbol.spliceOwner,
-            tpe = MethodType(List("m"))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
-            rhsFn = (sym: Symbol, params: List[Tree]) => {
-              val transform = new TreeMap {
-                override def transformTerm(term: Term)(owner: Symbol): Term =
-                  super.transformTerm(term)(owner)
-              }
-              transform.transformTerm(apply.changeOwner(sym))(sym)
-            }
-          )
+
+            transform.transformTerm(apply.changeOwner(sym))(sym)
+        case None => _rhsFn = (sym: Symbol, params: List[Tree]) =>
+          _transform.transformTerm(apply.changeOwner(sym))(sym)
     case None => ()
     case Some(default) => error("Unsupported guard", default)
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe = MethodType(List("m"))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
-    rhsFn = (sym: Symbol, params: List[Tree]) => {
-      val transform = new TreeMap {
-        override def transformTerm(term: Term)(owner: Symbol): Term =
-          super.transformTerm(term)(owner)
-      }
-      transform.transformTerm(('{true}).asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
-    }
+    tpe = variable match
+      case Some(name, _type) =>
+        MethodType(List(name))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean])
+      case None => MethodType(List())(_ => List(), _ => TypeRepr.of[Boolean]),
+    rhsFn = _rhsFn
   )
 
 def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
@@ -124,25 +76,24 @@ def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
   Lambda(
     owner = Symbol.spliceOwner,
     tpe = MethodType(List(name))(_ => List(_type), _ => TypeRepr.of[T]),
-    rhsFn = (sym: Symbol, params: List[Tree]) => {
+    rhsFn = (sym: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
 
       val transform = new TreeMap {
-        override def transformTerm(term: Term)(owner: Symbol): Term = {
-          val nt: Term = term match {
+        override def transformTerm(term: Term)(owner: Symbol): Term =
+          val nt: Term = term match
             case Ident(n) if (n == name) => p0
             case x => super.transformTerm(x)(owner)
-          }
+
           nt
-        }
       }
+
       transform.transformTerm(rhs.changeOwner(sym))(sym)
-    }
   )
 
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             (_case: quotes.reflect.CaseDef):
-              Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, Any => T)] =
+              Expr[(List[M] => Boolean, List[M] => Any, Any => Boolean, Any => T)] =
   import quotes.reflect.*
 
   _case match
@@ -153,27 +104,23 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
           report.info(_case.show(using Printer.TreeStructure), _case.pos)
           tree match
             case ua @ Unapply(sel @ Select(Ident(_), "unapply"), Nil, patterns) =>
+              val classNames = extractClassNames(ua)
+
               patterns match
                 case Nil =>
-                  val tpName = Expr(extractClassName(ua))
+                  if (classNames._1 != "scala.Boolean") then
+                    errorSig("Unsupported Signature", sel.signature.get)
+
                   val _guard = generateGuard(guard)
 
                   return '{(
-                    (m: List[M]) => m.find(_.getClass.getName == ${tpName}).isDefined,
+                    (m: List[M]) => m.find(_.getClass.getName == ${Expr(classNames._1)}).isDefined,
                     (m: List[M]) => None,
                     ${ _guard.asExprOf[Any => Boolean] },
                     (p: Any) => ${rhs.asExprOf[T]}
                   )}
                 case List(bind @ Bind(varName, typed @ Typed(_, varType @ TypeIdent(_type)))) =>
-                  report.info(bind.show(using Printer.TreeStructure), bind.pos)
-
-                  // REFACTOR
-                  val _class = Expr(ua.fun match
-                      case sel @ Select(Ident(_), "unapply") => sel.signature match
-                        case Some(sig) => sig.resultSig
-                        case None => ""
-                      case _ => ""
-                    )
+                  //report.info(bind.show(using Printer.TreeStructure), bind.pos)
 
                   val _guard = generateGuard(guard, Some(varName, varType))
                   val newRhs = makeNewRhs[T](varName, varType.tpe, rhs)
@@ -181,9 +128,23 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                   varType.tpe.asType match
                     case '[t] =>
                       return '{(
-                        (m: List[M]) => m.find(_.getClass.getName == ${_class}).isDefined,
-                        // (m: List[E]) => m(0).unapply()
-                        (m: List[M]) => Some(m(0)),// Some(${bind.asExprOf[t]}), // use ua.fun; m(0).unapply => Some(Int)
+                        (m: List[M]) =>
+                          m.find(_.getClass.getName == ${Expr(classNames._2)}).isDefined,
+                        // use ua.fun; m(0).unapply => Some(Int)
+                        (m: List[M]) =>
+                          8
+                          //.unapply(m(0).asInstanceOf[t])
+                          /*
+                          ua.fun match
+                            case sel: Select =>
+
+                              Block(Nil, Apply(sel, List(TypeApply(Select(
+                                Apply(
+                                  Select(Ident("m"), "apply"), List(Literal(IntConstant(0)))),
+                                  "asInstanceOf"
+                              ), List(varType)))))
+                          */
+                          ,
                         (m: Any) => ${ _guard.asExprOf[t => Boolean] }(m.asInstanceOf[t]),
                         (m: Any) => ${ newRhs.asExprOf[t => T] }(m.asInstanceOf[t])
                       )}
@@ -249,7 +210,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 // and a closure (returning T) to execute if the test returns true
 def getCases[M, T](expr: Expr[M => T])
                   (using quotes: Quotes, tm: Type[M], tt: Type[T]):
-                  List[Expr[(List[M] => Boolean, List[M] => Option[Any], Any => Boolean, Any => T)]] =
+                  List[Expr[(List[M] => Boolean, List[M] => Any, Any => Boolean, Any => T)]] =
   import quotes.reflect.*
 
   expr.asTerm match
@@ -281,9 +242,8 @@ def receiveCodegen[M, T](expr: Expr[M => T])
 
         matchTable.find(_._1(messages)) match
           case Some(m) =>
-            m._2(messages) match
-              case Some(inners) => if m._3(inners) then matched = Some(m._4(inners))
-              case None => if m._3(None) then matched = Some(m._4(None))
+            val inners = m._2(messages)
+            if m._3(inners) then matched = Some(m._4(inners))
           case _ => ()
 
       matched.get

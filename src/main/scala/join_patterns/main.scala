@@ -34,7 +34,7 @@ def main(): Unit =
 
 	val q = LinkedTransferQueue[Msg]()
 
-	val g = receive {(m: List[Msg]) => E.unapply(m(0).asInstanceOf[E])}
+	//val g = receive {(m: List[Msg]) => E.unapply(m(0).asInstanceOf[E])}
 	/*
 	q.add(A())
 	val ret1 = f(q)
