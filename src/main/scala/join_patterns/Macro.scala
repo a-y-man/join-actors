@@ -4,6 +4,13 @@ import java.util.concurrent.{LinkedTransferQueue => Queue}
 
 import scala.quoted.{Expr, Type, Quotes}
 
+case class JoinPattern[M, T](
+  test: List[M] => Boolean,
+  extract: List[M] => Any,
+  guard: Any => Boolean,
+  rhs: Any => T,
+)
+
 def extractClassNames(using quotes: Quotes)(ua: quotes.reflect.Unapply): (String, String) =
   import quotes.reflect.*
 
@@ -23,7 +30,7 @@ def extractClassNames(using quotes: Quotes)(ua: quotes.reflect.Unapply): (String
 
   ("", "")
 
-def generateGuard(using quotes: Quotes)
+def generateGuard[T](using quotes: Quotes, tt: Type[T])
                  (guard: Option[quotes.reflect.Term],
                   variable: Option[(String, quotes.reflect.TypeIdent)] = None):
                     quotes.reflect.Block =
@@ -63,7 +70,7 @@ def generateGuard(using quotes: Quotes)
     owner = Symbol.spliceOwner,
     tpe = variable match
       case Some(name, _type) =>
-        MethodType(List(name))(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean])
+        MethodType(List(name))(_ => List(TypeRepr.of[T]), _ => TypeRepr.of[Boolean])
       case None => MethodType(List())(_ => List(), _ => TypeRepr.of[Boolean]),
     rhsFn = _rhsFn
   )
@@ -91,9 +98,8 @@ def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
       transform.transformTerm(rhs.changeOwner(sym))(sym)
   )
 
-def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
-            (_case: quotes.reflect.CaseDef):
-              Expr[(List[M] => Boolean, List[M] => Any, Any => Boolean, Any => T)] =
+def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes.reflect.CaseDef):
+  Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
   _case match
@@ -111,9 +117,9 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                   if (classNames._1 != "scala.Boolean") then
                     errorSig("Unsupported Signature", sel.signature.get)
 
-                  val _guard = generateGuard(guard)
+                  val _guard = generateGuard[T](guard)
 
-                  return '{(
+                  return '{JoinPattern(
                     (m: List[M]) => m.find(_.getClass.getName == ${Expr(classNames._1)}).isDefined,
                     (m: List[M]) => None,
                     ${ _guard.asExprOf[Any => Boolean] },
@@ -122,12 +128,12 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
                 case List(bind @ Bind(varName, typed @ Typed(_, varType @ TypeIdent(_type)))) =>
                   //report.info(bind.show(using Printer.TreeStructure), bind.pos)
 
-                  val _guard = generateGuard(guard, Some(varName, varType))
+                  val _guard = generateGuard[T](guard, Some(varName, varType))
                   val newRhs = makeNewRhs[T](varName, varType.tpe, rhs)
 
                   varType.tpe.asType match
                     case '[t] =>
-                      return '{(
+                      return '{JoinPattern(
                         (m: List[M]) =>
                           m.find(_.getClass.getName == ${Expr(classNames._2)}).isDefined,
                         // use ua.fun; m(0).unapply => Some(Int)
@@ -193,11 +199,11 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             */
             case default => errorTree("Unsupported test", default)
         case Wildcard() =>
-          val _guard = generateGuard(guard)
+          val _guard = generateGuard[T](guard)
 
-          return '{(
+          return '{JoinPattern(
             (m: List[M]) => true,
-            (m: List[M]) => None,
+            (m: List[M]) => Nil,
             ${ _guard.asExprOf[Any => Boolean] },
             (p: Any) => ${rhs.asExprOf[T]}
           )}
@@ -208,9 +214,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 // Translate a series of match clause into a list of pairs, each one
 // containing a test function to check whether a message has a certain type,
 // and a closure (returning T) to execute if the test returns true
-def getCases[M, T](expr: Expr[M => T])
-                  (using quotes: Quotes, tm: Type[M], tt: Type[T]):
-                  List[Expr[(List[M] => Boolean, List[M] => Any, Any => Boolean, Any => T)]] =
+def getCases[M, T](expr: Expr[M => T])(using quotes: Quotes, tm: Type[M], tt: Type[T]):
+  List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
   expr.asTerm match
