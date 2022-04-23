@@ -75,6 +75,20 @@ def generateGuard[T](using quotes: Quotes, tt: Type[T])
     rhsFn = _rhsFn
   )
 
+def makeExtractor(using quotes: Quotes)
+                 (outerType: quotes.reflect.TypeRepr, innerType: quotes.reflect.TypeRepr,
+                 sel: quotes.reflect.Select): quotes.reflect.Block =
+  import quotes.reflect.*
+
+  Lambda(
+    owner = Symbol.spliceOwner,
+    tpe = MethodType(List("m"))(_ => List(outerType), _ => innerType),
+    rhsFn = (sym: Symbol, params: List[Tree]) =>
+      val p0 = params.head.asInstanceOf[Ident]
+
+      Block(Nil, Select(p0, outerType.typeSymbol.methodMember("_1").head))
+  )
+
 def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
                  (name: String, _type: quotes.reflect.TypeRepr,
                   rhs: quotes.reflect.Term): quotes.reflect.Block =
@@ -104,12 +118,12 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
 
   _case match
     case CaseDef(pattern, guard, rhs) =>
+      report.warning(rhs.show(using Printer.TreeStructure))
 
       pattern match
         case TypedOrTest(tree, tpd) =>
-          report.info(_case.show(using Printer.TreeStructure), _case.pos)
           tree match
-            case ua @ Unapply(sel @ Select(Ident(_), "unapply"), Nil, patterns) =>
+            case ua @ Unapply(sel @ Select(Ident(_name), "unapply"), Nil, patterns) =>
               val classNames = extractClassNames(ua)
 
               patterns match
@@ -130,29 +144,16 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
 
                   val _guard = generateGuard[T](guard, Some(varName, varType))
                   val newRhs = makeNewRhs[T](varName, varType.tpe, rhs)
+                  val extractor = makeExtractor(tpd.tpe, varType.tpe, sel)
 
-                  varType.tpe.asType match
-                    case '[t] =>
+                  (tpd.tpe.asType, varType.tpe.asType) match
+                    case ('[ot], '[it]) =>
                       return '{JoinPattern(
                         (m: List[M]) =>
                           m.find(_.getClass.getName == ${Expr(classNames._2)}).isDefined,
-                        // use ua.fun; m(0).unapply => Some(Int)
-                        (m: List[M]) =>
-                          8
-                          //.unapply(m(0).asInstanceOf[t])
-                          /*
-                          ua.fun match
-                            case sel: Select =>
-
-                              Block(Nil, Apply(sel, List(TypeApply(Select(
-                                Apply(
-                                  Select(Ident("m"), "apply"), List(Literal(IntConstant(0)))),
-                                  "asInstanceOf"
-                              ), List(varType)))))
-                          */
-                          ,
-                        (m: Any) => ${ _guard.asExprOf[t => Boolean] }(m.asInstanceOf[t]),
-                        (m: Any) => ${ newRhs.asExprOf[t => T] }(m.asInstanceOf[t])
+                        (m: List[M]) => ${extractor.asExprOf[ot => it]}(m(0).asInstanceOf[ot]),
+                        (m: Any) => ${ _guard.asExprOf[it => Boolean] }(m.asInstanceOf[it]),
+                        (m: Any) => ${ newRhs.asExprOf[it => T] }(m.asInstanceOf[it])
                       )}
                     case default => error("Unsupported type", default)
                 /*
