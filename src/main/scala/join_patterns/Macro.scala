@@ -15,7 +15,7 @@ def extractClassNames(using quotes: Quotes)(ua: quotes.reflect.Unapply): (String
   import quotes.reflect.*
 
   ua.fun match
-    case sel @ Select(Ident(_), "unapply") => sel.signature match
+    case sel @ Select(_, "unapply") => sel.signature match
       case Some(sig) =>
         val extractor = ua.fun.etaExpand(ua.symbol)
 
@@ -71,7 +71,7 @@ def generateGuard[T](using quotes: Quotes, tt: Type[T])
     tpe = variable match
       case Some(name, _type) =>
         MethodType(List(name))(_ => List(TypeRepr.of[T]), _ => TypeRepr.of[Boolean])
-      case None => MethodType(List())(_ => List(), _ => TypeRepr.of[Boolean]),
+      case None => MethodType(List())(_ => List(TypeRepr.of[Any]), _ => TypeRepr.of[Boolean]),
     rhsFn = _rhsFn
   )
 
@@ -123,10 +123,11 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
       pattern match
         case TypedOrTest(tree, tpd) =>
           tree match
-            case ua @ Unapply(sel @ Select(Ident(_name), "unapply"), Nil, patterns) =>
+            case ua @ Unapply(sel @ Select(_, "unapply"), Nil, patterns) =>
               val classNames = extractClassNames(ua)
 
               patterns match
+                // A()
                 case Nil =>
                   if (classNames._1 != "scala.Boolean") then
                     errorSig("Unsupported Signature", sel.signature.get)
@@ -139,9 +140,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
                     ${ _guard.asExprOf[Any => Boolean] },
                     (p: Any) => ${rhs.asExprOf[T]}
                   )}
+                // A(Int)
                 case List(bind @ Bind(varName, typed @ Typed(_, varType @ TypeIdent(_type)))) =>
-                  //report.info(bind.show(using Printer.TreeStructure), bind.pos)
-
                   val _guard = generateGuard[T](guard, Some(varName, varType))
                   val newRhs = makeNewRhs[T](varName, varType.tpe, rhs)
                   val extractor = makeExtractor(tpd.tpe, varType.tpe, sel)
@@ -156,28 +156,6 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
                         (m: Any) => ${ newRhs.asExprOf[it => T] }(m.asInstanceOf[it])
                       )}
                     case default => error("Unsupported type", default)
-                /*
-                case List(_) =>
-                  println("List(_)")
-                  val classes = patterns.map {
-                    case TypedOrTest(ua1 @ Unapply(sel @ Select(Ident(x), "unapply"), Nil, Nil), _) =>
-                      extractClassName(ua1)
-                    case w: Wildcard => w.name
-                    case default =>
-                      errorTree("Unsupported pattern", default)
-                      ""
-                  }
-                  val length = Expr(classes.length)
-
-                  return '{(
-                    (m: List[M]) =>
-                      m.length >= ${length} && ${Expr(classes)}.forall(
-                        c_c => m.find(_.getClass.getName == c_c.getClass.getName).isDefined || c_c == "_"
-                      ),
-                    $_guard,
-                    () => ${rhs.asExprOf[T]}
-                  )}
-                */
                 case default => error("Unsupported patterns", default)
             // (A, B, ...)
             /*
@@ -199,7 +177,9 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
               )}
             */
             case default => errorTree("Unsupported test", default)
-        case Wildcard() =>
+        case w: Wildcard =>
+          report.info("Wildcards should be defined last", w.asExpr)
+
           val _guard = generateGuard[T](guard)
 
           return '{JoinPattern(
