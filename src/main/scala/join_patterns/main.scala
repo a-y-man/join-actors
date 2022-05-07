@@ -8,33 +8,35 @@ case class B() extends Msg
 case class C() extends Msg
 case class D() extends Msg
 case class E(n: Int) extends Msg
+case class F(a: Int, b: String) extends Msg
 
 @main
 def main(): Unit =
 	val i: Int = 0;
 	val m = 8
 
-	val iZero: () => Boolean = () => i == 0
-	val iOne: () => Boolean = () => i != 0
-	val isEight = ()
+	val iZero: Int => Boolean = (n: Int) => n == 0
+
 	val f = receive { (y: Msg) => y match
 		/*
 		case A() => 42
 		case B() => 43
 		case (A(), B()) => 44
-		case _ => 45
 		case (A(), _) => 46
 		case (A(), B(), C()) => 47
 		case D() if iZero() => 48
+		case _ => 45
 		*/
-		case E(n: Int) if(n == 8) => { { val z = "hi"; println(z) }; n + 1 }
+		case E(n: Int) if iZero(n) => { { val z = "hi"; println(z) }; n + 1 }
+		case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
+		//case F(a1: Int, b1: String) => b1.repeat(a1)
 	}
 
-	// val test = receive { (n: Int) => n + 1 }dfsadf
-
-	val q = LinkedTransferQueue[Msg]()
-
-	//val g = receive {(m: List[Msg]) => E.unapply(m(0).asInstanceOf[E])}
+	/*
+	val g = receive {(m: List[Msg]) => Map[String, Any](
+		("a": String) -> m(0).asInstanceOf[F]._1, ("b": String) -> m(0).asInstanceOf[F]._2
+	)}
+	*/
 	/*
 	q.add(A())
 	val ret1 = f(q)
@@ -44,28 +46,11 @@ def main(): Unit =
 	val ret2 = f(q)
 	println(f"After receiving B, f returned: ${ret2}")
 
-	q.add(D())
-	val ret3 = f(q)
-	println(f"After receiving D, f returned: ${ret3}")
-	*/
-	q.add(E(8))
+	q.add(E(6))
 	val ret4 = f(q)
-	println(f"After receiving E(8), f returned: ${ret4}")
+	println(f"After receiving E(tes), f returned: ${ret4}")
 
-	/*
-	q.add(A())
-	q.add(B())
-	val ret3 = f(q)
-	println(f"After receiving A & B, f returned: ${ret3}")
-
-	q.add(C())
-	val ret4 = f(q)
-	println(f"After receiving C, f returned: ${ret4}")
-
-	q.add(A())
-	q.add(C())
+	q.add(F(3, "id"))
 	val ret5 = f(q)
-	println(f"After receiving A & C, f returned: ${ret5}")
-	*/
-
-
+	println(f"After receiving F(3, 'id'), f returned: ${ret5}")
+*/
