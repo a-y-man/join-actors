@@ -13,9 +13,9 @@ case class F(a: Int, b: String) extends Msg
 @main
 def main(): Unit =
 	val i: Int = 0;
-	val m = 8
+	val m = 0
 
-	val iZero: Int => Boolean = (n: Int) => n == 0
+	val isZero: Int => Boolean = (n: Int) => n == 0
 
 	val f = receive { (y: Msg) => y match
 		/*
@@ -27,10 +27,12 @@ def main(): Unit =
 		case D() if iZero() => 48
 		case _ => 45
 		*/
-		case E(n: Int) if iZero(n) => { { val z = "hi"; println(z) }; n + 1 }
-		case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
-		//case F(a1: Int, b1: String) => b1.repeat(a1)
+		//case E(n: Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
+		//case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
+		case F(a1: Int, b1: String) => b1.repeat(a1)
 	}
+
+	val q = LinkedTransferQueue[Msg]
 
 	/*
 	val g = receive {(m: List[Msg]) => Map[String, Any](
@@ -45,12 +47,46 @@ def main(): Unit =
 	q.add(B())
 	val ret2 = f(q)
 	println(f"After receiving B, f returned: ${ret2}")
-
-	q.add(E(6))
+*/
+/*
+	q.add(E(m))
 	val ret4 = f(q)
-	println(f"After receiving E(tes), f returned: ${ret4}")
+	println(f"After receiving E($m), f returned: ${ret4}")
+*/
 
 	q.add(F(3, "id"))
 	val ret5 = f(q)
 	println(f"After receiving F(3, 'id'), f returned: ${ret5}")
+/*
+List[JoinPattern[Msg, scala.Int]] = scala.List.apply[JoinPattern[.Msg, scala.Int]](
+	JoinPattern.apply[Msg, scala.Int](
+		(
+			(m: scala.List[Msg]) =>
+				m.find(
+					(
+						(_$13: Msg) => _$13.getClass[Msg]().getName().==("join_patterns.F")
+					)
+				).isDefined
+		),
+		(
+			(`m₂`: scala.List[Msg]) =>
+				(
+					(`m₃`: F) =>
+						scala.Predef.Map.apply[scala.Predef.String, scala.Any](
+							scala.Tuple2.apply["a1", m._2.type]("a1", `m₃`._2),
+							scala.Tuple2.apply["b1", m._1.type]("b1", `m₃`._1)
+						)
+				).apply(
+					`m₂`.apply(0).asInstanceOf[F]
+				)
+		),
+		(
+			(inners: Map[scala.Predef.String, scala.Any]) => true
+		),
+		(
+			(`inners₂`: Map[scala.Predef.String, scala.Any]) =>
+				(`inners₂`.apply("a1").asInstanceOf[scala.Int]: scala.Int)
+		)
+	)
+)
 */

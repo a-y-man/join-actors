@@ -11,9 +11,12 @@ case class JoinPattern[M, T](
   var rhs: Map[String, Any] => T,
 )
 
-// change to ((String, quotes.reflect.TypeRepr), Map[String, quotes.reflect.TypeRepr]) ?
-def extractClassNames(using quotes: Quotes)(ua: quotes.reflect.Unapply): (String, String) =
+// are TypeRepr.simplified really useful ?
+def extractOuter(using quotes: Quotes)
+                (ua: quotes.reflect.Unapply): (String, quotes.reflect.TypeRepr) =
   import quotes.reflect.*
+
+  var outer: (String, quotes.reflect.TypeRepr) = ("", TypeRepr.of[Nothing])
 
   ua.fun match
     case sel @ Select(_, "unapply") => sel.signature match
@@ -23,14 +26,31 @@ def extractClassNames(using quotes: Quotes)(ua: quotes.reflect.Unapply): (String
         extractor.tpe match
           case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"),
             trepr :: _) => trepr.dealias.simplified match
-              case tp: TypeRef => return (sig.resultSig, tp.classSymbol.get.fullName)
+              case tp: TypeRef => sig.paramSigs(0) match
+                case outerName: String => outer = (outerName, trepr.dealias.simplified)
+                case default => error("Unsupported outer type", default)
               case default => errorTypeRepr("Unsupported TypeRepr", default)
           case default => errorTypeRepr("Unsupported extractor type", extractor.tpe)
       case None => error("Unsupported Select", sel)
     case default => error("Unsupported unapply function", ua.fun)
 
-  ("", "")
+  outer
 
+// are TypeRepr.simplified really useful ?
+def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.reflect.TypeRepr) =
+  import quotes.reflect.*
+
+  var inner: (String, quotes.reflect.TypeRepr) = ("", TypeRepr.of[Nothing])
+
+  t match
+    case b @ Bind(n, t @ Typed(_, TypeIdent(name))) => t.tpt.tpe.dealias.simplified match
+      case tp: TypeRef => inner = (name, t.tpt.tpe.dealias.simplified)
+      case default => error("Unsupported inner type", default)
+    case default => error("Unsupported pattern", t)
+
+  inner
+
+// name "m" should not be hardcoded
 def makeExtractor(using quotes: Quotes)
                  (outerType: quotes.reflect.TypeRepr, varNames: List[String]):
                   quotes.reflect.Block =
@@ -45,6 +65,7 @@ def makeExtractor(using quotes: Quotes)
       val isMemberName: (Symbol => Boolean) = (p: Symbol) =>
         p.name.head == '_' && p.name.tail.toIntOption.isDefined
       val memberSymbols: List[Symbol] = outerType.typeSymbol.methodMembers.filter(isMemberName(_))
+        .sortBy(_.name)
 
       if varNames.length != memberSymbols.length then
         report.warning(f"Number of member names was ${varNames.length}, but number of member accessors was ${memberSymbols.length}")
@@ -56,14 +77,14 @@ def makeExtractor(using quotes: Quotes)
       ('{ Map[String, Any](${ Varargs[(String, Any)](args) }: _*) }).asTerm
   )
 
+// name "inners" should not be hardcoded
 def generateGuard[T](using quotes: Quotes, tt: Type[T])
                     (guard: Option[quotes.reflect.Term],
                     inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
   import quotes.reflect.*
 
   val _transform = new TreeMap {
-    override def transformTerm(term: Term)(owner: Symbol): Term =
-      super.transformTerm(term)(owner)
+    override def transformTerm(term: Term)(owner: Symbol): Term = super.transformTerm(term)(owner)
   }
 
   var _rhsFn = (sym: Symbol, params: List[Tree]) =>
@@ -76,6 +97,7 @@ def generateGuard[T](using quotes: Quotes, tt: Type[T])
             _transform.transformTerm(apply.changeOwner(sym))(sym)
       else
         // only considers last inner for now, all previous overwritten
+        /*
         inners.foreach {
           (name, _type) =>
             _rhsFn = (sym: Symbol, params: List[Tree]) =>
@@ -92,22 +114,35 @@ def generateGuard[T](using quotes: Quotes, tt: Type[T])
 
               transform.transformTerm(apply.changeOwner(sym))(sym)
         }
+        */
+
+        _rhsFn = (sym: Symbol, params: List[Tree]) =>
+          val p0 = params.head.asInstanceOf[Ident]
+
+          val transform = new TreeMap {
+            override def transformTerm(term: Term)(owner: Symbol): Term = term match
+              case Ident(n) if inners.contains(n) =>
+                val inner = '{${p0.asExprOf[Map[String, Any]]}(${Expr(n)})}
+                inners.get(n).get.asType match
+                  case '[innerType] => ('{${inner}.asInstanceOf[innerType]}).asTerm
+              case x => super.transformTerm(x)(owner)
+          }
+
+          transform.transformTerm(apply.changeOwner(sym))(sym)
+
     case None => ()
-    case Some(default) => error("Unsupported guard", default, guard match
-      case Some(guard) => Some(guard.pos)
-      case _ => None
-      )
+    case Some(default) => error("Unsupported guard", default, Some(default.pos))
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe =  MethodType(List("inners")) // <-- ?
+    tpe =  MethodType(List("inners"))
                      (_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[Boolean]),
     rhsFn = _rhsFn
   )
 
+// name "inners" should not be hardcoded
 def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
-                 (name: String, _type: quotes.reflect.TypeRepr,
-                  rhs: quotes.reflect.Term): quotes.reflect.Block =
+                 (rhs: quotes.reflect.Term, inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
   import quotes.reflect.*
 
   Lambda(
@@ -115,12 +150,24 @@ def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
     tpe = MethodType(List("inners"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
     rhsFn = (sym: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
+      /*
+      val (name, _type) = inners.head
 
       val transform = new TreeMap {
         override def transformTerm(term: Term)(owner: Symbol): Term = term match
           case Ident(n) if (n == name) =>
             val inner = '{${p0.asExprOf[Map[String, Any]]}(${Expr(name)})}
             _type.asType match
+              case '[innerType] => ('{${inner}.asInstanceOf[innerType]}).asTerm
+          case x => super.transformTerm(x)(owner)
+      }
+      */
+
+      val transform = new TreeMap {
+        override def transformTerm(term: Term)(owner: Symbol): Term = term match
+          case Ident(n) if inners.contains(n) =>
+            val inner = '{${p0.asExprOf[Map[String, Any]]}(${Expr(n)})}
+            inners.get(n).get.asType match
               case '[innerType] => ('{${inner}.asInstanceOf[innerType]}).asTerm
           case x => super.transformTerm(x)(owner)
       }
@@ -131,6 +178,7 @@ def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes.reflect.CaseDef):
   Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
+  import scala.quoted.Varargs
 
   var test: Expr[List[M] => Boolean] = '{(m: List[M]) => true}
   var extract: Expr[List[M] => Map[String, Any]] = '{(_: List[M]) => Map()}
@@ -145,42 +193,56 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
         case TypedOrTest(tree, tpd) =>
           tree match
             case ua @ Unapply(sel @ Select(_, "unapply"), Nil, patterns) =>
-              val classNames = extractClassNames(ua)
+              val (outerType, innersTypes) = (extractOuter(ua), patterns.map(extractInner(_)))
 
               patterns match
                 // A()
                 case Nil =>
-                  if (classNames._1 != "scala.Boolean") then
-                    errorSig("Unsupported Signature", sel.signature.get)
-
                   test = '{
-                    (m: List[M]) => m.find(_.getClass.getName == ${Expr(classNames._2)}).isDefined
+                    (m: List[M]) => m.find(_.getClass.getName == ${Expr(outerType._1)}).isDefined
                   }
                   predicate = generateGuard[T](guard, Map()).asExprOf[Map[String, Any] => Boolean]
                   rhs = '{ (inners: Map[String, Any]) => ${_rhs.asExprOf[T]} }
                 // A(.)
-                case List(bind @ Bind(varName, Typed(_, varType: TypeIdent))) =>
+                case List(Bind(varName, Typed(_, varType: TypeIdent))) =>
                   val extractor = makeExtractor(tpd.tpe, List(varName))
-                  val _guard = generateGuard[T](guard, Map(varName -> varType.tpe))
-                  val newRhs = makeNewRhs[T](varName, varType.tpe, _rhs)
 
-                  (tpd.tpe.asType, varType.tpe.asType) match
-                    case ('[ot], '[it]) =>
-                      test = '{
-                        (m: List[M]) =>
-                          m.find(_.getClass.getName == ${Expr(classNames._2)}).isDefined
-                      }
+                  test = '{
+                    (m: List[M]) => m.find(_.getClass.getName == ${Expr(outerType._1)}).isDefined
+                  }
+
+                  tpd.tpe.asType match
+                    case '[ot] =>
                       extract = '{
                         (m: List[M]) =>
                           ${extractor.asExprOf[ot => Map[String, Any]]}(m(0).asInstanceOf[ot])
                       }
-                      predicate = _guard.asExprOf[Map[String, Any] => Boolean]
-                      rhs = newRhs.asExprOf[Map[String, Any] => T]
                     case default => error("Unsupported type", default)
+
+                  predicate = generateGuard[T](guard, Map(varName -> varType.tpe)).asExprOf[Map[String, Any] => Boolean]
+                  rhs = makeNewRhs[T](_rhs, Map(varName -> varType.tpe)).asExprOf[Map[String, Any] => T]
                 // A(...)
-                case binds @ List(Bind(name0, Typed(_, type0: Ident)), Bind(name1, Typed(_, type1: Ident))) =>
-                  //val inners: List[(String, TypeIdent)] = extractInners()
-                  val _guard = generateGuard[T](guard, Map())
+                case patterns if !patterns.isEmpty =>
+                  val inners = patterns.map {
+                    case Bind(varName, Typed(_, varType: TypeIdent)) =>
+                      (varName, varType.tpe.dealias.simplified)
+                  }.toMap
+                  val extractor = makeExtractor(tpd.tpe, inners.map(_._1).toList)
+
+                  test = '{
+                    (m: List[M]) => m.find(_.getClass.getName == ${Expr(outerType._1)}).isDefined
+                  }
+
+                  tpd.tpe.asType match
+                    case '[ot] =>
+                      extract = '{
+                        (m: List[M]) =>
+                          ${extractor.asExprOf[ot => Map[String, Any]]}(m(0).asInstanceOf[ot])
+                      }
+
+                  predicate = generateGuard[T](guard, inners).asExprOf[Map[String, Any] => Boolean]
+                  rhs = makeNewRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
+
                 case default => error("Unsupported patterns", default)
             /*
             case Unapply(TypeApply(Select(Ident(_Tuple), "unapply"), args), Nil, classes) =>
