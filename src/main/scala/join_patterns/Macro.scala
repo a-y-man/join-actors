@@ -50,16 +50,14 @@ def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.
 
   inner
 
-// name "m" should not be hardcoded
-def makeExtractor(using quotes: Quotes)
-                 (outerType: quotes.reflect.TypeRepr, varNames: List[String]):
-                  quotes.reflect.Block =
+def makeExtractor(using quotes: Quotes)(outerType: quotes.reflect.TypeRepr, varNames: List[String]):
+  quotes.reflect.Block =
   import quotes.reflect.*
   import scala.quoted.Varargs
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe = MethodType(List("m"))(_ => List(outerType), _ => TypeRepr.of[Map[String, Any]]),
+    tpe = MethodType(List(""))(_ => List(outerType), _ => TypeRepr.of[Map[String, Any]]),
     rhsFn = (sym: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
       val isMemberName: (Symbol => Boolean) = (p: Symbol) =>
@@ -77,10 +75,9 @@ def makeExtractor(using quotes: Quotes)
       ('{ Map[String, Any](${ Varargs[(String, Any)](args) }: _*) }).asTerm
   )
 
-// name "inners" should not be hardcoded
 def generateGuard[T](using quotes: Quotes, tt: Type[T])
                     (guard: Option[quotes.reflect.Term],
-                    inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
+                     inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
   import quotes.reflect.*
 
   val _transform = new TreeMap {
@@ -92,30 +89,12 @@ def generateGuard[T](using quotes: Quotes, tt: Type[T])
 
   guard match
     case Some(apply @ Apply(Select(_, "apply"), _)) =>
+      println(apply)
+
       if inners.isEmpty then
         _rhsFn = (sym: Symbol, params: List[Tree]) =>
             _transform.transformTerm(apply.changeOwner(sym))(sym)
       else
-        // only considers last inner for now, all previous overwritten
-        /*
-        inners.foreach {
-          (name, _type) =>
-            _rhsFn = (sym: Symbol, params: List[Tree]) =>
-              val p0 = params.head.asInstanceOf[Ident]
-
-              val transform = new TreeMap {
-                override def transformTerm(term: Term)(owner: Symbol): Term = term match
-                  case Ident(n) if (n == name) =>
-                    val inner = '{${p0.asExprOf[Map[String, Any]]}(${Expr(name)})}
-                    _type.asType match
-                      case '[innerType] => ('{${inner}.asInstanceOf[innerType]}).asTerm
-                  case x => super.transformTerm(x)(owner)
-              }
-
-              transform.transformTerm(apply.changeOwner(sym))(sym)
-        }
-        */
-
         _rhsFn = (sym: Symbol, params: List[Tree]) =>
           val p0 = params.head.asInstanceOf[Ident]
 
@@ -135,38 +114,26 @@ def generateGuard[T](using quotes: Quotes, tt: Type[T])
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe =  MethodType(List("inners"))
+    tpe =  MethodType(List("_"))
                      (_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[Boolean]),
     rhsFn = _rhsFn
   )
 
-// name "inners" should not be hardcoded
 def makeNewRhs[T](using quotes: Quotes, tt: Type[T])
                  (rhs: quotes.reflect.Term, inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
   import quotes.reflect.*
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe = MethodType(List("inners"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
+    tpe = MethodType(List("_"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
     rhsFn = (sym: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
-      /*
-      val (name, _type) = inners.head
-
-      val transform = new TreeMap {
-        override def transformTerm(term: Term)(owner: Symbol): Term = term match
-          case Ident(n) if (n == name) =>
-            val inner = '{${p0.asExprOf[Map[String, Any]]}(${Expr(name)})}
-            _type.asType match
-              case '[innerType] => ('{${inner}.asInstanceOf[innerType]}).asTerm
-          case x => super.transformTerm(x)(owner)
-      }
-      */
 
       val transform = new TreeMap {
         override def transformTerm(term: Term)(owner: Symbol): Term = term match
           case Ident(n) if inners.contains(n) =>
             val inner = '{${p0.asExprOf[Map[String, Any]]}(${Expr(n)})}
+
             inners.get(n).get.asType match
               case '[innerType] => ('{${inner}.asInstanceOf[innerType]}).asTerm
           case x => super.transformTerm(x)(owner)
@@ -203,24 +170,6 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
                   }
                   predicate = generateGuard[T](guard, Map()).asExprOf[Map[String, Any] => Boolean]
                   rhs = '{ (inners: Map[String, Any]) => ${_rhs.asExprOf[T]} }
-                // A(.)
-                case List(Bind(varName, Typed(_, varType: TypeIdent))) =>
-                  val extractor = makeExtractor(tpd.tpe, List(varName))
-
-                  test = '{
-                    (m: List[M]) => m.find(_.getClass.getName == ${Expr(outerType._1)}).isDefined
-                  }
-
-                  tpd.tpe.asType match
-                    case '[ot] =>
-                      extract = '{
-                        (m: List[M]) =>
-                          ${extractor.asExprOf[ot => Map[String, Any]]}(m(0).asInstanceOf[ot])
-                      }
-                    case default => error("Unsupported type", default)
-
-                  predicate = generateGuard[T](guard, Map(varName -> varType.tpe)).asExprOf[Map[String, Any] => Boolean]
-                  rhs = makeNewRhs[T](_rhs, Map(varName -> varType.tpe)).asExprOf[Map[String, Any] => T]
                 // A(...)
                 case patterns if !patterns.isEmpty =>
                   val inners = patterns.map {
@@ -242,7 +191,6 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
 
                   predicate = generateGuard[T](guard, inners).asExprOf[Map[String, Any] => Boolean]
                   rhs = makeNewRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
-
                 case default => error("Unsupported patterns", default)
             /*
             case Unapply(TypeApply(Select(Ident(_Tuple), "unapply"), args), Nil, classes) =>
@@ -305,6 +253,20 @@ def receiveCodegen[M, T](expr: Expr[M => T])
     (q: Queue[M]) =>
       val matchTable = ${ Expr.ofList(getCases(expr)) }
       var matched: Option[T] = None
+
+      /*
+      patterns should be declared by decreasing number of messages
+      patterns should also retain the number of unmatched messages
+      */
+
+      //naive
+      /*
+      check patterns by order of declaration !
+      pattern is set of messages
+
+      check all messages in queue
+      find subset that matches pattern
+      */
 
       //strategy function
       while (matched.isEmpty)

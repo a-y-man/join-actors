@@ -119,17 +119,32 @@ class UnitTests extends AnyFunSuite {
 
     assert(rcv(q) == result)
   }
-/*
-  test("(Class(), Class())") {
-    ???
+
+  test("Single Class, One Int and One String Members, no predicate") {
+    val result = "test "
+    val rep = Random.nextInt(5)
+    val rcv = receive { (y: Msg) => y match
+      case F(z: Int, c: String) => c.repeat(z)
+    }
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(F(rep, result))
+
+    assert(rcv(q) == result.repeat(rep))
   }
 
-  test("Class(Int, String)") {
-    ???
-  }
+  test("Single Class, One Int and One String Members, predicate") {
+    val result = "test "
+    val rep = Random.nextInt(5)
+    val isZero: Int => Boolean = (n: Int) => n == 0
+    val rcv = receive { (y: Msg) => y match
+      case F(z: Int, c: String) if isZero(z) => c
+      case F(z: Int, c: String) => c.repeat(z)
+    }
+    val q = LinkedTransferQueue[Msg]
 
-  test("Class(Int, String) if guard()") {
-    ???
+    q.add(F(rep, result))
+
+    assert(if rep == 0 then rcv(q) == result else rcv(q) == result.repeat(rep))
   }
-  */
 }

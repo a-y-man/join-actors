@@ -8,14 +8,14 @@ case class B() extends Msg
 case class C() extends Msg
 case class D() extends Msg
 case class E(n: Int) extends Msg
-case class F(a: Int, b: String) extends Msg
+case class F(b: Int, a: String) extends Msg
 
 @main
 def main(): Unit =
 	val i: Int = 0;
 	val m = 0
-
 	val isZero: Int => Boolean = (n: Int) => n == 0
+	val q = LinkedTransferQueue[Msg]
 
 	val f = receive { (y: Msg) => y match
 		/*
@@ -29,17 +29,15 @@ def main(): Unit =
 		*/
 		//case E(n: Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
 		//case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
-		case F(a1: Int, b1: String) => b1.repeat(a1)
+		case F(z: Int, c: String) if isZero(z) => "Hello " + c + "! "
+		case F(z: Int, c: String) => ("Hello " + c + "! ").repeat(z)
 	}
 
-	val q = LinkedTransferQueue[Msg]
-
-	/*
+/*
 	val g = receive {(m: List[Msg]) => Map[String, Any](
 		("a": String) -> m(0).asInstanceOf[F]._1, ("b": String) -> m(0).asInstanceOf[F]._2
 	)}
-	*/
-	/*
+
 	q.add(A())
 	val ret1 = f(q)
 	println(f"After receiving A, f returned: ${ret1}")
@@ -54,39 +52,6 @@ def main(): Unit =
 	println(f"After receiving E($m), f returned: ${ret4}")
 */
 
-	q.add(F(3, "id"))
+	q.add(F(0, "Antoine"))
 	val ret5 = f(q)
 	println(f"After receiving F(3, 'id'), f returned: ${ret5}")
-/*
-List[JoinPattern[Msg, scala.Int]] = scala.List.apply[JoinPattern[.Msg, scala.Int]](
-	JoinPattern.apply[Msg, scala.Int](
-		(
-			(m: scala.List[Msg]) =>
-				m.find(
-					(
-						(_$13: Msg) => _$13.getClass[Msg]().getName().==("join_patterns.F")
-					)
-				).isDefined
-		),
-		(
-			(`m₂`: scala.List[Msg]) =>
-				(
-					(`m₃`: F) =>
-						scala.Predef.Map.apply[scala.Predef.String, scala.Any](
-							scala.Tuple2.apply["a1", m._2.type]("a1", `m₃`._2),
-							scala.Tuple2.apply["b1", m._1.type]("b1", `m₃`._1)
-						)
-				).apply(
-					`m₂`.apply(0).asInstanceOf[F]
-				)
-		),
-		(
-			(inners: Map[scala.Predef.String, scala.Any]) => true
-		),
-		(
-			(`inners₂`: Map[scala.Predef.String, scala.Any]) =>
-				(`inners₂`.apply("a1").asInstanceOf[scala.Int]: scala.Int)
-		)
-	)
-)
-*/
