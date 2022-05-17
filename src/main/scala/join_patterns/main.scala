@@ -21,23 +21,24 @@ def main(): Unit =
 		/*
 		case A() => 42
 		case B() => 43
-		case (A(), B()) => 44
-		case (A(), _) => 46
-		case (A(), B(), C()) => 47
 		case D() if iZero() => 48
 		case _ => 45
-		*/
-		//case E(n: Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
-		//case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
+		case E(n: Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
+		case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
 		case F(z: Int, c: String) if isZero(z) => "Hello " + c + "! "
 		case F(z: Int, c: String) => ("Hello " + c + "! ").repeat(z)
+		*/
+		case (A(), B()) => 44
+		//case (A(), B(), C()) => 47
+		//case (A(), _) => 46
 	}
-
 /*
-	val g = receive {(m: List[Msg]) => Map[String, Any](
-		("a": String) -> m(0).asInstanceOf[F]._1, ("b": String) -> m(0).asInstanceOf[F]._2
-	)}
-
+	val g = receive {
+		(m: List[Msg]) =>
+			m.exists(_.isInstanceOf[A]) && m.exists(_.isInstanceOf[B]) && m.exists(_.isInstanceOf[C])
+	}
+	*/
+/*
 	q.add(A())
 	val ret1 = f(q)
 	println(f"After receiving A, f returned: ${ret1}")
@@ -45,13 +46,12 @@ def main(): Unit =
 	q.add(B())
 	val ret2 = f(q)
 	println(f"After receiving B, f returned: ${ret2}")
-*/
-/*
-	q.add(E(m))
-	val ret4 = f(q)
-	println(f"After receiving E($m), f returned: ${ret4}")
-*/
 
 	q.add(F(0, "Antoine"))
 	val ret5 = f(q)
 	println(f"After receiving F(3, 'id'), f returned: ${ret5}")
+*/
+	q.add(A())
+	q.add(B())
+	val ret1 = f(q)
+	println(f"After receiving (A, B), f returned: ${ret1}")
