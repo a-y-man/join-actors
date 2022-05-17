@@ -19,17 +19,13 @@ def main(): Unit =
 
 	val f = receive { (y: Msg) => y match
 		/*
-		case A() => 42
-		case B() => 43
-		case D() if iZero() => 48
-		case _ => 45
 		case E(n: Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
 		case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
 		case F(z: Int, c: String) if isZero(z) => "Hello " + c + "! "
 		case F(z: Int, c: String) => ("Hello " + c + "! ").repeat(z)
 		*/
-		case (A(), B()) => 44
-		//case (A(), B(), C()) => 47
+		case (A(), B(), C()) if isZero(0) => 44
+		case (A(), B(), C()) => 45
 		//case (A(), _) => 46
 	}
 /*
@@ -53,5 +49,6 @@ def main(): Unit =
 */
 	q.add(A())
 	q.add(B())
+	q.add(C())
 	val ret1 = f(q)
-	println(f"After receiving (A, B), f returned: ${ret1}")
+	println(f"After receiving (A, B, C), f returned: ${ret1}")
