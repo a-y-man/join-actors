@@ -6,31 +6,12 @@ import scala.quoted.{Expr, Type, Quotes}
 import scala.collection.mutable.ListBuffer
 
 case class JoinPattern[M, T](
-  var test: List[M] => Boolean, // List[M] => List[M] list of matched
+  var test: List[M] => Boolean, // List[M] => Map[M, Map[String, Any]] list of matched
   var extract: List[M] => Map[String, Any],
   var guard: Map[String, Any] => Boolean,
   var rhs: Map[String, Any] => T,
+  // fields ?
 )
-
-// are TypeRepr.simplified really useful ?
-def extractOuter(using quotes: Quotes)(ua: quotes.reflect.Unapply): quotes.reflect.TypeRepr =
-  import quotes.reflect.*
-
-  ua.fun match
-    case sel @ Select(_, "unapply") => sel.signature match
-      case Some(sig) =>
-        val extractor = ua.fun.etaExpand(ua.symbol)
-
-        extractor.tpe match
-          case AppliedType(TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Function1"),
-            trepr :: _) => trepr.dealias.simplified match
-              case tp: TypeRef => return tp
-              case default => errorTypeRepr("Unsupported TypeRepr", default)
-          case default => errorTypeRepr("Unsupported extractor type", extractor.tpe)
-      case None => error("Unsupported Select", sel)
-    case default => error("Unsupported unapply function", ua.fun)
-
-  TypeRepr.of[Nothing]
 
 // are TypeRepr.simplified really useful ?
 def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.reflect.TypeRepr) =
@@ -42,11 +23,25 @@ def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.
     case Bind(n, typed @ Typed(_, TypeIdent(_))) => typed.tpt.tpe.dealias.simplified match
       case tp: TypeRef => inner = (n, typed.tpt.tpe.dealias.simplified)
       case default => error("Unsupported inner type", default)
-    case default => error("Unsupported pattern", t)
+    case default => errorTree("Unsupported pattern", t)
 
   inner
 
-def makeExtractor(using quotes: Quotes)(outerType: quotes.reflect.TypeRepr, varNames: List[String]):
+def getTypesData(using quotes: Quotes)(patterns: List[quotes.reflect.Tree]):
+  List[(quotes.reflect.TypeRepr, Map[String, quotes.reflect.TypeRepr])] =
+  import quotes.reflect.*
+
+  patterns.map {
+    case TypedOrTest(Unapply(Select(_, "unapply"), _, binds), tt: TypeTree) =>
+      tt.tpe.dealias.simplified match
+        case tp: TypeRef => tp -> binds.map(extractInner(_)).toMap
+    case default =>
+      errorTree("Unsupported pattern", default)
+      TypeRepr.of[Nothing] -> Map()
+  }
+
+def generateExtractor(using quotes: Quotes)
+                     (outerType: quotes.reflect.TypeRepr, varNames: List[String]):
   quotes.reflect.Block =
   import quotes.reflect.*
   import scala.quoted.Varargs
@@ -72,8 +67,8 @@ def makeExtractor(using quotes: Quotes)(outerType: quotes.reflect.TypeRepr, varN
   )
 
 def generateGuard(using quotes: Quotes)
-                    (guard: Option[quotes.reflect.Term],
-                     inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
+                 (guard: Option[quotes.reflect.Term],
+                  inners: Map[String, quotes.reflect.TypeRepr]): quotes.reflect.Block =
   import quotes.reflect.*
 
   val _transform = new TreeMap {
@@ -114,7 +109,7 @@ def generateGuard(using quotes: Quotes)
   )
 
 def generateRhs[T](using quotes: Quotes, tt: Type[T])
-                 (rhs: quotes.reflect.Term, inners: Map[String, quotes.reflect.TypeRepr]):
+                  (rhs: quotes.reflect.Term, inners: Map[String, quotes.reflect.TypeRepr]):
                    quotes.reflect.Block =
   import quotes.reflect.*
 
@@ -144,7 +139,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
 
   var test: Expr[List[M] => Boolean] = '{(_: List[M]) => true}
   var extract: Expr[List[M] => Map[String, Any]] = '{(_: List[M]) => Map()}
-  var predicate: Expr[Map[String, Any] => Boolean] = null
+  var predicate: Expr[Map[String, Any] => Boolean] = '{(_: Map[String, Any]) => true}
   var rhs: Expr[Map[String, Any] => T] = null
 
   _case match
@@ -152,23 +147,18 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
       //report.warning(_rhs.show(using Printer.TreeStructure))
 
       pattern match
-        case TypedOrTest(tree, tpd) =>
-          tree match
+        case t @ TypedOrTest(Unapply(fun, Nil, patterns), tt) =>
+          fun match
             // A(*)
-            case ua @ Unapply(Select(qualifier, "unapply"), Nil, patterns) =>
-              qualifier match
-                case Ident(_) | Select(This(Some(_)), _) => ()
-                case default => errorTree("Unsupported qualifier", default)
+            case Select(_, "unapply") =>
+              val (outer, inners) = getTypesData(List(t)).head
 
-              val outerType = extractOuter(ua) // replace by tpd ?
-              val inners = patterns.map(extractInner(_)).toMap
-
-              outerType.asType match
+              outer.asType match
                 case '[ot] =>
                   test = '{ (m: List[M]) => m.exists(_.isInstanceOf[ot]) }
 
                   if !patterns.isEmpty then
-                    val extractor = makeExtractor(outerType, inners.map(_._1).toList)
+                    val extractor = generateExtractor(outer, inners.keys.toList)
 
                     extract = '{
                       (m: List[M]) =>
@@ -178,21 +168,30 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
               predicate = generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
               rhs = generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
             // (A, B, C ...)
-            case Unapply(TypeApply(Select(qualifier, "unapply"), _), Nil, patterns) =>
-              qualifier match
-                case Ident(_) | Select(This(Some(_)), _) => ()
-                case default => errorTree("Unsupported qualifier", default)
+            case TypeApply(Select(_, "unapply"), _) =>
+              val typesData = getTypesData(patterns)
 
-              var outerTypeChecks: Expr[List[M => Boolean]] = Expr.ofList(patterns.map {
-                case TypedOrTest(_, tt: TypeTree) => tt.tpe.dealias.simplified match
-                  case tp: TypeRef => tp.asType match
-                      case '[ot] => '{(m: M) => m.isInstanceOf[ot]}
-              })
+              val extractors: List[(Expr[M => Boolean], Expr[M => Map[String, Any]])] =
+                typesData.map {
+                  (outer, inners) =>
+                    val extractor = generateExtractor(outer, inners.keys.toList)
+
+                    outer.asType match
+                      case '[ot] => (
+                        '{(m: M) => m.isInstanceOf[ot]},
+                        '{
+                          (m: M) =>
+                            ${extractor.asExprOf[ot => Map[String, Any]]}(m.asInstanceOf[ot])
+                        }
+                      )
+                }.toList
 
               test = '{
                 (m: List[M]) =>
-                  m.size == $outerTypeChecks.size && {
-                    val typechecks = ListBuffer.from($outerTypeChecks)
+                  val outerTypeChecks = ${Expr.ofList(extractors.map(_._1))}
+
+                  m.size == outerTypeChecks.size && {
+                    val typechecks = ListBuffer.from(outerTypeChecks)
 
                     m.exists(
                       (message: M) => typechecks.find(_(message)) match
@@ -202,9 +201,20 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
                   }
               }
 
-              // extractor if inners
+              val inners: Map[String, TypeRepr] = typesData.map(_._2).flatten.toMap
 
-              val inners: Map[String, TypeRepr] = Map()
+              if !inners.isEmpty then
+                extract = '{
+                  (m: List[M]) =>
+                    val messages = ListBuffer.from(m)
+
+                    ${Expr.ofList(extractors.map(Expr.ofTuple(_)))}.map {
+                      (typecheck, extractor) =>
+                        val matchedMessage = messages.find(typecheck).get
+                        messages.subtractOne(matchedMessage)
+                        extractor(matchedMessage)
+                    }.flatten.toMap
+                }
 
               predicate = generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
               rhs = generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
@@ -213,7 +223,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
           report.info("Wildcards should be defined last", w.asExpr)
 
           predicate = generateGuard(guard, Map()).asExprOf[Map[String, Any] => Boolean]
-          rhs = '{(inners: Map[String, Any]) => ${_rhs.asExprOf[T]}}
+          rhs = '{(_: Map[String, Any]) => ${_rhs.asExprOf[T]}}
         case default => errorTree("Unsupported case pattern", default)
 
   '{JoinPattern($test, $extract, $predicate, $rhs)}
@@ -269,7 +279,7 @@ def receiveCodegen[M, T](expr: Expr[M => T])
       /*
       patterns should be declared by decreasing number of messages
       patterns should also retain the number of unmatched messages ?
-      PriorityQueue[(n_unmatched, n_total, Patterns)]
+      PriorityQueue[(n_unmatched, n_total, Pattern)]
       collection.mutable.PriorityQueue
       */
 
@@ -296,8 +306,8 @@ def receiveCodegen[M, T](expr: Expr[M => T])
                 else false
             }
         } match
-          case None => messages.foreach(e => q.put(e))
-          case Some(set: List[M]) => (messages --= set).foreach(e => q.put(e))
+          case None => messages.foreach(q.put)
+          case Some(set: List[M]) => messages.subtractAll(set).foreach(q.put)
 
       matched.get
   }
