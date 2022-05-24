@@ -183,12 +183,13 @@ class MultipleClasses extends UnitTests {
     assert(rcv(q) == result)
   }
 
+  // BUG only works if predicate arrives last ! fix pattern sorting !
   test("Multiple Empty Messages, Predicate") {
     val result = Random.nextInt
     val isZero: Int => Boolean = (n: Int) => n == 0
     val rcv = receive { (y: Msg) => y match
-      case (A(), D(), E()) if isZero(0) => result + 1
       case (A(), D(), E()) => result
+      case (A(), D(), E()) if isZero(0) => result + 1
     }
     val q = LinkedTransferQueue[Msg]
 
@@ -216,13 +217,14 @@ class MultipleClasses extends UnitTests {
     assert(rcv(q) == result.repeat(rep * 2))
   }
 
+  // BUG only works if predicate arrives last ! fix pattern sorting !
   test("Multiple Messages, One Int and One String Members, Predicate") {
     val result = "Hello World"
     val rep = Random.nextInt(3)
     val isEmpty: String => Boolean = (s: String) => s.isEmpty
     val rcv = receive { (y: Msg) => y match
-      case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) => "Hello World"
       case (F(i0: Int, s: String), D(), B(i1: Int)) => ("Hello " + s).repeat(i0 + i1)
+      case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) => "Hello World"
       case B(i: Int) => rep.toString
     }
     val q = LinkedTransferQueue[Msg]
