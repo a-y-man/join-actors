@@ -10,7 +10,7 @@ case class JoinPattern[M, T](
   var extract: List[M] => Map[String, Any],
   var guard: Map[String, Any] => Boolean,
   var rhs: Map[String, Any] => T,
-  // fields ?
+  val size: Int,
 )
 
 // are TypeRepr.simplified really useful ?
@@ -27,6 +27,7 @@ def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.
 
   inner
 
+// add support for wildcard inner name, A(_: Int) -> no need to extract !
 def getTypesData(using quotes: Quotes)(patterns: List[quotes.reflect.Tree]):
   List[(quotes.reflect.TypeRepr, Map[String, quotes.reflect.TypeRepr])] =
   import quotes.reflect.*
@@ -135,12 +136,12 @@ def generateRhs[T](using quotes: Quotes, tt: Type[T])
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes.reflect.CaseDef):
   Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
-  import scala.quoted.Varargs
 
   var test: Expr[List[M] => Boolean] = '{(_: List[M]) => true}
   var extract: Expr[List[M] => Map[String, Any]] = '{(_: List[M]) => Map()}
   var predicate: Expr[Map[String, Any] => Boolean] = '{(_: Map[String, Any]) => true}
   var rhs: Expr[Map[String, Any] => T] = null
+  var size = 1
 
   _case match
     case CaseDef(pattern, guard, _rhs) =>
@@ -155,7 +156,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
 
               outer.asType match
                 case '[ot] =>
-                  test = '{ (m: List[M]) => m.exists(_.isInstanceOf[ot]) }
+                  test = '{ (m: List[M]) => m.size == 1 && m.exists(_.isInstanceOf[ot]) }
 
                   if !patterns.isEmpty then
                     val extractor = generateExtractor(outer, inners.keys.toList)
@@ -218,6 +219,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
 
               predicate = generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
               rhs = generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
+              size = typesData.size
             case default => errorTree("Unsupported tree", default)
         case w: Wildcard =>
           report.info("Wildcards should be defined last", w.asExpr)
@@ -226,7 +228,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(_case: quotes
           rhs = '{(_: Map[String, Any]) => ${_rhs.asExprOf[T]}}
         case default => errorTree("Unsupported case pattern", default)
 
-  '{JoinPattern($test, $extract, $predicate, $rhs)}
+  '{JoinPattern($test, $extract, $predicate, $rhs, ${Expr(size)})}
 
 // Translate a series of match clause into a list of pairs, each one
 // containing a test function to check whether a message has a certain type,
@@ -249,20 +251,20 @@ def getCases[M, T](expr: Expr[M => T])(using quotes: Quotes, tm: Type[M], tt: Ty
 
 // shamelessly stolen from http://kennemersoft.nl/?page_id=96
 def nonRepeatingComb[T](elems: List[T], genSize: Int, f: List[T] => Unit): Unit = {
-    def nonRepeatingCombRec(elems: List[T], depth: Int, partResult: List[T]): Unit = {
-        if (elems.size == depth) f(elems.reverse ::: partResult)
-        else {
-            if (!elems.isEmpty) {
-                nonRepeatingCombRec(elems.tail, depth, partResult)
-                if (depth > 0) nonRepeatingCombRec(elems.tail, depth - 1, elems.head :: partResult)
-            }
-        }
+  def nonRepeatingCombRec(elems: List[T], depth: Int, partResult: List[T]): Unit = {
+    if (elems.size == depth) f(elems.reverse ::: partResult)
+    else {
+      if (!elems.isEmpty) {
+        nonRepeatingCombRec(elems.tail, depth, partResult)
+        if (depth > 0) nonRepeatingCombRec(elems.tail, depth - 1, elems.head :: partResult)
+      }
     }
-    if (genSize < 0)
-      throw new IllegalArgumentException("Negative generation sizes not allowed in nonRepeatingComb...")
-    if (genSize > elems.size)
-      throw new IllegalArgumentException("Generation sizes over elems.size not allowed in nonRepeatingComb...")
-    nonRepeatingCombRec(elems.reverse, genSize, Nil)
+  }
+  if (genSize < 0)
+    throw new IllegalArgumentException("Negative generation sizes not allowed in nonRepeatingComb...")
+  if (genSize > elems.size)
+    throw new IllegalArgumentException("Generation sizes over elems.size not allowed in nonRepeatingComb...")
+  nonRepeatingCombRec(elems.reverse, genSize, Nil)
 }
 
 // Generate the code returned by the receive macro
@@ -273,7 +275,8 @@ def receiveCodegen[M, T](expr: Expr[M => T])
 
   val genCode = '{
     (q: Queue[M]) =>
-      val matchTable = ${ Expr.ofList(getCases(expr)) }
+      val matchTable = (${ Expr.ofList(getCases(expr)) }).sortBy(_.size).reverse
+      val patternSizes = matchTable.map(_.size).toSet
       var matched: Option[T] = None
 
       /*
@@ -289,8 +292,10 @@ def receiveCodegen[M, T](expr: Expr[M => T])
         q.drainTo(messages)
         val messageSets: ListBuffer[List[M]] = ListBuffer()
 
-        for i <- messages.size to 1 by -1 do
-          nonRepeatingComb(messages.toList, i, messageSets.addOne)
+        patternSizes.dropWhile(_ > messages.size).foreach(
+          nonRepeatingComb(messages.toList, _, messageSets.addOne)
+        )
+        //patternSizes.foreach(repeatingComb(messages.toList, _, messageSets.addOne))
 
         messageSets.toList.find {
           (msgSet: List[M]) =>
