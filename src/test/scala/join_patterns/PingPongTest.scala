@@ -9,21 +9,22 @@ class PingPongTest extends AnyFunSuite {
   case class Pong() extends Msg
 
   class _Ping(private val maxHits: Int) {
-    private val q = LinkedTransferQueue[Msg]
-    var hits = 0
-    val ref = ActorRef(q)
+    private val q                      = LinkedTransferQueue[Msg]
+    var hits                           = 0
+    val ref                            = ActorRef(q)
     var pongRef: Option[ActorRef[Msg]] = None
-    var isDone = false
+    var isDone                         = false
 
-    private def f = receive { (y: Msg) => y match
-      case Pong() =>
-        hits += 1
-        //println(f"ping $hits")
-        pongRef.get.send(Ping())
+    private def f = receive { (y: Msg) =>
+      y match
+        case Pong() =>
+          hits += 1
+          // println(f"ping $hits")
+          pongRef.get.send(Ping())
 
-        if hits >= maxHits then
-          isDone = true
-          //println("ping is done")
+          if hits >= maxHits then
+            isDone = true
+        // println("ping is done")
     }
 
     def apply() = f(q)
@@ -33,21 +34,22 @@ class PingPongTest extends AnyFunSuite {
   }
 
   class _Pong(private val maxHits: Int) {
-    private val q = LinkedTransferQueue[Msg]
-    var hits = 0
-    val ref = ActorRef(q)
+    private val q                      = LinkedTransferQueue[Msg]
+    var hits                           = 0
+    val ref                            = ActorRef(q)
     var pingRef: Option[ActorRef[Msg]] = None
-    var isDone = false
+    var isDone                         = false
 
-    private def f = receive { (y: Msg) => y match
-      case Ping() =>
-        hits += 1
-        //println(f"pong $hits")
-        pingRef.get.send(Pong())
+    private def f = receive { (y: Msg) =>
+      y match
+        case Ping() =>
+          hits += 1
+          // println(f"pong $hits")
+          pingRef.get.send(Pong())
 
-        if hits >= maxHits then
-          isDone = true
-          //println("pong is done")
+          if hits >= maxHits then
+            isDone = true
+        // println("pong is done")
     }
 
     def apply() = f(q)
@@ -55,8 +57,8 @@ class PingPongTest extends AnyFunSuite {
 
   test("Fixed number of iterations") {
     val maxHits = 100_000
-    val ping = _Ping(maxHits)
-    val pong = _Pong(maxHits)
+    val ping    = _Ping(maxHits)
+    val pong    = _Pong(maxHits)
 
     ping.pongRef = Some(pong.ref)
     pong.pingRef = Some(ping.ref)

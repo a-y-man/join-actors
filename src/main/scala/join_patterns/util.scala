@@ -2,27 +2,29 @@ package join_patterns
 
 import scala.quoted.*
 
-def to[T: Type, R: Type](f: Expr[T] => Expr[R])(using Quotes): Expr[T => R] = '{(x: T) => ${f('x)}}
+def to[T: Type, R: Type](f: Expr[T] => Expr[R])(using Quotes): Expr[T => R] = '{ (x: T) =>
+  ${ f('x) }
+}
 
-def from[T: Type, R: Type](f: Expr[T => R])(using Quotes): Expr[T] => Expr[R] =	(x: Expr[T]) => '{$f($x)}
+def from[T: Type, R: Type](f: Expr[T => R])(using Quotes): Expr[T] => Expr[R] = (x: Expr[T]) =>
+  '{ $f($x) }
 
-inline def assert(inline expr: Boolean): Unit = ${assertImpl('expr)}
+inline def assert(inline expr: Boolean): Unit = ${ assertImpl('expr) }
 
 def assertImpl(expr: Expr[Boolean])(using Quotes): Expr[Unit] = '{
-	if !$expr then
-		println(s"failed assertion: ${${showExpr(expr)}}")
+  if ! $expr then println(s"failed assertion: ${${ showExpr(expr) }}")
 }
 
 def showExpr[T](expr: Expr[T])(using Quotes): Expr[String] =
-	val code: String = expr.show
-	Expr(code)
+  val code: String = expr.show
+  Expr(code)
 
 def _println[T](x: Expr[T])(using Quotes) = {
-	import quotes.reflect.*
+  import quotes.reflect.*
 
-	val tree: Tree = x.asTerm
-	//println(tree.show(using Printer.TreeStructure))
-	println(prettyPrint(tree))
+  val tree: Tree = x.asTerm
+  // println(tree.show(using Printer.TreeStructure))
+  println(prettyPrint(tree))
 }
 
 def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
@@ -32,7 +34,7 @@ def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Un
 
   token.symbol.pos match
     case Some(pos) => report.error(f"$msg: $t", pos)
-    case None => report.error(f"$msg: $t")
+    case None      => report.error(f"$msg: $t")
 
 def errorTypeRepr(using quotes: Quotes)(msg: String, token: quotes.reflect.TypeRepr): Unit =
   import quotes.reflect.*
@@ -41,20 +43,21 @@ def errorTypeRepr(using quotes: Quotes)(msg: String, token: quotes.reflect.TypeR
 
   token.termSymbol.pos match
     case Some(pos) => report.error(f"$msg: $t", pos)
-    case None => report.error(f"$msg: $t")
+    case None      => report.error(f"$msg: $t")
 
 def errorSig(using quotes: Quotes)(msg: String, token: quotes.reflect.Signature): Unit =
   import quotes.reflect.*
 
   report.error(f"$msg: ${token.paramSigs} => ${token.resultSig}")
 
-def error[T](using quotes: Quotes)
-            (msg: String, token: T, pos: Option[quotes.reflect.Position] = None): Unit =
+def error[T](using
+    quotes: Quotes
+)(msg: String, token: T, pos: Option[quotes.reflect.Position] = None): Unit =
   import quotes.reflect.*
 
   val show: String = token match
     case s: String => s
-    case _ => token.toString
+    case _         => token.toString
 
   val _pos: Position = token match
     case _ if pos.isDefined => pos.get
