@@ -12,6 +12,7 @@ abstract class UnitTests extends AnyFunSuite {
   case class D() extends Msg
   case class E() extends Msg
   case class F(b: Int, a: String) extends Msg
+  case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 }
 
 class BaseFeatures extends UnitTests {
@@ -33,32 +34,6 @@ class BaseFeatures extends UnitTests {
     val rcv = receive { (y: Msg) => y match
       case A() if ifZero(1) => result + 1
       case A() if ifZero(0) => result
-    }
-    val q = LinkedTransferQueue[Msg]
-
-    q.add(A())
-
-    assert(rcv(q) == result)
-  }
-
-  test("Wildcard, no Predicate") {
-    val result = Random.nextInt
-    val rcv = receive { (y: Msg) => y match
-      case _ => result
-    }
-    val q = LinkedTransferQueue[Msg]
-
-    q.add(A())
-
-    assert(rcv(q) == result)
-  }
-
-  test("Wildcard, Predicate") {
-    val result = Random.nextInt
-    val ifZero = (i: Int) => i == 0
-    val rcv = receive { (y: Msg) => y match
-      case _ if ifZero(1) => result + 1
-      case _ if ifZero(0) => result
     }
     val q = LinkedTransferQueue[Msg]
 
@@ -183,13 +158,12 @@ class MultipleClasses extends UnitTests {
     assert(rcv(q) == result)
   }
 
-  // BUG only works if predicate arrives last ! fix pattern sorting !
   test("Multiple Empty Messages, Predicate") {
     val result = Random.nextInt
     val isZero: Int => Boolean = (n: Int) => n == 0
     val rcv = receive { (y: Msg) => y match
-      case (A(), D(), E()) => result
       case (A(), D(), E()) if isZero(0) => result + 1
+      case (A(), D(), E()) => result
     }
     val q = LinkedTransferQueue[Msg]
 
@@ -217,14 +191,13 @@ class MultipleClasses extends UnitTests {
     assert(rcv(q) == result.repeat(rep * 2))
   }
 
-  // BUG only works if predicate arrives last ! fix pattern sorting !
   test("Multiple Messages, One Int and One String Members, Predicate") {
     val result = "Hello World"
     val rep = Random.nextInt(3)
     val isEmpty: String => Boolean = (s: String) => s.isEmpty
     val rcv = receive { (y: Msg) => y match
-      case (F(i0: Int, s: String), D(), B(i1: Int)) => ("Hello " + s).repeat(i0 + i1)
       case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) => "Hello World"
+      case (F(i0: Int, s: String), D(), B(i1: Int)) => ("Hello " + s).repeat(i0 + i1)
       case B(i: Int) => rep.toString
     }
     val q = LinkedTransferQueue[Msg]
@@ -232,6 +205,34 @@ class MultipleClasses extends UnitTests {
     q.add(F(rep, ""))
     q.add(D())
     q.add(B(rep))
+
+    assert(rcv(q) == result)
+  }
+}
+
+class Optionalfeatures extends UnitTests {
+  test("Wildcard, no Predicate") {
+    val result = Random.nextInt
+    val rcv = receive { (y: Msg) => y match
+      case _ => result
+    }
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(A())
+
+    assert(rcv(q) == result)
+  }
+
+  test("Wildcard, Predicate") {
+    val result = Random.nextInt
+    val ifZero = (i: Int) => i == 0
+    val rcv = receive { (y: Msg) => y match
+      case _ if ifZero(1) => result + 1
+      case _ if ifZero(0) => result
+    }
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(A())
 
     assert(rcv(q) == result)
   }
@@ -248,5 +249,50 @@ class MultipleClasses extends UnitTests {
     q.add(B(result1))
 
     assert(rcv(q) == result0 + result1)
+  }
+
+  test("Multiple Messages of the same Class, One Int Member, Predicate") {
+    val (result0, result1) = (Random.nextInt(Int.MaxValue - 1) + 1, Random.nextInt)
+    val ifNotZero = (i: Int) => i != 0
+    val rcv = receive { (y: Msg) => y match
+      case (B(i0: Int), B(i1: Int), A()) if ifNotZero(result0) => i0 + i1
+      case (B(i0: Int), B(i1: Int), A()) => i0
+      case B(i: Int) => i
+    }
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(B(result0))
+    q.add(A())
+    q.add(B(result1))
+
+    assert(rcv(q) == result0 + result1)
+  }
+
+  test("Wildcard field names, no Predicate") {
+    val (result0, result1, result2) = (Random.nextInt, Random.nextInt.toString, Random.nextInt)
+    val rcv = receive { (y: Msg) => y match
+      case G(_: Int, y: String, z: Int, _: Boolean) => y + z
+    }
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(G(result0, result1, result2, false))
+
+    assert(rcv(q) == result1 + result2)
+  }
+
+  test("Wildcard field names, Predicate") {
+    val (result0, result1, result2, result3) =
+      (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
+    val is: Boolean => Boolean =
+      (boolean: Boolean) => boolean
+    val rcv = receive { (y: Msg) => y match
+      case G(_: Int, _: String, z: Int, b: Boolean) if is(b) => z
+      case G(y: Int, _: String, _: Int, b: Boolean) if is(!b) => y
+    }
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(G(result0, result1, result2, result3))
+
+    assert(rcv(q) == (if result3 then result2 else result0))
   }
 }
