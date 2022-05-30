@@ -139,7 +139,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
 
   var extract: Expr[List[M] => (List[M], Map[String, Any])] = '{ (_: List[M]) => (List(), Map()) }
   var predicate: Expr[Map[String, Any] => Boolean]          = '{ (_: Map[String, Any]) => true }
-  var rhs: Expr[Map[String, Any] => T]                      = null
+  var rhs: Expr[Map[String, Any] => T]                      =
+    '{(_: Map[String, Any]) => Object().asInstanceOf[T] } // to get rid of null; but is it okay ?
   var size                                                  = 1
 
   _case match
