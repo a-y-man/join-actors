@@ -9,7 +9,7 @@ class PingPongTest extends AnyFunSuite {
   case class Ping() extends Msg
   case class Pong() extends Msg
 
-  class _Ping(private val maxHits: Int) extends Runnable {
+  class Pinger(private val maxHits: Int) extends Runnable {
     private val q                      = LinkedTransferQueue[Msg]
     var hits                           = 0
     val ref                            = ActorRef(q)
@@ -23,20 +23,21 @@ class PingPongTest extends AnyFunSuite {
           // println(f"ping $hits")
           pongRef.get.send(Ping())
 
-          if hits >= maxHits then
-            isDone = true
-        // println("ping is done")
+          if hits >= maxHits then isDone = true
+      // println("ping is done")
     }
 
     override def run =
       ping()
-      while !isDone do f(q)
+      while !isDone do
+        f(q)
+        Thread.`yield`()
 
     def ping() =
       pongRef.get.send(Ping())
   }
 
-  class _Pong(private val maxHits: Int) extends Runnable {
+  class Ponger(private val maxHits: Int) extends Runnable {
     private val q                      = LinkedTransferQueue[Msg]
     var hits                           = 0
     val ref                            = ActorRef(q)
@@ -50,20 +51,22 @@ class PingPongTest extends AnyFunSuite {
           // println(f"pong $hits")
           pingRef.get.send(Pong())
 
-          if hits >= maxHits then
-            isDone = true
-        // println("pong is done")
+          if hits >= maxHits then isDone = true
+      // println("pong is done")
     }
 
-    override def run = while !isDone do f(q)
+    override def run =
+      while !isDone do
+        f(q)
+        Thread.`yield`()
   }
 
   test("Fixed number of iterations") {
-    val maxHits = 100_000
-    val ping    = _Ping(maxHits)
-    val pong    = _Pong(maxHits)
-    val pingThread    = Thread(ping)
-    val pongThread    = Thread(pong)
+    val maxHits    = 100_000
+    val ping       = Pinger(maxHits)
+    val pong       = Ponger(maxHits)
+    val pingThread = Thread(ping)
+    val pongThread = Thread(pong)
 
     ping.pongRef = Some(pong.ref)
     pong.pingRef = Some(ping.ref)
@@ -81,11 +84,11 @@ class PingPongTest extends AnyFunSuite {
   }
 
   test("Random number of iterations") {
-    val maxHits = Random.nextInt(100_000)
-    val ping    = _Ping(maxHits)
-    val pong    = _Pong(maxHits)
-    val pingThread    = Thread(ping)
-    val pongThread    = Thread(pong)
+    val maxHits    = Random.nextInt(100_000)
+    val ping       = Pinger(maxHits)
+    val pong       = Ponger(maxHits)
+    val pingThread = Thread(ping)
+    val pongThread = Thread(pong)
 
     ping.pongRef = Some(pong.ref)
     pong.pingRef = Some(ping.ref)
