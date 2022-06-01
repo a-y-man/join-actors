@@ -139,9 +139,8 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
 
   var extract: Expr[List[M] => (List[M], Map[String, Any])] = '{ (_: List[M]) => (List(), Map()) }
   var predicate: Expr[Map[String, Any] => Boolean]          = '{ (_: Map[String, Any]) => true }
-  var rhs: Expr[Map[String, Any] => T]                      =
-    '{(_: Map[String, Any]) => Object().asInstanceOf[T] } // to get rid of null; but is it okay ?
-  var size                                                  = 1
+  var rhs: Expr[Map[String, Any] => T] = '{ (_: Map[String, Any]) => Object().asInstanceOf[T] }
+  var size                             = 1
 
   _case match
     case CaseDef(pattern, guard, _rhs) =>
@@ -191,14 +190,16 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
 
                 if messages.size >= _extractors.size then
                   for
-                    (typecheck, extractor) <- _extractors
+                    // BUG: cannot use "(typecheck, extractor) <- _extractors"
+                    // unecessary typecheck creates unreachable "case"
+                    extractor <- _extractors
                     if matched.size < _extractors.size
                   do
-                    messages.find(typecheck) match
+                    messages.find(extractor._1) match
                       case Some(matchedMessage) =>
                         matched.addOne(matchedMessage)
                         messages.subtractOne(matchedMessage)
-                        fields.addAll(extractor(matchedMessage))
+                        fields.addAll(extractor._2(matchedMessage))
                       case None => ()
 
                 if matched.size == _extractors.size then (matched.toList, fields.toMap)
