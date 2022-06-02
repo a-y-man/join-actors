@@ -1,234 +1,230 @@
 package join_patterns
 
 import org.scalatest.funsuite._
+import scala.util.Random
 import java.util.concurrent.LinkedTransferQueue
 
 class SantaClausTest extends AnyFunSuite {
   sealed abstract class Msg
-  case class IsBack(n: Int)         extends Msg
-  case class CanLeave()             extends Msg
-  case class Helped(name: String)   extends Msg
-  case class NeedHelp(name: String) extends Msg
+  case class IsBack(n: Int)   extends Msg
+  case class CanLeave()       extends Msg
+  case class Helped()         extends Msg
+  case class NeedHelp(n: Int) extends Msg
 
-  // each object has mailbox
-  // each bject in different threads
-  // mailbox : queue
-  // mailbox ref : queue
-
-  val reindeerNumber = 9
-
-  class SantaClaus(q: LinkedTransferQueue[Msg]) {
-    val ref           = ActorRef(q)
-    var reindeersBack = 0
-    val isBackAndCheck: Int => Boolean = (n: Int) =>
+  class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int) extends Runnable {
+    private val q             = LinkedTransferQueue[Msg]
+    val ref                   = ActorRef(q)
+    val reinDeerRefs          = Array.fill[Option[ActorRef[Msg]]](reindeerNumber)(None)
+    val elvesRefs             = Array.fill[Option[ActorRef[Msg]]](elvesNumber)(None)
+    private var reindeersBack = 0
+    private val isBackAndCheck: Int => Boolean = (n: Int) =>
       reindeersBack += 1
-      reindeersBack == 9
+      reindeersBack == reindeerNumber
 
-    val _println: Any => Unit = (x: Any) =>
-      print(f"${this.getClass.getSimpleName}: ")
-      println(x)
+    /** Set to a positive number so it stops after a ceratin number of actions. Set to any negative
+      * number to it loops forever.
+      */
+    var actions = 0
 
-    val f = receive { (y: Msg) =>
+    val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
+
+    private def f = receive { (y: Msg) =>
       y match
-        case (NeedHelp(n0: String), NeedHelp(n1: String), NeedHelp(n2: String), IsBack(n: Int))
-            if isBackAndCheck(n) =>
-          _println("awake")
-          q.put(NeedHelp(n0))
-          q.put(NeedHelp(n1))
-          q.put(NeedHelp(n2))
-          _println("delivering presents")
-          (1 to reindeerNumber).foreach(_ => q.put(CanLeave()))
-          reindeersBack = 0
-          _println("sleeping")
-        case (NeedHelp(n0: String), NeedHelp(n1: String), NeedHelp(n2: String)) =>
+        case IsBack(n: Int) =>
+          // not as guard, to consume the message
+          if isBackAndCheck(n) then
+            _println("awake")
+            _println("delivering presents")
+            reinDeerRefs.foreach(_.get.send(CanLeave()))
+            reindeersBack = 0
+            _println("sleeping")
+            actions -= 1
+        case (NeedHelp(n0: Int), NeedHelp(n1: Int), NeedHelp(n2: Int)) =>
           _println("awake")
           _println(f"fixing difficulties of $n0, $n1, $n2")
-          q.put(Helped(n0))
-          q.put(Helped(n1))
-          q.put(Helped(n2))
+          elvesRefs(n0).get.send(Helped())
+          elvesRefs(n1).get.send(Helped())
+          elvesRefs(n2).get.send(Helped())
           _println("sleeping")
-        case IsBack(n: Int) if isBackAndCheck(n) =>
-          _println("awake")
-          _println("delivering presents")
-          (1 to reindeerNumber).foreach(_ => q.put(CanLeave()))
-          reindeersBack = 0
-          _println("sleeping")
+          actions -= 1
     }
+
+    override def run =
+      while actions != 0 do
+        f(q)
+        Thread.`yield`()
   }
 
-  class Reindeer(val number: Int) {
-    val q              = LinkedTransferQueue[Msg]
-    val ref            = ActorRef(q)
-    var onHoliday      = true
-    val isNotOnHoliday = () => !onHoliday
+  class Reindeer(val number: Int) extends Runnable {
+    private val q                       = LinkedTransferQueue[Msg]
+    val ref                             = ActorRef(q)
+    var santaRef: Option[ActorRef[Msg]] = None
+    var onHoliday                       = true
+    val isBack                          = () => !onHoliday
+    var isDone                          = false
 
-    val _println: Any => Unit = (x: Any) =>
-      print(f"${this.getClass.getSimpleName}[$number]: ")
-      println(x)
+    val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-    val f = receive { (y: Msg) =>
+    private def f = receive { (y: Msg) =>
       y match
-        case CanLeave() if isNotOnHoliday() =>
+        case CanLeave() if isBack() =>
           assert(!onHoliday)
           onHoliday = true
           _println("Going on holiday")
+          isDone = true
     }
 
-    def comesBack(q: LinkedTransferQueue[Msg]) =
+    def comesBack() =
       if onHoliday then
         onHoliday = false
         _println("Came back")
-        q.put(IsBack(number))
+        santaRef.get.send(IsBack(number))
+
+    override def run =
+      comesBack()
+      while !isDone do
+        f(q)
+        Thread.`yield`()
   }
 
-  class Elf(val name: String) {
-    val q        = LinkedTransferQueue[Msg]
-    val ref      = ActorRef(q)
-    var needHelp = false
-    val sameName = (s: String) => s == name
+  class Elf(val number: Int) extends Runnable {
+    private val q                       = LinkedTransferQueue[Msg]
+    val ref                             = ActorRef(q)
+    var santaRef: Option[ActorRef[Msg]] = None
+    var needHelp                        = false
+    var _needHelp                       = () => needHelp
+    var isDone                          = false
 
-    val _println: Any => Unit = (x: Any) =>
-      print(f"${this.getClass.getSimpleName}[$name]: ")
-      println(x)
+    val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-    val f = receive { (y: Msg) =>
+    private def f = receive { (y: Msg) =>
       y match
-        case Helped(s: String) if sameName(s) =>
+        case Helped() if _needHelp() =>
           assert(needHelp)
           needHelp = false
           _println("Has been helped")
+          isDone = true
     }
 
-    def askForHelp(q: LinkedTransferQueue[Msg]) =
+    def askForHelp() =
       if !needHelp then
         needHelp = true
         _println("Needs help")
-        q.put(NeedHelp(name))
+        santaRef.get.send(NeedHelp(number))
+
+    override def run =
+      askForHelp()
+      while !isDone do
+        f(q)
+        Thread.`yield`()
   }
 
   test("Elves are helped") {
-    val q     = LinkedTransferQueue[Msg]
-    val santa = SantaClaus(q)
-    val elves = Array(
-      "Fingon",
-      "Turgon",
-      "Aredhel",
-      "Argon",
-      "Finrod",
-      "Angrod",
-      "Aegnor",
-      "Galadriel"
-    ).toSet.map(Elf(_)).toArray
+    val elvesNumber = 3
 
-    elves(0).askForHelp(q)
-    elves(1).askForHelp(q)
-    elves(2).askForHelp(q)
+    val santa = SantaClaus(0, elvesNumber)
+    santa.actions = 1
+    val elves = (0 to elvesNumber - 1).map { i =>
+      val e = Elf(i)
+      santa.elvesRefs.update(i, Some(e.ref))
+      e.santaRef = Some(santa.ref)
+      e
+    }.toArray
 
-    assert(
-      elves.zipWithIndex.forall((e, i) =>
-        if i == 0 || i == 1 || i == 2 then e.needHelp else !e.needHelp
-      )
-    )
+    val elfThreads  = elves.map(Thread(_))
+    val santaThread = Thread(santa)
 
-    santa.f(q)
-    elves(0).f(q)
-    elves(1).f(q)
-    elves(2).f(q)
+    santaThread.start
+    elfThreads.foreach(_.start)
+
+    santaThread.join
+    elfThreads.foreach(_.join)
 
     assert(elves.forall(!_.needHelp))
   }
 
   test("Reindeers come back") {
-    val q                          = LinkedTransferQueue[Msg]
-    val santa                      = SantaClaus(q)
-    val reindeers: Array[Reindeer] = Array.tabulate(reindeerNumber)(Reindeer(_))
+    val reindeerNumber = 9
 
-    reindeers.foreach(_.comesBack(q))
+    val santa = SantaClaus(reindeerNumber, 0)
+    santa.actions = 1
+    val reindeers = (0 to reindeerNumber - 1).map { i =>
+      val r = Reindeer(i)
+      santa.reinDeerRefs.update(i, Some(r.ref))
+      r.santaRef = Some(santa.ref)
+      r
+    }.toArray
 
-    assert(reindeers.forall(!_.onHoliday))
+    val reindeerThreads = reindeers.map(Thread(_))
+    val santaThread     = Thread(santa)
 
-    santa.f(q)
-    reindeers.foreach(_.f(q))
+    santaThread.start
+    reindeerThreads.foreach(_.start)
+
+    santaThread.join
+    reindeerThreads.foreach(_.join)
 
     assert(reindeers.forall(_.onHoliday))
   }
 
   test("Reindeers have priority over elves") {
-    val q                          = LinkedTransferQueue[Msg]
-    val santa                      = SantaClaus(q)
-    val reindeers: Array[Reindeer] = Array.tabulate(reindeerNumber)(Reindeer(_))
-    val elves = Array(
-      "Fingon",
-      "Turgon",
-      "Aredhel",
-      "Argon",
-      "Finrod",
-      "Angrod",
-      "Aegnor",
-      "Galadriel"
-    ).toSet.map(Elf(_)).toArray
+    val reindeerNumber = 9
+    val elvesNumber    = 3
 
-    elves(3).askForHelp(q)
-    elves(4).askForHelp(q)
-    elves(5).askForHelp(q)
-    reindeers.foreach(_.comesBack(q))
+    val santa = SantaClaus(reindeerNumber, elvesNumber)
+    santa.actions = 2
+    val elves = (0 to elvesNumber - 1).map { i =>
+      val e = Elf(i)
+      santa.elvesRefs.update(i, Some(e.ref))
+      e.santaRef = Some(santa.ref)
+      e
+    }.toArray
+    val reindeers = (0 to reindeerNumber - 1).map { i =>
+      val r = Reindeer(i)
+      santa.reinDeerRefs.update(i, Some(r.ref))
+      r.santaRef = Some(santa.ref)
+      r
+    }.toArray
 
-    assert(reindeers.forall(!_.onHoliday))
-    assert(
-      elves.zipWithIndex.forall((e, i) =>
-        if i == 3 || i == 4 || i == 5 then e.needHelp else !e.needHelp
-      )
-    )
+    val elfThreads      = elves.map(Thread(_))
+    val reindeerThreads = reindeers.map(Thread(_))
+    val santaThread     = Thread(santa)
 
-    santa.f(q)
-    reindeers.foreach(_.f(q))
+    elfThreads.foreach(_.start)
+    Thread.sleep(1000) // elves' messages are first in the queue
+    reindeerThreads.foreach(_.start)
+    Thread.sleep(1000) // all reindeers' messages are in the queue
+    santaThread.start
 
-    assert(reindeers.forall(_.onHoliday))
-    assert(
-      elves.zipWithIndex.forall((e, i) =>
-        if i == 3 || i == 4 || i == 5 then e.needHelp else !e.needHelp
-      )
-    )
-
-    santa.f(q)
-    elves(3).f(q)
-    elves(4).f(q)
-    elves(5).f(q)
+    santaThread.join
+    reindeerThreads.foreach(_.join)
+    elfThreads.foreach(_.join)
 
     assert(elves.forall(!_.needHelp))
+    assert(reindeers.forall(_.onHoliday))
   }
 
   test("Preserve Elves' help order") {
-    val q                          = LinkedTransferQueue[Msg]
-    val santa                      = SantaClaus(q)
-    val reindeers: Array[Reindeer] = Array.tabulate(reindeerNumber)(Reindeer(_))
-    val elves = Array(
-      "Aredhel",
-      "Galadriel",
-      "Fingon",
-      "Turgon",
-      "Argon",
-      "Finrod",
-      "Angrod",
-      "Aegnor"
-    ).map(Elf(_)).toSet.toList
+    val elvesNumber = 6
 
-    elves(4).askForHelp(q)
-    elves(5).askForHelp(q)
-    elves(6).askForHelp(q)
-    elves(0).askForHelp(q)
-    elves(1).askForHelp(q)
-    elves(7).askForHelp(q)
+    val santa = SantaClaus(0, elvesNumber)
+    santa.actions = 2
+    val elves = (0 to elvesNumber - 1).map { i =>
+      val e = Elf(i)
+      santa.elvesRefs.update(i, Some(e.ref))
+      e.santaRef = Some(santa.ref)
+      e
+    }.toArray
 
-    santa.f(q)
-    elves(4).f(q)
-    elves(5).f(q)
-    elves(6).f(q)
+    val elfThreads  = elves.map(Thread(_))
+    val santaThread = Thread(santa)
 
-    assert(
-      elves.zipWithIndex.forall((e, i) =>
-        if i == 0 || i == 1 || i == 7 then e.needHelp else !e.needHelp
-      )
-    )
+    elfThreads.reverse.foreach(_.start)
+    santaThread.start
+
+    santaThread.join
+    elfThreads.foreach(_.join)
+
+    assert(elves.forall(!_.needHelp))
   }
 }
