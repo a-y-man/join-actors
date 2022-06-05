@@ -11,19 +11,18 @@ case class JoinPattern[M, T](
     var guard: Map[String, Any] => Boolean,
     var rhs: Map[String, Any] => T,
     val size: Int
+    // remain
 )
 
 def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.reflect.TypeRepr) =
   import quotes.reflect.*
 
-  var inner: (String, TypeRepr) = ("", TypeRepr.of[Nothing])
-
   t match
-    case Bind(n, typed @ Typed(_, TypeIdent(_))) => inner = (n, typed.tpt.tpe.dealias.simplified)
-    case typed @ Typed(Wildcard(), TypeIdent(_)) => inner = ("_", typed.tpt.tpe.dealias.simplified)
-    case default                                 => errorTree("Unsupported bottom-level pattern", t)
-
-  inner
+    case Bind(n, typed @ Typed(_, TypeIdent(_))) => (n, typed.tpt.tpe.dealias.simplified)
+    case typed @ Typed(Wildcard(), TypeIdent(_)) => ("_", typed.tpt.tpe.dealias.simplified)
+    case default =>
+      errorTree("Unsupported bottom-level pattern", t)
+      ("", TypeRepr.of[Nothing])
 
 // add support for wilcard types (_, A, B, C), they must be checked last !!!!!
 def getTypesData(using quotes: Quotes)(
@@ -266,49 +265,9 @@ def nonRepeatingComb[T](elems: List[T], genSize: Int, f: List[T] => Unit): Unit 
 }
 
 // Generate the code returned by the receive macro
-def receiveCodegen[M, T](
-    expr: Expr[M => T]
-)(using tm: Type[M], tt: Type[T], quotes: Quotes): Expr[Queue[M] => T] =
-  import quotes.reflect.*
-  import collection.convert.ImplicitConversions._
-  import scala.collection.Searching._
-
-  val genCode = '{ (q: Queue[M]) =>
-    // no sorting but warnings ?
-    // allow to specify ordering
-    val matchTable        = (${ Expr.ofList(getCases(expr)) }) // .sortBy(_.size).reverse
-    val patternSizes      = matchTable.map(_.size).toSet
-    var result: Option[T] = None
-
-    while (result.isEmpty)
-      val messages: ListBuffer[M] = ListBuffer(q.take())
-      q.drainTo(messages)
-      val messageSets: ListBuffer[List[M]] = ListBuffer()
-      patternSizes
-        .dropWhile(_ > messages.size)
-        .foreach(
-          nonRepeatingComb(messages.toList, _, messageSets.addOne)
-        )
-
-      var matchedMessages: List[M] = List()
-      for
-        messageSet <- messageSets
-        pattern    <- matchTable
-        if matchedMessages.isEmpty
-      do
-        val (_matchedMessages, inners) = pattern.extract(messageSet)
-
-        if !_matchedMessages.isEmpty && pattern.guard(inners) then
-          matchedMessages = _matchedMessages
-          result = Some(pattern.rhs(inners))
-
-      messages.subtractAll(matchedMessages).foreach(q.put)
-
-    result.get
-  }
-
-  report.info(f"Generated code: ${genCode.asTerm.show(using Printer.TreeAnsiCode)}")
-  genCode
+def receiveCodegen[M, T](expr: Expr[M => T])(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
+  Matcher[M, T](${ Expr.ofList(getCases(expr)) })
+}
 
 /** Entry point of the `receive` macro.
   *
@@ -317,8 +276,45 @@ def receiveCodegen[M, T](
   * @return
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): Queue[M] => T = ${ receiveCodegen('f) }
+inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
 
+//using ?
+object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
+  def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = a.size.compare(b.size)
+}
+
+class Matcher[M, T] /*(using PatternOrdering: Ordering[JoinPattern[M, T]])*/ (
+    val matchTable: List[JoinPattern[M, T]]
+) {
+  def apply(q: Queue[M]): T =
+    import collection.convert.ImplicitConversions._
+
+    val patternSizes      = matchTable.map(_.size).toSet
+    var result: Option[T] = None
+
+    while (result.isEmpty)
+      val messages: ListBuffer[M] = ListBuffer(q.take())
+      q.drainTo(messages)
+      val messageSets: ListBuffer[List[M]] = ListBuffer() // Map[Int, ListBuffer[List[M]]]
+      patternSizes
+        .filter(_ <= messages.size)
+        .foreach(
+          nonRepeatingComb(messages.toList, _, messageSets.addOne)
+        )
+
+      for
+        pattern    <- matchTable
+        messageSet <- messageSets
+        if !result.isDefined
+      do
+        val (matchedMessages, inners) = pattern.extract(messageSet)
+
+        if !matchedMessages.isEmpty && pattern.guard(inners) then
+          result = Some(pattern.rhs(inners))
+          messages.subtractAll(matchedMessages).foreach(q.put)
+
+    result.get
+}
 /*
 receive(e) {
 	(A a, B b, C c) => println(""), // local copies, used data is marked for `this` but not consumed (so others can use it)
