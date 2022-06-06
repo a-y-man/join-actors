@@ -4,7 +4,7 @@ ThisBuild / scalaVersion := "3.1.2"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "join_patterns",
-    libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.12" % Test,
+    name                                   := "join_patterns",
+    libraryDependencies += "org.scalatest" %% "scalatest"          % "3.2.12" % Test,
     libraryDependencies += "org.scalatest" %% "scalatest-funsuite" % "3.2.12" % "test"
   )
