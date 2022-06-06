@@ -14,6 +14,48 @@ case class JoinPattern[M, T](
     // remain
 )
 
+class Matcher[M, T](
+    var matchTable: List[JoinPattern[M, T]],
+    var strategy: Option[Ordering[JoinPattern[M, T]]] = None
+) {
+  // Temporary simple solution.
+  def setStrategy(strategy: Ordering[JoinPattern[M, T]]) = this.strategy = Some(strategy)
+
+  def apply(q: Queue[M]): T =
+    import collection.convert.ImplicitConversions._
+
+    val patternSizes      = matchTable.map(_.size).toSet
+    var result: Option[T] = None
+
+    while (result.isEmpty)
+      val messages: ListBuffer[M] = ListBuffer(q.take())
+      q.drainTo(messages)
+      val messageSets: ListBuffer[List[M]] = ListBuffer() // Map[Int, ListBuffer[List[M]]]
+      patternSizes
+        .filter(_ <= messages.size)
+        .foreach(nonRepeatingComb(messages.toList, _, messageSets.addOne))
+
+      for
+        pattern    <- matchTable
+        messageSet <- messageSets /*filter smaller message sets ?*/
+        if !result.isDefined
+      do
+        val (matchedMessages, inners) = pattern.extract(messageSet)
+
+        if !matchedMessages.isEmpty && pattern.guard(inners) then
+          result = Some(pattern.rhs(inners))
+          messages.subtractAll(matchedMessages).foreach(q.put)
+
+    result.get
+}
+
+/** Extracts a type's name and representation from a `Tree`.
+  *
+  * @param t
+  *   the tree, either a `Bind` or a `Typed`.
+  * @return
+  *   a tuple containing the type's name and representation.
+  */
 def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.reflect.TypeRepr) =
   import quotes.reflect.*
 
@@ -25,6 +67,14 @@ def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.
       ("", TypeRepr.of[Nothing])
 
 // add support for wilcard types (_, A, B, C), they must be checked last !!!!!
+/** Extracts types' name and representation from patterns.
+  *
+  * @param patterns
+  *   the patterns, as a `List[Tree]`.
+  * @return
+  *   a list of tuples, containing pattern type representation, and a list of tuples, containing
+  *   types' name and representation.
+  */
 def getTypesData(using quotes: Quotes)(
     patterns: List[quotes.reflect.Tree]
 ): List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])] =
@@ -39,6 +89,15 @@ def getTypesData(using quotes: Quotes)(
       TypeRepr.of[Nothing] -> List()
   }
 
+/** Creates an extractor function.
+  *
+  * @param outerType
+  *   the message type.
+  * @param varNames
+  *   the field names.
+  * @return
+  *   a `Block` that is the extractor.
+  */
 def generateExtractor(using
     quotes: Quotes
 )(outerType: quotes.reflect.TypeRepr, varNames: List[String]): quotes.reflect.Block =
@@ -62,6 +121,15 @@ def generateExtractor(using
       ('{ Map[String, Any](${ Varargs[(String, Any)](args) }: _*) }).asTerm
   )
 
+/** Creates a guard function.
+  *
+  * @param guard
+  *   the optional predicate.
+  * @param inners
+  *   the field types available in this pattern.
+  * @return
+  *   a `Block` that is the guard.
+  */
 def generateGuard(using quotes: Quotes)(
     guard: Option[quotes.reflect.Term],
     inners: List[(String, quotes.reflect.TypeRepr)]
@@ -106,6 +174,15 @@ def generateGuard(using quotes: Quotes)(
     rhsFn = _rhsFn
   )
 
+/** Creates the right-hand side function.
+  *
+  * @param rhs
+  *   the right-hand side.
+  * @param inners
+  *   the field types available in this pattern.
+  * @return
+  *   a `Block` that is the rhs.
+  */
 def generateRhs[T](using
     quotes: Quotes,
     tt: Type[T]
@@ -131,8 +208,15 @@ def generateRhs[T](using
       transform.transformTerm(rhs.changeOwner(sym))(sym)
   )
 
+/** Creates a join-pattern from a `CaseDef`.
+  *
+  * @param case
+  *   the source `CaseDef`.
+  * @return
+  *   a join-pattern expression.
+  */
 def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
-    _case: quotes.reflect.CaseDef
+    `case`: quotes.reflect.CaseDef
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
@@ -141,7 +225,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
   var rhs: Expr[Map[String, Any] => T] = '{ (_: Map[String, Any]) => Object().asInstanceOf[T] }
   var size                             = 1
 
-  _case match
+  `case` match
     case CaseDef(pattern, guard, _rhs) =>
       // report.warning(_rhs.show(using Printer.TreeStructure))
 
@@ -222,9 +306,13 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }) }
 
-// Translate a series of match clause into a list of pairs, each one
-// containing a test function to check whether a message has a certain type,
-// and a closure (returning T) to execute if the test returns true
+/** Translates a series of match clauses into a list of join-pattern.
+  *
+  * @param expr
+  *   the match expression.
+  * @return
+  *   a list of join-pattern expressions.
+  */
 def getCases[M, T](
     expr: Expr[M => T]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
@@ -264,7 +352,13 @@ def nonRepeatingComb[T](elems: List[T], genSize: Int, f: List[T] => Unit): Unit 
   nonRepeatingCombRec(elems.reverse, genSize, Nil)
 }
 
-// Generate the code returned by the receive macro
+/** Generate the code returned by the receive macro.
+  *
+  * @param expr
+  *   the match expression.
+  * @return
+  *   a matcher instance.
+  */
 def receiveCodegen[M, T](expr: Expr[M => T])(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
   Matcher[M, T](${ Expr.ofList(getCases(expr)) })
 }
@@ -278,43 +372,6 @@ def receiveCodegen[M, T](expr: Expr[M => T])(using tm: Type[M], tt: Type[T], quo
   */
 inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
 
-//using ?
-object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
-  def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = a.size.compare(b.size)
-}
-
-class Matcher[M, T] /*(using PatternOrdering: Ordering[JoinPattern[M, T]])*/ (
-    val matchTable: List[JoinPattern[M, T]]
-) {
-  def apply(q: Queue[M]): T =
-    import collection.convert.ImplicitConversions._
-
-    val patternSizes      = matchTable.map(_.size).toSet
-    var result: Option[T] = None
-
-    while (result.isEmpty)
-      val messages: ListBuffer[M] = ListBuffer(q.take())
-      q.drainTo(messages)
-      val messageSets: ListBuffer[List[M]] = ListBuffer() // Map[Int, ListBuffer[List[M]]]
-      patternSizes
-        .filter(_ <= messages.size)
-        .foreach(
-          nonRepeatingComb(messages.toList, _, messageSets.addOne)
-        )
-
-      for
-        pattern    <- matchTable
-        messageSet <- messageSets
-        if !result.isDefined
-      do
-        val (matchedMessages, inners) = pattern.extract(messageSet)
-
-        if !matchedMessages.isEmpty && pattern.guard(inners) then
-          result = Some(pattern.rhs(inners))
-          messages.subtractAll(matchedMessages).foreach(q.put)
-
-    result.get
-}
 /*
 receive(e) {
 	(A a, B b, C c) => println(""), // local copies, used data is marked for `this` but not consumed (so others can use it)
