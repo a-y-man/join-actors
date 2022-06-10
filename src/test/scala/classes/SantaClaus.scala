@@ -15,10 +15,7 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int) extends Runnable
   val ref                   = ActorRef(q)
   val reinDeerRefs          = Array.fill[Option[ActorRef[Msg]]](reindeerNumber)(None)
   val elvesRefs             = Array.fill[Option[ActorRef[Msg]]](elvesNumber)(None)
-  private var reindeersBack = 0
-  private val isBackAndCheck: Int => Boolean = (n: Int) =>
-    reindeersBack += 1
-    reindeersBack == reindeerNumber
+  private var reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
 
   /** Set to a positive number so it stops after a ceratin number of actions. Set to any negative
     * number to it loops forever.
@@ -30,12 +27,13 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int) extends Runnable
   private def f = receive { (y: Msg) =>
     y match
       case IsBack(n: Int) =>
-        // not as guard, to consume the message
-        if isBackAndCheck(n) then
+        reindeersBack(n) = true
+
+        if reindeersBack.forall(r => r) then
           _println("awake")
           _println("delivering presents")
           reinDeerRefs.foreach(_.get.send(CanLeave()))
-          reindeersBack = 0
+          reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
           _println("sleeping")
           actions -= 1
       case (NeedHelp(n0: Int), NeedHelp(n1: Int), NeedHelp(n2: Int)) =>
@@ -49,7 +47,7 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int) extends Runnable
   }
 
   override def run =
-    while actions != 0 do
+    while actions > 0 do
       f(q)
       Thread.`yield`()
 }

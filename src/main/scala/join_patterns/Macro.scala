@@ -244,8 +244,9 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
 
                   extract = '{ (m: List[M]) =>
                     m.find(_.isInstanceOf[ot]) match
-                      case None          => (List(), Map())
-                      case Some(message) => (List(message), ${ extractor }(m(0).asInstanceOf[ot]))
+                      case None => (List(), Map())
+                      case Some(message) =>
+                        (List(message), ${ extractor }(message.asInstanceOf[ot]))
                   }
               (List(outer), inners)
             // (A, B, C ...)
