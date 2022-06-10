@@ -14,13 +14,7 @@ case class JoinPattern[M, T](
     // remain
 )
 
-class Matcher[M, T](
-    var matchTable: List[JoinPattern[M, T]],
-    var strategy: Option[Ordering[JoinPattern[M, T]]] = None
-) {
-  // Temporary simple solution.
-  def setStrategy(strategy: Ordering[JoinPattern[M, T]]) = this.strategy = Some(strategy)
-
+class Matcher[M, T](val matchTable: List[JoinPattern[M, T]]) {
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
 
@@ -30,21 +24,17 @@ class Matcher[M, T](
     while (result.isEmpty)
       val messages: ListBuffer[M] = ListBuffer(q.take())
       q.drainTo(messages)
-      val messageSets: ListBuffer[List[M]] = ListBuffer() // Map[Int, ListBuffer[List[M]]]
-      patternSizes
-        .filter(_ <= messages.size)
-        .foreach(nonRepeatingComb(messages.toList, _, messageSets.addOne))
 
       for
-        pattern    <- matchTable
-        messageSet <- messageSets /*filter smaller message sets ?*/
+        pattern <- matchTable
         if !result.isDefined
       do
-        val (matchedMessages, inners) = pattern.extract(messageSet)
+        if messages.size >= pattern.size then
+          val (matchedMessages, inners) = pattern.extract(messages.toList)
 
-        if !matchedMessages.isEmpty && pattern.guard(inners) then
-          result = Some(pattern.rhs(inners))
-          messages.subtractAll(matchedMessages).foreach(q.put)
+          if !matchedMessages.isEmpty && pattern.guard(inners) then
+            result = Some(pattern.rhs(inners))
+            messages.subtractAll(matchedMessages).foreach(q.put)
 
     result.get
 }
@@ -323,35 +313,19 @@ def getCases[M, T](
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts(0) match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          cases.map { generate[M, T](_) }
+          val code = cases.map { generate[M, T](_) }
+          /*
+          report.info(
+            f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
+          )
+           */
+          code
         case default =>
           errorTree("Unsupported code", default)
           List()
     case default =>
       errorTree("Unsupported expression", default)
       List()
-
-// shamelessly stolen from http://kennemersoft.nl/?page_id=96
-def nonRepeatingComb[T](elems: List[T], genSize: Int, f: List[T] => Unit): Unit = {
-  def nonRepeatingCombRec(elems: List[T], depth: Int, partResult: List[T]): Unit = {
-    if (elems.size == depth) f(elems.reverse ::: partResult)
-    else {
-      if (!elems.isEmpty) {
-        nonRepeatingCombRec(elems.tail, depth, partResult)
-        if (depth > 0) nonRepeatingCombRec(elems.tail, depth - 1, elems.head :: partResult)
-      }
-    }
-  }
-  if (genSize < 0)
-    throw new IllegalArgumentException(
-      "Negative generation sizes not allowed in nonRepeatingComb..."
-    )
-  if (genSize > elems.size)
-    throw new IllegalArgumentException(
-      "Generation sizes over elems.size not allowed in nonRepeatingComb..."
-    )
-  nonRepeatingCombRec(elems.reverse, genSize, Nil)
-}
 
 /** Generate the code returned by the receive macro.
   *
@@ -363,6 +337,13 @@ def nonRepeatingComb[T](elems: List[T], genSize: Int, f: List[T] => Unit): Unit 
 def receiveCodegen[M, T](expr: Expr[M => T])(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
   Matcher[M, T](${ Expr.ofList(getCases(expr)) })
 }
+def receiveCodegen2[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(using
+    tm: Type[M],
+    tt: Type[T],
+    quotes: Quotes
+) = '{
+  Matcher[M, T]((${ Expr.ofList(getCases(expr)) }).sorted($strat))
+}
 
 /** Entry point of the `receive` macro.
   *
@@ -372,6 +353,9 @@ def receiveCodegen[M, T](expr: Expr[M => T])(using tm: Type[M], tt: Type[T], quo
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
 inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
+inline def receive2[M, T](inline s: Ordering[JoinPattern[M, T]])(
+    inline f: M => T
+): Matcher[M, T] = ${ receiveCodegen2('f, 's) }
 
 /*
 receive(e) {
