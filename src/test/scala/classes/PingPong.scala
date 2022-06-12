@@ -43,18 +43,6 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
       System.nanoTime - start
     }
 
-  def run_as_future_unyielded: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-
-      ping()
-      while !isDone do f(q)
-
-      System.nanoTime - start
-    }
-
   def run_without_macro: Future[Long] =
     implicit val ec = ExecutionContext.global
 
@@ -73,26 +61,6 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
           case _ => q.put(message)
 
         Thread.`yield`()
-
-      System.nanoTime - start
-    }
-
-  def run_without_macro_unyielded: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-      ping()
-      while !isDone do
-        val message = q.take
-
-        message match
-          case Pong() =>
-            hits += 1
-            pongRef.get.send(Ping())
-
-            if hits >= maxHits then isDone = true
-          case _ => q.put(message)
 
       System.nanoTime - start
     }
@@ -138,17 +106,6 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
       System.nanoTime - start
     }
 
-  def run_as_future_unyielded: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-
-      while !isDone do f(q)
-
-      System.nanoTime - start
-    }
-
   def run_without_macro: Future[Long] =
     implicit val ec = ExecutionContext.global
 
@@ -167,26 +124,6 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
           case _ => q.put(message)
 
         Thread.`yield`()
-
-      System.nanoTime - start
-    }
-
-  def run_without_macro_unyielded: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-
-      while !isDone do
-        val message = q.take
-
-        message match
-          case Ping() =>
-            hits += 1
-            pingRef.get.send(Pong())
-
-            if hits >= maxHits then isDone = true
-          case _ => q.put(message)
 
       System.nanoTime - start
     }
