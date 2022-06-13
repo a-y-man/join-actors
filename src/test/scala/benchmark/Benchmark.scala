@@ -51,6 +51,7 @@ class Benchmark(
     private val name: String,
     val warmupIterations: Int,
     val iterations: Int,
+    private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
 ) {
   def run: Long =
@@ -61,38 +62,47 @@ class Benchmark(
     )
 
     val results: Map[String, Long] =
-      passes
-        .map(p =>
-          val res = (p.name, p.run(warmupIterations, iterations))
-          println
-          res
-        )
-        .toMap
+      Map((nullPass.name, nullPass.run(warmupIterations, iterations))).concat(
+        passes
+          .map(p =>
+            val res = (p.name, p.run(warmupIterations, iterations))
+            println
+            res
+          )
+      )
 
     println(f"Benchmark $name END")
 
-    val total   = results.values.sum
-    val average = total / results.size
-    val min     = results.minBy((_: String, r: Long) => r)
+    val total               = results.values.sum
+    val average             = total / results.size
+    val (nullName, nullRes) = results.head
 
     println(
       f"Benchmark $name RESULTS" +
-        "\n" + f"total elapsed time: $total ns / ${total.nano.toSeconds}s" +
-        "\n" + f"average time per pass: $average ns / ${average.nano.toSeconds} s" +
-        "\n" + f"best time: pass ${min._1}, ${min._2} ns / ${min._2.nano.toSeconds} s" + '\n'
+        "\n" + f"total elapsed time: ${total.nano.toSeconds}s" +
+        "\n" + f"average time per pass: ${average.nano.toSeconds} s" + '\n'
     )
 
-    for (passName, passResult) <- results do
-      val averagePerIt = passResult.toDouble / iterations
-      val delta        = ((passResult - average) * 100.0) / average.toDouble
+    val averagePerIt  = "%.2f".format(nullRes.toDouble / iterations)
+    val averagePerItS = "%.2f".format(nullRes.nano.toSeconds.toDouble / iterations)
+    println(
+      f"Pass $nullName" +
+        "\n\t" + f"elapsed time : ${nullRes.nano.toSeconds} s" +
+        "\n\t" + f"average time per iteration : $averagePerIt ns / $averagePerItS s" + '\n'
+    )
+
+    for (passName, passResult) <- results.tail do
+      val averagePerIt  = "%.2f".format(passResult.toDouble / iterations)
+      val averagePerItS = "%.2f".format(passResult.nano.toSeconds.toDouble / iterations)
+      val delta         = ((passResult - nullRes) * 100.0) / nullRes.toDouble
       val delta_formatted =
         (if delta < 0 then s"${GREEN}" else s"${RED}") + "%.2f".format(delta) + s"${RESET}"
 
       println(
         f"Pass $passName" +
-          "\n\t" + f"elapsed time : $passResult ns / ${passResult.nano.toSeconds} s" +
-          "\n\t" + f"average time per iteration : $averagePerIt ns / ${averagePerIt / 1_000_000_000} s" +
-          "\n\t" + f"pass speed related to average: $delta_formatted " + '%'
+          "\n\t" + f"elapsed time : ${passResult.nano.toSeconds} s" +
+          "\n\t" + f"average time per iteration : $averagePerIt ns / $averagePerItS s" +
+          "\n\t" + f"pass speed related to null pass: $delta_formatted " + '%'
       )
 
     total

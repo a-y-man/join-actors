@@ -21,6 +21,14 @@ def pingPongBenchmark =
     "Ping Pong",
     10,
     150,
+    BenchmarkPass(
+      "Control",
+      () => {
+        val (ping, pong) = setup(maxHits)
+        pong.run_without_macro
+        ping.run_without_macro
+      }
+    ),
     List(
       BenchmarkPass(
         "Macro",
@@ -28,14 +36,6 @@ def pingPongBenchmark =
           val (ping, pong) = setup(maxHits)
           pong.run_as_future
           ping.run_as_future
-        }
-      ),
-      BenchmarkPass(
-        "Base",
-        () => {
-          val (ping, pong) = setup(maxHits)
-          pong.run_without_macro
-          ping.run_without_macro
         }
       )
     )
