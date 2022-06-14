@@ -13,14 +13,14 @@ def setup(maxHits: Int): (Pinger, Ponger) =
 
   (ping, pong)
 
-val maxHits = 100_000
-
 @main
 def pingPongBenchmark =
+  val maxHits = 100_000
+
   Benchmark(
     "Ping Pong",
     10,
-    150,
+    200,
     BenchmarkPass(
       "Control",
       () => {
