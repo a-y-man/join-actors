@@ -14,27 +14,32 @@ case class JoinPattern[M, T](
     // remain
 )
 
-class Matcher[M, T](val matchTable: List[JoinPattern[M, T]]) {
+class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
+  // Messages extracted from the queue are saved here to survive across apply() calls
+  val messages = ListBuffer[M]()
+
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
 
-    val patternSizes      = matchTable.map(_.size).toSet
+    val patternSizes      = patterns.map(_.size).toSet
     var result: Option[T] = None
 
     while (result.isEmpty)
-      val messages: ListBuffer[M] = ListBuffer(q.take())
-      q.drainTo(messages)
-
       for
-        pattern <- matchTable
+        pattern <- patterns
         if !result.isDefined
       do
         if messages.size >= pattern.size then
-          val (matchedMessages, inners) = pattern.extract(messages.toList)
+          val (matchedMessages, substs) = pattern.extract(messages.toList)
 
-          if !matchedMessages.isEmpty && pattern.guard(inners) then
-            result = Some(pattern.rhs(inners))
-            messages.subtractAll(matchedMessages).foreach(q.put)
+          if !matchedMessages.isEmpty && pattern.guard(substs) then
+            result = Some(pattern.rhs(substs))
+            messages.subtractAll(matchedMessages) //.foreach(q.put) // This q.put would change the message ordering in the queue
+
+      if result.isEmpty then
+        // If we arrive here, no pattern has been matched and we need more msgs
+        messages.append(q.take())
+        q.drainTo(messages)
 
     result.get
 }
