@@ -11,12 +11,12 @@ import test.benchmark.Benchmarkable
 case class Ping() extends Msg
 case class Pong() extends Msg
 
-class Pinger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
-  private val q                      = LinkedTransferQueue[Msg]
-  var hits                           = 0
-  val ref                            = ActorRef(q)
-  var pongRef: Option[ActorRef[Msg]] = None
-  var isDone                         = false
+class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
+  private val q                       = LinkedTransferQueue[Pong]
+  var hits                            = 0
+  val ref                             = ActorRef[Pong](q)
+  var pongRef: Option[ActorRef[Ping]] = None
+  var isDone                          = false
 
   protected def f = receive { (y: Msg) =>
     y match
@@ -50,15 +50,10 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
       val start = System.nanoTime
       ping()
       while !isDone do
-        val message = q.take
-
-        message match
-          case Pong() =>
-            hits += 1
-            pongRef.get.send(Ping())
-
-            if hits >= maxHits then isDone = true
-          case _ => q.put(message)
+        q.take.asInstanceOf[Pong]
+        hits += 1
+        pongRef.get.send(Ping())
+        if hits >= maxHits then isDone = true
 
         Thread.`yield`()
 
@@ -75,12 +70,12 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
     pongRef.get.send(Ping())
 }
 
-class Ponger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
-  private val q                      = LinkedTransferQueue[Msg]
-  var hits                           = 0
-  val ref                            = ActorRef(q)
-  var pingRef: Option[ActorRef[Msg]] = None
-  var isDone                         = false
+class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
+  private val q                       = LinkedTransferQueue[Ping]
+  var hits                            = 0
+  val ref                             = ActorRef(q)
+  var pingRef: Option[ActorRef[Pong]] = None
+  var isDone                          = false
 
   protected def f = receive { (y: Msg) =>
     y match
@@ -113,15 +108,10 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
       val start = System.nanoTime
 
       while !isDone do
-        val message = q.take
-
-        message match
-          case Ping() =>
-            hits += 1
-            pingRef.get.send(Pong())
-
-            if hits >= maxHits then isDone = true
-          case _ => q.put(message)
+        q.take.asInstanceOf[Ping]
+        hits += 1
+        pingRef.get.send(Pong())
+        if hits >= maxHits then isDone = true
 
         Thread.`yield`()
 

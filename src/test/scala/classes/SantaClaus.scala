@@ -4,27 +4,27 @@ import java.util.concurrent.LinkedTransferQueue
 
 import join_patterns.{ActorRef, receive}
 import test.classes.Msg
+import test.benchmark.Benchmarkable
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+import scala.collection.mutable.ListBuffer
 
 case class IsBack(n: Int)   extends Msg
 case class CanLeave()       extends Msg
 case class Helped()         extends Msg
 case class NeedHelp(n: Int) extends Msg
 
-class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int) extends Runnable {
+class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int)
+    extends Benchmarkable[Msg, Unit] {
   private val q             = LinkedTransferQueue[Msg]
   val ref                   = ActorRef(q)
-  val reinDeerRefs          = Array.fill[Option[ActorRef[Msg]]](reindeerNumber)(None)
-  val elvesRefs             = Array.fill[Option[ActorRef[Msg]]](elvesNumber)(None)
+  val reinDeerRefs          = Array.fill[Option[ActorRef[CanLeave]]](reindeerNumber)(None)
+  val elvesRefs             = Array.fill[Option[ActorRef[Helped]]](elvesNumber)(None)
   private var reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
-
-  /** Set to a positive number so it stops after a ceratin number of actions. Set to any negative
-    * number to it loops forever.
-    */
-  var actions = 0
 
   val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
 
-  private def f = receive { (y: Msg) =>
+  protected def f = receive { (y: Msg) =>
     y match
       case IsBack(n: Int) =>
         reindeersBack(n) = true
@@ -46,61 +46,149 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int) extends Runnable
         actions -= 1
   }
 
+  def run_as_future: Future[Long] =
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        f(q)
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
+  def run_without_macro: Future[Long] =
+    import collection.convert.ImplicitConversions._
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        val messages = ListBuffer(q.take)
+
+        messages(0) match
+          case IsBack(n: Int) =>
+            reindeersBack(n) = true
+
+            if reindeersBack.forall(r => r) then
+              _println("awake")
+              _println("delivering presents")
+              reinDeerRefs.foreach(_.get.send(CanLeave()))
+              reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
+              _println("sleeping")
+              actions -= 1
+          case _ =>
+            q.drainTo(messages)
+            val needHelps = messages.filter(_.isInstanceOf[NeedHelp])
+            if needHelps.size >= 3 then
+              // _println("awake")
+              // _println(f"fixing difficulties of $n0, $n1, $n2")
+              val consume = needHelps.take(3)
+              consume
+                .map(_.asInstanceOf[NeedHelp].n)
+                .foreach((n: Int) => elvesRefs(n).get.send(Helped()))
+              // _println("sleeping")
+              (messages --= consume).foreach(q.put)
+              actions -= 1
+            else messages.foreach(q.put)
+
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
   override def run =
     while actions > 0 do
       f(q)
       Thread.`yield`()
 }
 
-class Reindeer(val number: Int) extends Runnable {
-  private val q                       = LinkedTransferQueue[Msg]
+class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave, Unit] {
+  private val q                       = LinkedTransferQueue[CanLeave]
   val ref                             = ActorRef(q)
   var santaRef: Option[ActorRef[Msg]] = None
   var onHoliday                       = true
   val isBack                          = () => !onHoliday
-  var isDone                          = false
 
   val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-  private def f = receive { (y: Msg) =>
+  protected def f = receive { (y: Msg) =>
     y match
       case CanLeave() if isBack() =>
         assert(!onHoliday)
         onHoliday = true
-        _println("Going on holiday")
-        isDone = true
+        // _println("Going on holiday")
+        actions -= 1
   }
 
   def comesBack() =
     if onHoliday then
       onHoliday = false
-      _println("Came back")
+      // _println("Came back")
       santaRef.get.send(IsBack(number))
 
+  def run_as_future: Future[Long] =
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        comesBack()
+        f(q)
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
+  def run_without_macro: Future[Long] =
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        comesBack()
+        val message = q.take
+
+        if isBack() then
+          assert(!onHoliday)
+          onHoliday = true
+          // _println("Going on holiday")
+          actions -= 1
+        else q.put(message)
+
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
   override def run =
-    comesBack()
-    while !isDone do
+    while actions > 0 do
+      comesBack()
       f(q)
       Thread.`yield`()
 }
 
-class Elf(val number: Int) extends Runnable {
-  private val q                       = LinkedTransferQueue[Msg]
+class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit] {
+  private val q                       = LinkedTransferQueue[Helped]
   val ref                             = ActorRef(q)
   var santaRef: Option[ActorRef[Msg]] = None
   var needHelp                        = false
   var _needHelp                       = () => needHelp
-  var isDone                          = false
 
   val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-  private def f = receive { (y: Msg) =>
+  protected def f = receive { (y: Msg) =>
     y match
       case Helped() if _needHelp() =>
         assert(needHelp)
         needHelp = false
         _println("Has been helped")
-        isDone = true
+        actions -= 1
   }
 
   def askForHelp() =
@@ -109,9 +197,45 @@ class Elf(val number: Int) extends Runnable {
       _println("Needs help")
       santaRef.get.send(NeedHelp(number))
 
+  def run_as_future: Future[Long] =
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        askForHelp()
+        f(q)
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
+  def run_without_macro: Future[Long] =
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        askForHelp()
+        val message = q.take
+
+        if _needHelp() then
+          assert(needHelp)
+          needHelp = false
+          _println("Has been helped")
+          actions -= 1
+        else q.put(message)
+
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
   override def run =
-    askForHelp()
-    while !isDone do
+    while actions > 0 do
+      askForHelp()
       f(q)
       Thread.`yield`()
 }
