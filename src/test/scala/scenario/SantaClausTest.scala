@@ -9,10 +9,9 @@ class SantaClausTest extends AnyFunSuite {
   test("Elves are helped") {
     val elvesNumber = 3
 
-    val santa = SantaClaus(0, elvesNumber)
-    santa.actions = 1
+    val santa = SantaClaus(0, elvesNumber, 1)
     val elves = (0 to elvesNumber - 1).map { i =>
-      val e = Elf(i)
+      val e = Elf(i, 1)
       santa.elvesRefs.update(i, Some(e.ref))
       e.santaRef = Some(santa.ref)
       e
@@ -33,10 +32,9 @@ class SantaClausTest extends AnyFunSuite {
   test("Reindeers come back") {
     val reindeerNumber = 9
 
-    val santa = SantaClaus(reindeerNumber, 0)
-    santa.actions = 1
+    val santa = SantaClaus(reindeerNumber, 0, 1)
     val reindeers = (0 to reindeerNumber - 1).map { i =>
-      val r = Reindeer(i)
+      val r = Reindeer(i, 1)
       santa.reinDeerRefs.update(i, Some(r.ref))
       r.santaRef = Some(santa.ref)
       r
@@ -58,16 +56,15 @@ class SantaClausTest extends AnyFunSuite {
     val reindeerNumber = 9
     val elvesNumber    = 3
 
-    val santa = SantaClaus(reindeerNumber, elvesNumber)
-    santa.actions = 2
+    val santa = SantaClaus(reindeerNumber, elvesNumber, 2)
     val elves = (0 to elvesNumber - 1).map { i =>
-      val e = Elf(i)
+      val e = Elf(i, 1)
       santa.elvesRefs.update(i, Some(e.ref))
       e.santaRef = Some(santa.ref)
       e
     }.toArray
     val reindeers = (0 to reindeerNumber - 1).map { i =>
-      val r = Reindeer(i)
+      val r = Reindeer(i, 1)
       santa.reinDeerRefs.update(i, Some(r.ref))
       r.santaRef = Some(santa.ref)
       r
@@ -94,10 +91,9 @@ class SantaClausTest extends AnyFunSuite {
   test("Preserve Elves' help order") {
     val elvesNumber = 6
 
-    val santa = SantaClaus(0, elvesNumber)
-    santa.actions = 2
+    val santa = SantaClaus(0, elvesNumber, 2)
     val elves = (0 to elvesNumber - 1).map { i =>
-      val e = Elf(i)
+      val e = Elf(i, 1)
       santa.elvesRefs.update(i, Some(e.ref))
       e.santaRef = Some(santa.ref)
       e
