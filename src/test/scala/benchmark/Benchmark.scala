@@ -10,7 +10,6 @@ import join_patterns.Matcher
 trait Benchmarkable[M, T] extends Runnable {
   def run_as_future: Future[Long]
   def run_without_macro: Future[Long]
-  protected def f: Matcher[M, T]
 }
 
 class BenchmarkPass(

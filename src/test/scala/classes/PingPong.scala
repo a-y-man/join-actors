@@ -12,9 +12,9 @@ case class Ping() extends Msg
 case class Pong() extends Msg
 
 class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
-  private val q                       = LinkedTransferQueue[Pong]
+  private val q                       = LinkedTransferQueue[Msg]
   var hits                            = 0
-  val ref                             = ActorRef[Pong](q)
+  val ref                             = ActorRef(q)
   var pongRef: Option[ActorRef[Ping]] = None
   var isDone                          = false
 
@@ -71,7 +71,7 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
 }
 
 class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
-  private val q                       = LinkedTransferQueue[Ping]
+  private val q                       = LinkedTransferQueue[Msg]
   var hits                            = 0
   val ref                             = ActorRef(q)
   var pingRef: Option[ActorRef[Pong]] = None

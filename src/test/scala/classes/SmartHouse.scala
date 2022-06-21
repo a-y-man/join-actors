@@ -92,7 +92,7 @@ class SmartHouse extends Benchmarkable[Msg, Unit] {
       cRoom: String
   ) => mEntranceHall(mStatus0, mRoom0) && cFrontDoor(cStatus, cRoom) && mFrontDoor(mStatus1, mRoom1)
 
-  protected def f = receive { (y: Msg) =>
+  private val f = receive { (y: Msg) =>
     y match
       // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
       case (

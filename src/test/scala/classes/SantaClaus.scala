@@ -16,17 +16,17 @@ case class NeedHelp(n: Int) extends Msg
 
 class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int)
     extends Benchmarkable[Msg, Unit] {
-  private val q             = LinkedTransferQueue[Msg]
-  val ref                   = ActorRef(q)
-  val reinDeerRefs          = Array.fill[Option[ActorRef[CanLeave]]](reindeerNumber)(None)
-  val elvesRefs             = Array.fill[Option[ActorRef[Helped]]](elvesNumber)(None)
-  private var reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
+  private val q                     = LinkedTransferQueue[Msg]
+  val ref                           = ActorRef(q)
+  val reinDeerRefs                  = Array.fill[Option[ActorRef[CanLeave]]](reindeerNumber)(None)
+  val elvesRefs                     = Array.fill[Option[ActorRef[Helped]]](elvesNumber)(None)
+  private var reindeersBack         = Array.fill[Boolean](reindeerNumber)(false)
+  private val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
 
-  val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
-
-  protected def f = receive { (y: Msg) =>
+  private val f = receive { (y: Msg) =>
     y match
       case IsBack(n: Int) =>
+        // reindeersBack.foreach(r => println("\t" + r))
         reindeersBack(n) = true
 
         if reindeersBack.forall(r => r) then
@@ -107,15 +107,15 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
 }
 
 class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave, Unit] {
-  private val q                       = LinkedTransferQueue[CanLeave]
+  private val q                       = LinkedTransferQueue[Msg]
   val ref                             = ActorRef(q)
   var santaRef: Option[ActorRef[Msg]] = None
-  var onHoliday                       = true
+  private var onHoliday               = true
   val isBack                          = () => !onHoliday
+  private val _println: Any => Unit = (x: Any) =>
+    println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-  val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}[$number]: $x")
-
-  protected def f = receive { (y: Msg) =>
+  private val f = receive { (y: Msg) =>
     y match
       case CanLeave() if isBack() =>
         assert(!onHoliday)
@@ -127,7 +127,7 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   def comesBack() =
     if onHoliday then
       onHoliday = false
-      // _println("Came back")
+      _println("Came back")
       santaRef.get.send(IsBack(number))
 
   def run_as_future: Future[Long] =
@@ -174,15 +174,15 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
 }
 
 class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit] {
-  private val q                       = LinkedTransferQueue[Helped]
+  private val q                       = LinkedTransferQueue[Msg]
   val ref                             = ActorRef(q)
   var santaRef: Option[ActorRef[Msg]] = None
-  var needHelp                        = false
+  private var needHelp                = false
   var _needHelp                       = () => needHelp
+  private val _println: Any => Unit = (x: Any) =>
+    println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-  val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}[$number]: $x")
-
-  protected def f = receive { (y: Msg) =>
+  private val f = receive { (y: Msg) =>
     y match
       case Helped() if _needHelp() =>
         assert(needHelp)
