@@ -30,19 +30,19 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
         reindeersBack(n) = true
 
         if reindeersBack.forall(r => r) then
-          _println("awake")
-          _println("delivering presents")
+          // _println("awake")
+          // _println("delivering presents")
           reinDeerRefs.foreach(_.get.send(CanLeave()))
           reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
-          _println("sleeping")
+          // _println("sleeping")
           actions -= 1
       case (NeedHelp(n0: Int), NeedHelp(n1: Int), NeedHelp(n2: Int)) =>
-        _println("awake")
-        _println(f"fixing difficulties of $n0, $n1, $n2")
+        // _println("awake")
+        // _println(f"fixing difficulties of $n0, $n1, $n2")
         elvesRefs(n0).get.send(Helped())
         elvesRefs(n1).get.send(Helped())
         elvesRefs(n2).get.send(Helped())
-        _println("sleeping")
+        // _println("sleeping")
         actions -= 1
   }
 
@@ -127,7 +127,7 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   def comesBack() =
     if onHoliday then
       onHoliday = false
-      _println("Came back")
+      // _println("Came back")
       santaRef.get.send(IsBack(number))
 
   def run_as_future: Future[Long] =
@@ -187,14 +187,14 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
       case Helped() if _needHelp() =>
         assert(needHelp)
         needHelp = false
-        _println("Has been helped")
+        // _println("Has been helped")
         actions -= 1
   }
 
   def askForHelp() =
     if !needHelp then
       needHelp = true
-      _println("Needs help")
+      // _println("Needs help")
       santaRef.get.send(NeedHelp(number))
 
   def run_as_future: Future[Long] =
@@ -224,7 +224,7 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
         if _needHelp() then
           assert(needHelp)
           needHelp = false
-          _println("Has been helped")
+          // _println("Has been helped")
           actions -= 1
         else q.put(message)
 
