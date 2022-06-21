@@ -11,17 +11,15 @@ case class JoinPattern[M, T](
     var guard: Map[String, Any] => Boolean,
     var rhs: Map[String, Any] => T,
     val size: Int
-    // remain
 )
 
 class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   // Messages extracted from the queue are saved here to survive across apply() calls
-  val messages = ListBuffer[M]()
+  private var messages = ListBuffer[M]()
 
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
 
-    val patternSizes      = patterns.map(_.size).toSet
     var result: Option[T] = None
 
     while (result.isEmpty)
@@ -34,7 +32,7 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
           if !matchedMessages.isEmpty && pattern.guard(substs) then
             result = Some(pattern.rhs(substs))
-            messages.subtractAll(matchedMessages) //.foreach(q.put) // This q.put would change the message ordering in the queue
+            messages.subtractAll(matchedMessages)
 
       if result.isEmpty then
         // If we arrive here, no pattern has been matched and we need more msgs
@@ -57,6 +55,8 @@ def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.
   t match
     case Bind(n, typed @ Typed(_, TypeIdent(_))) => (n, typed.tpt.tpe.dealias.simplified)
     case typed @ Typed(Wildcard(), TypeIdent(_)) => ("_", typed.tpt.tpe.dealias.simplified)
+    // add support for Wildcard !!! : (_)
+    // add support for Bind(String, WildCard) : (name: _)
     case default =>
       errorTree("Unsupported bottom-level pattern", t)
       ("", TypeRepr.of[Nothing])
