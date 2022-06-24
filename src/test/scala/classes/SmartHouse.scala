@@ -8,148 +8,213 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import test.benchmark.Benchmarkable
 import java.util.Date
-import java.time.Duration
 import scala.collection.mutable.{Map => MutMap}
+import java.time.Duration
+import scala.collection.mutable.ListBuffer
 
-case class Motion(id: Int, status: Boolean, room: String, timestamp: Date) extends Msg
-case class Light(id: Int, status: Boolean, room: String)                   extends Msg
-case class AmbientLight(id: Int, value: Int, room: String)                 extends Msg
-case class Contact(id: Int, open: Boolean, room: String, timestamp: Date)  extends Msg
-case class DoorBell(id: Int, debounce: Date)                               extends Msg
-case class Consumption(meter_id: Int, value: Int)                          extends Msg
-case class HeatingF(id: Int, _type: String)                                extends Msg
+case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Msg
+case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Msg
+case class AmbientLight(id: Int, value: Int, room: String, timestamp: Date = Date()) extends Msg
+case class Contact(id: Int, open: Boolean, room: String, timestamp: Date = Date())   extends Msg
+case class DoorBell(id: Int, timestamp: Date = Date())                               extends Msg
+case class Consumption(meter_id: Int, value: Int, timestamp: Date = Date())          extends Msg
+case class HeatingF(id: Int, _type: String, timestamp: Date = Date())                extends Msg
 
-class SmartHouse extends Benchmarkable[Msg, Unit] {
-  private val q                                 = LinkedTransferQueue[Msg]
-  val ref                                       = ActorRef(q)
-  var lastNotification                          = Date()
-  var electricityConsumption: MutMap[Date, Int] = MutMap()
+class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
+  private val q                                         = LinkedTransferQueue[Msg]
+  val ref                                               = ActorRef(q)
+  private var lastNotification                          = Date(0L)
+  private var lastMotionInBathroom                      = Date(0L)
+  private var electricityConsumption: MutMap[Date, Int] = MutMap()
+  private var failures: MutMap[Date, String]            = MutMap()
+  private val isSorted: Seq[Date] => Boolean = times =>
+    times.sliding(2).forall { case Seq(x, y) => x.before(y) }
+  private val between: (Date, Date) => Duration = (a, b) =>
+    Duration.between(a.toInstant, b.toInstant).abs
 
   val bathroomOccupied =
     (
+        times: Seq[Date],
+        rooms: Seq[String],
         mStatus: Boolean,
         lStatus: Boolean,
-        mRoom: String,
-        lRoom: String,
-        alRoom: String,
         value: Int
-    ) =>
-      mStatus && lStatus && mRoom == "bathroom" && lRoom == "bathroom" && alRoom == "bathroom" && value <= 40
+    ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
-  // the "not" is done logically on the status members
-  val turnOff = (mStatus: Boolean, lStatus: Boolean, mRoom: String, lRoom: String, window: Date) =>
-    !(mStatus || lStatus) && mRoom == "bathroom" && lRoom == "bathroom" && Duration
-      .between(window.toInstant, Date().toInstant)
-      .toMinutes < 2
+  val turnOff =
+    (times: Seq[Date], rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) =>
+      isSorted(times) && rooms.forall(_ == "bathroom") && !mStatus && lStatus && between(
+        lastMotionInBathroom,
+        Date()
+      ).compareTo(window) > 0
 
-  val sendAlert = (open: Boolean, window: Date) =>
-    open && Duration
-      .between(window.toInstant, Date().toInstant)
-      .toSeconds > 60
+  val sendAlert = (open: Boolean, timestamp: Date, window: Duration) =>
+    open && between(timestamp, Date()).compareTo(window) > 0
 
-  val doorBell = () =>
-    Duration
-      .between(Date().toInstant, lastNotification.toInstant)
-      .toSeconds > 30
+  val doorBell = (debounce: Duration) =>
+    Duration.between(lastNotification.toInstant, Date().toInstant).compareTo(debounce) > 0
 
-  val electicityAlert = (value: Int) =>
-    electricityConsumption += (Date(), value)
-    electricityConsumption
-      .filter((date, _) =>
-        Duration
-          .between(date.toInstant, Date().toInstant)
-          .toDays < 21 // using days, for duration does not natively converts to weeks
-      )
-      .values
-      .sum < 200
-
-  val heatingFailure = (types: Seq[String]) =>
-    Duration
-      .between(lastNotification.toInstant, Date().toInstant)
-      .toSeconds > 60 && types.filter(_ == "floor").size >= 3 && types.exists(_ == "internal")
-
-  val mFrontDoor    = (status: Boolean, room: String) => status && room == "front_door"
-  val mEntranceHall = (status: Boolean, room: String) => status && room == "entrance_hall"
-  val cFrontDoor    = (status: Boolean, room: String) => status && room == "front_door"
-
-  // add timestamps to check sequential order
   val occupiedHome = (
-      mStatus0: Boolean,
-      mStatus1: Boolean,
-      cStatus: Boolean,
+      times: Seq[Date],
+      statuses: Seq[Boolean],
       mRoom0: String,
       mRoom1: String,
       cRoom: String
-  ) => mFrontDoor(mStatus0, mRoom0) && cFrontDoor(cStatus, cRoom) && mEntranceHall(mStatus1, mRoom1)
+  ) =>
+    isSorted(times) && statuses.forall(
+      _ == true
+    ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
-  // add timestamps to check sequential order
   val emptyHome = (
-      mStatus0: Boolean,
-      mStatus1: Boolean,
-      cStatus: Boolean,
+      times: Seq[Date],
+      statuses: Seq[Boolean],
       mRoom0: String,
       mRoom1: String,
       cRoom: String
-  ) => mEntranceHall(mStatus0, mRoom0) && cFrontDoor(cStatus, cRoom) && mFrontDoor(mStatus1, mRoom1)
+  ) =>
+    isSorted(times) && statuses.forall(
+      _ == true
+    ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
+
+  val electicityAlert = (window: Duration, threshold: Int) =>
+    electricityConsumption
+      .filter((date, _) => between(date, Date()).compareTo(window) > 0)
+      .values
+      .sum < threshold
+
+  val heatingFailure = (window: Duration) =>
+    val pastHourFailures = failures
+      .filter((date, _) => between(date, Date()).compareTo(window) < 0)
+
+    between(lastNotification, Date()).compareTo(window) < 0 && pastHourFailures.values
+      .filter(_ == "floor")
+      .size >= 3 && pastHourFailures.values.exists(_ == "internal")
 
   private val f = receive { (y: Msg) =>
     y match
       // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
       case (
-            Motion(_: Int, mStatus: Boolean, mRoom: String, _: Date),
-            Light(_: Int, lStatus: Boolean, lRoom: String),
-            AmbientLight(_: Int, value: Int, alRoom: String)
-          ) if bathroomOccupied(mStatus, lStatus, mRoom, lRoom, alRoom, value) =>
+            Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
+            AmbientLight(_: Int, value: Int, alRoom: String, t1: Date),
+            Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
+          )
+          if bathroomOccupied(
+            List(t0, t1, t2),
+            List(mRoom, lRoom, alRoom),
+            mStatus,
+            lStatus,
+            value
+          ) =>
         lastNotification = Date()
+        lastMotionInBathroom = lastNotification
         println("turn_on_light(l, i, t)")
+        actions -= 1
       // E2. Turn off the lights in a room after two minutes without detecting any movement.
       case (
-            Motion(_: Int, mStatus: Boolean, mRoom: String, window: Date),
-            Light(_: Int, lStatus: Boolean, lRoom: String)
-          ) if turnOff(mStatus, lStatus, mRoom, lRoom, window) =>
+            Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
+            Light(_: Int, lStatus: Boolean, lRoom: String, t1: Date)
+          ) if turnOff(List(t0, t1), List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
         lastNotification = Date()
+        lastMotionInBathroom = lastNotification
         println("turn_off_ligth()")
+        actions -= 1
       // E3. Send a notification when a window has been open for over an hour.
       case Contact(_: Int, open: Boolean, _: String, timestamp: Date)
-          if sendAlert(open, timestamp) =>
+          if sendAlert(open, timestamp, Duration.ofHours(1)) =>
         lastNotification = Date()
         println("send_alert()")
+        actions -= 1
       // E4. Send a notification if someone presses the doorbell, but only if no notification was sent in the past 30 seconds.
-      case DoorBell(_: Int, debounce: Date) if doorBell() =>
+      case DoorBell(_: Int, _: Date) if doorBell(Duration.ofSeconds(30)) =>
         lastNotification = Date()
         println("notify()")
+        actions -= 1
       // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
       case (
-            Motion(_: Int, mStatus0: Boolean, mRoom0: String, _: Date),
-            Contact(_: Int, cStatus: Boolean, cRoom: String, _: Date),
-            Motion(_: Int, mStatus1: Boolean, mRoom1: String, _: Date)
-          ) if occupiedHome(mStatus0, mStatus1, cStatus, mRoom0, mRoom1, cRoom) =>
+            Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
+            Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
+            Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+          )
+          if occupiedHome(
+            List(t0, t1, t2),
+            List(mStatus0, mStatus1, cStatus),
+            mRoom0,
+            mRoom1,
+            cRoom
+          ) =>
         lastNotification = Date()
         println("activate_home_scene(l, i, t)")
+        actions -= 1
       case (
-            Motion(_: Int, mStatus0: Boolean, mRoom0: String, _: Date),
-            Contact(_: Int, cStatus: Boolean, cRoom: String, _: Date),
-            Motion(_: Int, mStatus1: Boolean, mRoom1: String, _: Date)
-          ) if emptyHome(mStatus0, mStatus1, cStatus, mRoom0, mRoom1, cRoom) =>
+            Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
+            Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
+            Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+          )
+          if emptyHome(
+            List(t0, t1, t2),
+            List(mStatus0, mStatus1, cStatus),
+            mRoom0,
+            mRoom1,
+            cRoom
+          ) =>
         lastNotification = Date()
         println("activate_empty_scene(l, i, t)")
+        actions -= 1
       // E6. Send a notification if the combined electricity consumption of the past three weeks is greater than 200 kWh.
-      case Consumption(_: Int, value: Int) if electicityAlert(value) =>
+      case Consumption(_: Int, value: Int, timestamp: Date) =>
+        electricityConsumption.addOne((timestamp, value))
         lastNotification = Date()
-        println("send notification")
+
+        if electicityAlert(
+            Duration.ofDays(21) /* using days, for duration does not natively converts to weeks */,
+            200
+          )
+        then
+          println("send notification")
+          actions -= 1
       // E7. Send a notification if the boiler fires three Floor Heating Failures and one Internal Failure within the past hour, but only if no notification was sent in the past hour.
-      case (
-            HeatingF(_: Int, type0: String),
-            HeatingF(_: Int, type1: String),
-            HeatingF(_: Int, type2: String),
-            HeatingF(_: Int, type3: String)
-          ) if heatingFailure(List(type0, type1, type2, type3)) =>
+      case HeatingF(_: Int, _type: String, timestamp: Date) =>
+        failures += (timestamp, _type)
         lastNotification = Date()
-        println("notify()")
+
+        if heatingFailure(Duration.ofHours(1)) then
+          println("notify()")
+          actions -= 1
   }
 
-  def run_as_future: concurrent.Future[Long]     = ???
-  def run_without_macro: concurrent.Future[Long] = ???
+  def run_as_future: concurrent.Future[Long] =
+    implicit val ec = ExecutionContext.global
 
-  def run(): Unit = ???
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        f(q)
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
+  def run_without_macro: concurrent.Future[Long] =
+    import collection.convert.ImplicitConversions._
+    implicit val ec = ExecutionContext.global
+
+    Future {
+      val start = System.nanoTime
+
+      while actions > 0 do
+        val messages = ListBuffer(q.take)
+        q.drainTo(messages)
+
+        // match
+
+        Thread.`yield`()
+
+      System.nanoTime - start
+    }
+
+  def run(): Unit =
+    while actions > 0 do
+      f(q)
+      Thread.`yield`()
 }
