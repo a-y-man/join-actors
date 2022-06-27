@@ -4,7 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Random
 import java.util.concurrent.LinkedTransferQueue
 
-import join_patterns.{ActorRef, receive}
+import join_patterns.receive
 
 abstract class UnitTests extends AnyFunSuite {
   sealed abstract class Msg

@@ -1,30 +1,28 @@
 package test.classes.pingPong
 
 import java.util.concurrent.LinkedTransferQueue
+import scala.concurrent.{Future, ExecutionContext}
 
-import join_patterns.{ActorRef, receive}
+import join_patterns.receive
+import actor.ActorRef
 import test.classes.Msg
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
 import test.benchmark.Benchmarkable
 
 case class Ping() extends Msg
 case class Pong() extends Msg
 
 class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
-  private val q                       = LinkedTransferQueue[Msg]
   var hits                            = 0
-  val ref                             = ActorRef(q)
   var pongRef: Option[ActorRef[Ping]] = None
   var isDone                          = false
 
-  protected def f = receive { (y: Msg) =>
+  protected val f = receive { (y: Msg) =>
     y match
       case Pong() =>
-        hits += 1
         // println(f"ping $hits")
         pongRef.get.send(Ping())
 
+        hits += 1
         if hits >= maxHits then isDone = true
     // println("ping is done")
   }
@@ -54,7 +52,6 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
         hits += 1
         pongRef.get.send(Ping())
         if hits >= maxHits then isDone = true
-
         Thread.`yield`()
 
       System.nanoTime - start
@@ -71,19 +68,17 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
 }
 
 class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
-  private val q                       = LinkedTransferQueue[Msg]
   var hits                            = 0
-  val ref                             = ActorRef(q)
   var pingRef: Option[ActorRef[Pong]] = None
   var isDone                          = false
 
-  protected def f = receive { (y: Msg) =>
+  protected val f = receive { (y: Msg) =>
     y match
       case Ping() =>
-        hits += 1
         // println(f"pong $hits")
         pingRef.get.send(Pong())
 
+        hits += 1
         if hits >= maxHits then isDone = true
     // println("pong is done")
   }

@@ -1,16 +1,14 @@
 package test.classes.smartHouse
 
 import java.util.concurrent.LinkedTransferQueue
-
-import join_patterns.{ActorRef, receive}
-import test.classes.Msg
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import test.benchmark.Benchmarkable
+import scala.concurrent.{Future, ExecutionContext}
 import java.util.Date
-import scala.collection.mutable.{Map => MutMap}
+import scala.collection.mutable.{Map => MutMap, ListBuffer}
 import java.time.Duration
-import scala.collection.mutable.ListBuffer
+
+import join_patterns.receive
+import test.classes.Msg
+import test.benchmark.Benchmarkable
 
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Msg
 case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Msg
@@ -21,8 +19,6 @@ case class Consumption(meter_id: Int, value: Int, timestamp: Date = Date())     
 case class HeatingF(id: Int, _type: String, timestamp: Date = Date())                extends Msg
 
 class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
-  private val q                                         = LinkedTransferQueue[Msg]
-  val ref                                               = ActorRef(q)
   private var lastNotification                          = Date(0L)
   private var lastMotionInBathroom                      = Date(0L)
   private var electricityConsumption: MutMap[Date, Int] = MutMap()
@@ -90,7 +86,7 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
       .filter(_ == "floor")
       .size >= 3 && pastHourFailures.values.exists(_ == "internal")
 
-  private val f = receive { (y: Msg) =>
+  protected val f = receive { (y: Msg) =>
     y match
       // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
       case (

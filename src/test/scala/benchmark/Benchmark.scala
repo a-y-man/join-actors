@@ -5,8 +5,9 @@ import ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import join_patterns.Matcher
+import actor.Actor
 
-trait Benchmarkable[M, T] extends Runnable {
+trait Benchmarkable[M, T] extends Actor[M, T] {
   def run_as_future: Future[Long]
   def run_without_macro: Future[Long]
 }

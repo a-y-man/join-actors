@@ -46,13 +46,10 @@ class SantaClausTest extends AnyFunSuite {
     santaThread.start
     reindeerThreads.foreach(_.start)
 
-    println("here")
     santaThread.join
-    println("santaThread")
     reindeerThreads.foreach(_.join)
-    println("reindeerThreads")
 
-    assert(reindeers.forall(_.isBack()))
+    assert(reindeers.forall(!_.isBack()))
   }
 
   test("Reindeers have priority over elves") {
