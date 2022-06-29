@@ -1,6 +1,5 @@
 package test.classes.pingPong
 
-import java.util.concurrent.LinkedTransferQueue
 import scala.concurrent.{Future, ExecutionContext}
 
 import join_patterns.receive

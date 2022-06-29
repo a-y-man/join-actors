@@ -1,6 +1,5 @@
 package test.classes.smartHouse
 
-import java.util.concurrent.LinkedTransferQueue
 import scala.concurrent.{Future, ExecutionContext}
 import java.util.Date
 import scala.collection.mutable.{Map => MutMap, ListBuffer}

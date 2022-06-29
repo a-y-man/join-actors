@@ -1,6 +1,5 @@
 package test.classes.santaClaus
 
-import java.util.concurrent.LinkedTransferQueue
 import scala.concurrent.{Future, ExecutionContext}
 import scala.collection.mutable.ListBuffer
 
