@@ -18,14 +18,14 @@ class BenchmarkPass(
 ) {
   def warmup(warmupIterations: Int): Unit =
     Await.ready(
-      Future.sequence((0 to warmupIterations).map(_ => mainFn())),
+      Future.sequence((1 to warmupIterations).map(_ => mainFn())),
       Duration.Inf
     )
 
   def benchmark(iterations: Int): Seq[Long] =
     Await
       .result(
-        Future.sequence((0 to iterations).map(_ => mainFn())),
+        Future.sequence((1 to iterations).map(_ => mainFn())),
         Duration.Inf
       )
 
