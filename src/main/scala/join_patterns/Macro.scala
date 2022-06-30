@@ -364,11 +364,11 @@ inline def receive2[M, T](inline s: Ordering[JoinPattern[M, T]])(
 
 /*
 receive(e) {
-	(A a, B b, C c) => println(""), // local copies, used data is marked for `this` but not consumed (so others can use it)
-	(A a & B b & C c) => println(""), // all present at the same time in LinkedTransferQueue[M]
-	(B b -> D d) => println(""), // sequential
-	(A a -> (D d, A a)) => println(""),
-	A a | B b => println(""), // disjunction
-	~Debug dbg => println(""), // not
+	(A, B, C) => println(""), // local copies, used data is marked for `this` but not consumed (so others can use it)
+	(A & B & C) => println(""), // all present at the same time in LinkedTransferQueue[M]
+	(B -> D) => println(""), // sequential
+	(A -> (D, B)) => println(""),
+	A | B => println(""), // disjunction
+	~Debug => println(""), // not
 }
  */
