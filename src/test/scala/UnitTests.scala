@@ -318,3 +318,98 @@ class Optionalfeatures extends UnitTests {
     assert(rcv(q) == (if result3 then result2 else result0))
   }
 }
+
+class JoinPatternOrdering extends UnitTests {
+  import join_patterns.JoinPattern
+  import join_patterns.receive2
+  import scala.util.Sorting
+
+  test("Patterns of size 2 can be reordered") {
+    val (result0, result1) = (Random.nextInt, Random.nextInt)
+    object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
+      def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = -1
+    }
+
+    val rcv0 = receive2(PatternOrdering)({ (y: Msg) =>
+      y match
+        case (D(), E()) => result0
+        case (E(), D()) => result1
+    })
+
+    val rcv1 = receive { (y: Msg) =>
+      y match
+        case (D(), E()) => result0
+        case (E(), D()) => result1
+    }
+
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(D())
+    q.add(E())
+
+    val resultReord = rcv0(q)
+
+    q.add(D())
+    q.add(E())
+
+    val resultNormal = rcv1(q)
+
+    assert(resultReord == result1 && resultNormal == result0)
+  }
+
+  test("Patterns of size 4 can be reordered") {
+    val results = (0 to 5).map(_ => Random.nextInt).toArray
+    val ifZero  = (i: Int) => i == 0
+    object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
+      def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) =
+        if a.size % 2 == 1 then Int.MinValue
+        else if b.size % 2 == 1 then Int.MaxValue
+        else a.size.compare(b.size)
+    }
+
+    val rcv0 = receive2(PatternOrdering)({ (y: Msg) =>
+      y match
+        case (A(), B(n: Int), D(), E())         => results(0)
+        case (B(n: Int), A(), D(), E())         => results(1)
+        case (A(), B(n: Int), D()) if ifZero(0) => results(2)
+        case (A(), E(), B(n: Int))              => results(3)
+        case (A(), B(n: Int))                   => results(4)
+        case (A(), D())                         => results(5)
+    })
+
+    val rcv1 = receive { (y: Msg) =>
+      y match
+        case (A(), B(n: Int), D(), E())         => results(0) //
+        case (B(n: Int), A(), D(), E())         => results(1)
+        case (A(), B(n: Int), D()) if ifZero(0) => results(2)
+        case (A(), E(), B(n: Int))              => results(3)
+        case (A(), B(n: Int))                   => results(4) //
+        case (A(), D())                         => results(5)
+    }
+
+    val q = LinkedTransferQueue[Msg]
+
+    q.add(A())
+    q.add(A())
+    q.add(B(1))
+    q.add(B(0))
+    q.add(D())
+    q.add(E())
+
+    val resultReord0 = rcv0(q)
+    val resultReord1 = rcv0(q)
+
+    q.add(A())
+    q.add(A())
+    q.add(B(1))
+    q.add(B(0))
+    q.add(D())
+    q.add(E())
+
+    val resultNormal0 = rcv1(q)
+    val resultNormal1 = rcv1(q)
+
+    assert(resultReord0 + resultReord1 == results(2) + results(3))
+    assert(resultNormal0 + resultNormal1 == results(0) + results(4))
+  }
+}
