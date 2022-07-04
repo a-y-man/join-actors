@@ -8,6 +8,7 @@ import java.time.Duration
 import join_patterns.receive
 import test.classes.Msg
 import test.benchmark.Benchmarkable
+import actor.Actor
 
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Msg
 case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Msg
@@ -212,4 +213,45 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
     while actions > 0 do
       matcher(q)
       Thread.`yield`()
+}
+
+class SmallSmartHouse(private var actions: Int) extends Actor[Msg, Unit] {
+  private var lastMotionInBathroom = Date(0L)
+
+  def turnOff(rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) = ???
+
+  def occupiedHome(
+      times: Seq[Date],
+      statuses: Seq[Boolean],
+      mRoom0: String,
+      mRoom1: String,
+      cRoom: String
+  ): Boolean = ???
+
+  protected val matcher = receive { (y: Msg) =>
+    y match
+      // E2. Turn off the lights in a room after two minutes without detecting any movement.
+      case (
+            Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
+            Light(_: Int, lStatus: Boolean, lRoom: String, t1: Date)
+          ) if turnOff(List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
+        lastMotionInBathroom = Date()
+        println("turn_off_light()")
+      // E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene.
+      case (
+            Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
+            Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
+            Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+          )
+          if occupiedHome(
+            List(t0, t1, t2),
+            List(mStatus0, mStatus1, cStatus),
+            mRoom0,
+            mRoom1,
+            cRoom
+          ) =>
+        println("activate_home_scene(l, i, t)")
+  }
+
+  def run(): Unit = ???
 }
