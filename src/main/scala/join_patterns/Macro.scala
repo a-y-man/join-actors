@@ -139,7 +139,7 @@ def generateGuard(using quotes: Quotes)(
     _transform.transformTerm(('{ true }).asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
 
   guard match
-    case Some(apply @ Apply(Select(_, "apply"), _)) =>
+    case Some(apply: Apply) =>
       if inners.isEmpty then
         _rhsFn = (sym: Symbol, params: List[Tree]) =>
           _transform.transformTerm(apply.changeOwner(sym))(sym)
