@@ -32,7 +32,7 @@ abstract class SizeCount(private val maxHits: Int) extends Benchmarkable[Msg, Un
       val start = System.nanoTime
 
       while !isDone do
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -60,12 +60,12 @@ abstract class SizeCount(private val maxHits: Int) extends Benchmarkable[Msg, Un
 
   override def run =
     while !isDone do
-      f(q)
+      matcher(q)
       Thread.`yield`()
 }
 
 class Size1Count1(private val maxHits: Int) extends SizeCount(maxHits) {
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       case A() =>
         hits += 1
@@ -77,7 +77,7 @@ class Size1Count1(private val maxHits: Int) extends SizeCount(maxHits) {
 
 package object sizes {
   class Size2(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B()) =>
           hits += 1
@@ -97,7 +97,7 @@ package object sizes {
   }
 
   class Size3(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C()) =>
           hits += 1
@@ -118,7 +118,7 @@ package object sizes {
   }
 
   class Size4(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D()) =>
           hits += 1
@@ -140,7 +140,7 @@ package object sizes {
   }
 
   class Size5(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E()) =>
           hits += 1
@@ -163,7 +163,7 @@ package object sizes {
   }
 
   class Size6(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F()) =>
           hits += 1
@@ -187,7 +187,7 @@ package object sizes {
   }
 
   class Size7(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G()) =>
           hits += 1
@@ -212,7 +212,7 @@ package object sizes {
   }
 
   class Size8(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H()) =>
           hits += 1
@@ -238,7 +238,7 @@ package object sizes {
   }
 
   class Size9(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H(), I()) =>
           hits += 1
@@ -265,7 +265,7 @@ package object sizes {
   }
 
   class Size10(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H(), I(), J()) =>
           hits += 1
@@ -295,7 +295,7 @@ package object sizes {
 
 package object counts {
   class Count2(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -309,7 +309,7 @@ package object counts {
   }
 
   class Count3(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -326,7 +326,7 @@ package object counts {
   }
 
   class Count4(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -346,7 +346,7 @@ package object counts {
   }
 
   class Count5(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -369,7 +369,7 @@ package object counts {
   }
 
   class Count6(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -395,7 +395,7 @@ package object counts {
   }
 
   class Count7(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -424,7 +424,7 @@ package object counts {
   }
 
   class Count8(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -456,7 +456,7 @@ package object counts {
   }
 
   class Count9(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
@@ -491,7 +491,7 @@ package object counts {
   }
 
   class Count10(private val maxHits: Int) extends SizeCount(maxHits) {
-    protected val f = receive { (y: Msg) =>
+    protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1

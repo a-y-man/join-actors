@@ -85,7 +85,7 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
       .filter(_ == "floor")
       .size >= 3 && pastHourFailures.values.exists(_ == "internal")
 
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
       case (
@@ -111,7 +111,7 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
           ) if turnOff(List(t0, t1), List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
         lastNotification = Date()
         lastMotionInBathroom = lastNotification
-        println("turn_off_ligth()")
+        println("turn_off_light()")
         actions -= 1
       // E3. Send a notification when a window has been open for over an hour.
       case Contact(_: Int, open: Boolean, _: String, timestamp: Date)
@@ -184,7 +184,7 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
       val start = System.nanoTime
 
       while actions > 0 do
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -210,6 +210,6 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
 
   def run(): Unit =
     while actions > 0 do
-      f(q)
+      matcher(q)
       Thread.`yield`()
 }

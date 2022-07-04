@@ -6,5 +6,5 @@ import join_patterns.Matcher
 abstract class Actor[M, T] extends Runnable {
   protected val q = LinkedTransferQueue[M]
   val ref         = ActorRef(q)
-  protected val f: Matcher[M, T]
+  protected val matcher: Matcher[M, T]
 }

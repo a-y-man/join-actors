@@ -1,4 +1,4 @@
-package test.benchmark.benchmark
+package test.benchmark.santaClaus
 
 import test.classes.santaClaus.{Elf, Reindeer, SantaClaus}
 import test.classes.Msg

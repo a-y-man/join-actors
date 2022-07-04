@@ -20,7 +20,7 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
   private var reindeersBack         = Array.fill[Boolean](reindeerNumber)(false)
   private val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
 
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       case IsBack(n: Int) =>
         // reindeersBack.foreach(r => println("\t" + r))
@@ -50,7 +50,7 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
       val start = System.nanoTime
 
       while actions > 0 do
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -99,7 +99,7 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
 
   override def run =
     while actions > 0 do
-      f(q)
+      matcher(q)
       Thread.`yield`()
 }
 
@@ -110,7 +110,7 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   private val _println: Any => Unit = (x: Any) =>
     println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       case CanLeave() if isBack() =>
         assert(!onHoliday)
@@ -133,7 +133,7 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
 
       while actions > 0 do
         comesBack()
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -164,7 +164,7 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   override def run =
     while actions > 0 do
       comesBack()
-      f(q)
+      matcher(q)
       Thread.`yield`()
 }
 
@@ -175,7 +175,7 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
   private val _println: Any => Unit = (x: Any) =>
     println(f"${this.getClass.getSimpleName}[$number]: $x")
 
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       case Helped() if _needHelp() =>
         assert(needHelp)
@@ -198,7 +198,7 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
 
       while actions > 0 do
         askForHelp()
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -229,6 +229,6 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
   override def run =
     while actions > 0 do
       askForHelp()
-      f(q)
+      matcher(q)
       Thread.`yield`()
 }

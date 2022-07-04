@@ -15,7 +15,7 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
   var pongRef: Option[ActorRef[Ping]] = None
   var isDone                          = false
 
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       case Pong() =>
         // println(f"ping $hits")
@@ -34,7 +34,7 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
 
       ping()
       while !isDone do
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -59,7 +59,7 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
   override def run =
     ping()
     while !isDone do
-      f(q)
+      matcher(q)
       Thread.`yield`()
 
   def ping() =
@@ -71,7 +71,7 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
   var pingRef: Option[ActorRef[Pong]] = None
   var isDone                          = false
 
-  protected val f = receive { (y: Msg) =>
+  protected val matcher = receive { (y: Msg) =>
     y match
       case Ping() =>
         // println(f"pong $hits")
@@ -89,7 +89,7 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
       val start = System.nanoTime
 
       while !isDone do
-        f(q)
+        matcher(q)
         Thread.`yield`()
 
       System.nanoTime - start
@@ -114,6 +114,6 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
 
   override def run =
     while !isDone do
-      f(q)
+      matcher(q)
       Thread.`yield`()
 }
