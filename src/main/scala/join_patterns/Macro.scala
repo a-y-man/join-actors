@@ -225,7 +225,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
       // report.warning(_rhs.show(using Printer.TreeStructure))
 
       pattern match
-        case t @ TypedOrTest(Unapply(fun, Nil, patterns), tt) =>
+        case t @ TypedOrTest(Unapply(fun, Nil, patterns), _) =>
           val (outers, inners): (List[TypeRepr], List[(String, TypeRepr)]) = fun match
             // A(*)
             case Select(_, "unapply") =>

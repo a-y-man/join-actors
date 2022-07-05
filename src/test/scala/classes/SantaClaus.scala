@@ -23,7 +23,6 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
   protected val matcher = receive { (y: Msg) =>
     y match
       case IsBack(n: Int) =>
-        // reindeersBack.foreach(r => println("\t" + r))
         reindeersBack(n) = true
 
         if reindeersBack.forall(r => r) then
@@ -113,7 +112,6 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   protected val matcher = receive { (y: Msg) =>
     y match
       case CanLeave() if isBack() =>
-        assert(!onHoliday)
         onHoliday = true
         // _println("Going on holiday")
         actions -= 1
@@ -178,7 +176,6 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
   protected val matcher = receive { (y: Msg) =>
     y match
       case Helped() if _needHelp() =>
-        assert(needHelp)
         needHelp = false
         // _println("Has been helped")
         actions -= 1
