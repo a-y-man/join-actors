@@ -321,8 +321,7 @@ class Optionalfeatures extends UnitTests {
 
 class JoinPatternOrdering extends UnitTests {
   import join_patterns.JoinPattern
-  import join_patterns.receive2
-  import scala.util.Sorting
+  import join_patterns.receiveOrd
 
   test("Patterns of size 2 can be reordered") {
     val (result0, result1) = (Random.nextInt, Random.nextInt)
@@ -330,7 +329,7 @@ class JoinPatternOrdering extends UnitTests {
       def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = -1
     }
 
-    val rcv0 = receive2(PatternOrdering)({ (y: Msg) =>
+    val rcv0 = receiveOrd(PatternOrdering)({ (y: Msg) =>
       y match
         case (D(), E()) => result0
         case (E(), D()) => result1
@@ -367,7 +366,7 @@ class JoinPatternOrdering extends UnitTests {
         else a.size.compare(b.size)
     }
 
-    val rcv0 = receive2(PatternOrdering)({ (y: Msg) =>
+    val rcv0 = receiveOrd(PatternOrdering)({ (y: Msg) =>
       y match
         case (A(), B(n: Int), D(), E())         => results(0)
         case (B(n: Int), A(), D(), E())         => results(1)

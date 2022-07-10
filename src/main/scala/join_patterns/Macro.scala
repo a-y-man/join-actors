@@ -7,9 +7,9 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.{Map => mutMap}
 
 case class JoinPattern[M, T](
-    var extract: List[M] => (List[M], Map[String, Any]),
-    var guard: Map[String, Any] => Boolean,
-    var rhs: Map[String, Any] => T,
+    val extract: List[M] => (List[M], Map[String, Any]),
+    val guard: Map[String, Any] => Boolean,
+    val rhs: Map[String, Any] => T,
     val size: Int
 )
 
@@ -49,7 +49,9 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   * @return
   *   a tuple containing the type's name and representation.
   */
-def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.reflect.TypeRepr) =
+private def extractInner(using quotes: Quotes)(
+    t: quotes.reflect.Tree
+): (String, quotes.reflect.TypeRepr) =
   import quotes.reflect.*
 
   t match
@@ -70,7 +72,7 @@ def extractInner(using quotes: Quotes)(t: quotes.reflect.Tree): (String, quotes.
   *   a list of tuples, containing pattern type representation, and a list of tuples, containing
   *   types' name and representation.
   */
-def getTypesData(using quotes: Quotes)(
+private def getTypesData(using quotes: Quotes)(
     patterns: List[quotes.reflect.Tree]
 ): List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])] =
   import quotes.reflect.*
@@ -93,7 +95,7 @@ def getTypesData(using quotes: Quotes)(
   * @return
   *   a `Block` that is the extractor.
   */
-def generateExtractor(using
+private def generateExtractor(using
     quotes: Quotes
 )(outerType: quotes.reflect.TypeRepr, varNames: List[String]): quotes.reflect.Block =
   import quotes.reflect.*
@@ -125,7 +127,7 @@ def generateExtractor(using
   * @return
   *   a `Block` that is the guard.
   */
-def generateGuard(using quotes: Quotes)(
+private def generateGuard(using quotes: Quotes)(
     guard: Option[quotes.reflect.Term],
     inners: List[(String, quotes.reflect.TypeRepr)]
 ): quotes.reflect.Block =
@@ -178,7 +180,7 @@ def generateGuard(using quotes: Quotes)(
   * @return
   *   a `Block` that is the rhs.
   */
-def generateRhs[T](using
+private def generateRhs[T](using
     quotes: Quotes,
     tt: Type[T]
 )(rhs: quotes.reflect.Term, inners: List[(String, quotes.reflect.TypeRepr)]): quotes.reflect.Block =
@@ -210,7 +212,7 @@ def generateRhs[T](using
   * @return
   *   a join-pattern expression.
   */
-def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
+private def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
     `case`: quotes.reflect.CaseDef
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
@@ -249,6 +251,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
               val typesData = getTypesData(patterns)
               val extractors: List[(Expr[M => Boolean], Expr[M => Map[String, Any]])] =
                 typesData.map { (outer, inners) =>
+                  // try to replace by isInstanceOf[A | B | ...]
                   val extractor = generateExtractor(outer, inners.map(_._1))
 
                   outer.asType match
@@ -309,7 +312,7 @@ def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
   * @return
   *   a list of join-pattern expressions.
   */
-def getCases[M, T](
+private def getCases[M, T](
     expr: Expr[M => T]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
@@ -339,10 +342,13 @@ def getCases[M, T](
   * @return
   *   a matcher instance.
   */
-def receiveCodegen[M, T](expr: Expr[M => T])(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
+private def receiveCodegen[M, T](
+    expr: Expr[M => T]
+)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
   Matcher[M, T](${ Expr.ofList(getCases(expr)) })
 }
-def receiveCodegen2[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(using
+private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(
+    using
     tm: Type[M],
     tt: Type[T],
     quotes: Quotes
@@ -358,9 +364,9 @@ def receiveCodegen2[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
 inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
-inline def receive2[M, T](inline s: Ordering[JoinPattern[M, T]])(
+inline def receiveOrd[M, T](inline s: Ordering[JoinPattern[M, T]])(
     inline f: M => T
-): Matcher[M, T] = ${ receiveCodegen2('f, 's) }
+): Matcher[M, T] = ${ receiveCodegenOrd('f, 's) }
 
 /*
 receive(e) {
