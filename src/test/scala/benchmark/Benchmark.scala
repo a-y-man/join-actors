@@ -6,6 +6,7 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 import join_patterns.Matcher
 import actor.Actor
+import java.util.concurrent.TimeUnit
 
 trait Benchmarkable[M, T] extends Actor[M, T] {
   def run_as_future: Future[Long]
@@ -19,14 +20,14 @@ class BenchmarkPass(
   def warmup(warmupIterations: Int): Unit =
     Await.ready(
       Future.sequence((1 to warmupIterations).map(_ => mainFn())),
-      Duration.Inf
+      Duration(1, TimeUnit.MINUTES)
     )
 
   def benchmark(iterations: Int): Seq[Long] =
     Await
       .result(
         Future.sequence((1 to iterations).map(_ => mainFn())),
-        Duration.Inf
+        Duration(1, TimeUnit.MINUTES)
       )
 
   def run(warmupIterations: Int, iterations: Int): Seq[Long] =
@@ -52,9 +53,6 @@ class Benchmark(
     private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
 ) {
-  private val folder = "data"
-  private val sep    = ';'
-
   def displayResults(results: List[(String, Seq[Long])]) =
     import Console.{GREEN, RED, RESET}
 
@@ -91,21 +89,25 @@ class Benchmark(
           "\n\t" + f"pass speed related to null pass: $delta_formatted " + '%'
       )
 
-  def boxplot(results: List[(String, Seq[Long])]): List[(String, Seq[Long])] =
+  def boxplot(results: List[(String, Seq[Long])]): List[(String, Seq[Double])] =
     results.map((n, t) =>
       val _t = t.sorted
-      val q1 = _t((_t.size * 0.25).ceil.toInt)
-      val md = _t((_t.size * 0.5).ceil.toInt)
-      val q3 = _t((_t.size * 0.75).ceil.toInt)
+      val lw = _t(0) / 1e6
+      val q1 = _t((_t.size * 0.25).ceil.toInt) / 1e6
+      val md = _t((_t.size * 0.5).ceil.toInt) / 1e6
+      val q3 = _t((_t.size * 0.75).ceil.toInt) / 1e6
+      val hw = _t.last / 1e6
 
-      (n, List(_t(0), q1, md, q3, _t.last))
+      (n, List(lw, q1, md, q3, hw))
     )
 
-  def toFile(results: List[(String, Seq[Long])]) =
+  def toFile(results: List[(String, Seq[Double])]) =
     import java.util.Date
     import java.io.{File, PrintWriter}
     import java.text.SimpleDateFormat
 
+    val folder    = "data"
+    val sep       = ';'
     val timestamp = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Date())
     val file      = PrintWriter(File(f"$folder/${name}_$timestamp.csv"))
 
