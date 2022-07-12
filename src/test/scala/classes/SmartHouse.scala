@@ -215,43 +215,47 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
       Thread.`yield`()
 }
 
-class SmallSmartHouse(private var actions: Int) extends Actor[Msg, Unit] {
-  private var lastMotionInBathroom = Date(0L)
+package smallSmartHouse {
+  case class Motion(status: Boolean, room: String) extends Msg
+  case class Light(status: Boolean, room: String)  extends Msg
+  case class Contact(open: Boolean, room: String)  extends Msg
 
-  def turnOff(rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) = ???
+  class SmallSmartHouse(private var actions: Int) extends Actor[Msg, Unit] {
+    private var lastMotionInBathroom = Date(0L)
 
-  def occupiedHome(
-      times: Seq[Date],
-      statuses: Seq[Boolean],
-      mRoom0: String,
-      mRoom1: String,
-      cRoom: String
-  ): Boolean = ???
+    def turnOff(rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) = ???
 
-  protected val matcher = receive { (y: Msg) =>
-    y match
-      // E2. Turn off the lights in a room after two minutes without detecting any movement.
-      case (
-            Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
-            Light(_: Int, lStatus: Boolean, lRoom: String, t1: Date)
-          ) if turnOff(List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
-        lastMotionInBathroom = Date()
-        println("turn_off_light()")
-      // E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene.
-      case (
-            Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
-            Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
-            Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-          )
-          if occupiedHome(
-            List(t0, t1, t2),
-            List(mStatus0, mStatus1, cStatus),
-            mRoom0,
-            mRoom1,
-            cRoom
-          ) =>
-        println("activate_home_scene(l, i, t)")
+    def occupiedHome(
+        statuses: Seq[Boolean],
+        mRoom0: String,
+        mRoom1: String,
+        cRoom: String
+    ): Boolean = ???
+
+    protected val matcher = receive { (y: Msg) =>
+      y match
+        // E2. Turn off the lights in a room after two minutes without detecting any movement.
+        case (
+              Motion(mStatus: Boolean, mRoom: String),
+              Light(lStatus: Boolean, lRoom: String)
+            ) if turnOff(List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
+          lastMotionInBathroom = Date()
+          println("turn_off_light()")
+        // E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene.
+        case (
+              Motion(mStatus0: Boolean, mRoom0: String),
+              Contact(cStatus: Boolean, cRoom: String),
+              Motion(mStatus1: Boolean, mRoom1: String)
+            )
+            if occupiedHome(
+              List(mStatus0, mStatus1, cStatus),
+              mRoom0,
+              mRoom1,
+              cRoom
+            ) =>
+          println("activate_home_scene(l, i, t)")
+    }
+
+    def run(): Unit = ???
   }
-
-  def run(): Unit = ???
 }
