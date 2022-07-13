@@ -272,7 +272,7 @@ private def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
 
                 if messages.size >= _extractors.size then
                   for
-                    // BUG: cannot use "(typecheck, extractor) <- _extractors"
+                    // Cannot use "(typecheck, extractor) <- _extractors"
                     // unecessary typecheck creates unreachable "case"
                     extractor <- _extractors
                     if matched.size < _extractors.size

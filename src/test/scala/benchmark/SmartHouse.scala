@@ -30,7 +30,7 @@ def sendE7(ref: ActorRef[Msg]) =
 
 @main
 def smartHouseBenchmark =
-  val smartHouseActions = 1_000
+  val smartHouseActions = 2_000
 
   Benchmark(
     "Smart House",
@@ -46,10 +46,6 @@ def smartHouseBenchmark =
           Random.nextInt(2) match
             case 0 => sendE1(smartHouse.ref)
             case 1 => sendE5(smartHouse.ref)
-            /*
-            case 2 => sendE6(smartHouse.ref)
-            case 3 => sendE7(smartHouse.ref)
-             */
 
         future
       }
@@ -65,10 +61,6 @@ def smartHouseBenchmark =
             Random.nextInt(2) match
               case 0 => sendE1(smartHouse.ref)
               case 1 => sendE5(smartHouse.ref)
-              /*
-              case 2 => sendE6(smartHouse.ref)
-              case 3 => sendE7(smartHouse.ref)
-               */
 
           future
         }
