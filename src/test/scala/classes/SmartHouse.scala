@@ -9,6 +9,7 @@ import join_patterns.receive
 import test.classes.Msg
 import test.benchmark.Benchmarkable
 import actor.Actor
+import actor.DynamicActor
 
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Msg
 case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Msg
@@ -255,6 +256,72 @@ package smallSmartHouse {
             ) =>
           println("activate_home_scene(l, i, t)")
     }
+
+    def run(): Unit = ???
+  }
+
+  class DynSmallSmartHouse(private var actions: Int) extends DynamicActor[Msg, Unit] {
+    private var lastMotionInBathroom                      = Date(0L)
+    private var electricityConsumption: MutMap[Date, Int] = MutMap()
+    private var failures: MutMap[Date, String]            = MutMap()
+
+    def turnOff(rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) = ???
+
+    def occupiedHome(
+        statuses: Seq[Boolean],
+        mRoom0: String,
+        mRoom1: String,
+        cRoom: String
+    ): Boolean = ???
+
+    def electicityAlert(window: Duration, threshold: Int) = ???
+
+    def heatingFailure(window: Duration) = ???
+
+    protected var matcher = receive { (y: Msg) =>
+      y match
+        // E2. Turn off the lights in a room after two minutes without detecting any movement.
+        case (
+              Motion(mStatus: Boolean, mRoom: String),
+              Light(lStatus: Boolean, lRoom: String)
+            ) if turnOff(List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
+          lastMotionInBathroom = Date()
+          println("turn_off_light()")
+        // E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene.
+        case (
+              Motion(mStatus0: Boolean, mRoom0: String),
+              Contact(cStatus: Boolean, cRoom: String),
+              Motion(mStatus1: Boolean, mRoom1: String)
+            )
+            if occupiedHome(
+              List(mStatus0, mStatus1, cStatus),
+              mRoom0,
+              mRoom1,
+              cRoom
+            ) =>
+          println("activate_home_scene(l, i, t)")
+    }
+
+    def changeConfiguration =
+      matcher = receive { (y: Msg) =>
+        y match
+          // E6. Send a notification if the combined electricity consumption of the past three weeks is greater than 200 kWh.
+          case Consumption(_: Int, value: Int, timestamp: Date) =>
+            electricityConsumption.addOne((timestamp, value))
+
+            if electicityAlert(
+                Duration.ofDays(
+                  21
+                ) /* using days, for duration does not natively converts to weeks */,
+                200
+              )
+            then println("send notification")
+          // E7. Send a notification if the boiler fires three Floor Heating Failures and one Internal Failure within the past hour, but only if no notification was sent in the past hour.
+          case HeatingF(_: Int, _type: String, timestamp: Date) =>
+            failures += (timestamp, _type)
+
+            if heatingFailure(Duration.ofHours(1)) then println("notify()")
+      }
 
     def run(): Unit = ???
   }
