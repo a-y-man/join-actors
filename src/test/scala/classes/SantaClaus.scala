@@ -8,30 +8,39 @@ import test.benchmark.Benchmarkable
 import join_patterns.receive
 import actor.ActorRef
 
-case class IsBack(n: Int)   extends Msg
+case class IsBack()         extends Msg
 case class CanLeave()       extends Msg
 case class Helped()         extends Msg
 case class NeedHelp(n: Int) extends Msg
 
-class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int)
-    extends Benchmarkable[Msg, Unit] {
-  val reinDeerRefs                  = Array.fill[Option[ActorRef[CanLeave]]](reindeerNumber)(None)
+val N_REINDEERS = 9
+
+class SantaClaus(
+    val elvesNumber: Int,
+    var actions: Int
+) extends Benchmarkable[Msg, Unit] {
+  val reinDeerRefs                  = Array.fill[Option[ActorRef[CanLeave]]](N_REINDEERS)(None)
   val elvesRefs                     = Array.fill[Option[ActorRef[Helped]]](elvesNumber)(None)
-  private var reindeersBack         = Array.fill[Boolean](reindeerNumber)(false)
   private val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
 
   protected val matcher = receive { (y: Msg) =>
     y match
-      case IsBack(n: Int) =>
-        reindeersBack(n) = true
-
-        if reindeersBack.forall(r => r) then
-          // _println("awake")
-          // _println("delivering presents")
-          reinDeerRefs.foreach(_.get.send(CanLeave()))
-          reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
-          // _println("sleeping")
-          actions -= 1
+      case (
+            IsBack(),
+            IsBack(),
+            IsBack(),
+            IsBack(),
+            IsBack(),
+            IsBack(),
+            IsBack(),
+            IsBack(),
+            IsBack()
+          ) =>
+        // _println("awake")
+        // _println("delivering presents")
+        reinDeerRefs.foreach(_.get.send(CanLeave()))
+        // _println("sleeping")
+        actions -= 1
       case (NeedHelp(n0: Int), NeedHelp(n1: Int), NeedHelp(n2: Int)) =>
         // _println("awake")
         // _println(f"fixing difficulties of $n0, $n1, $n2")
@@ -49,6 +58,7 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
       val start = System.nanoTime
 
       while actions > 0 do
+        // _println(f"match: $actions")
         matcher(q)
         Thread.`yield`()
 
@@ -60,36 +70,35 @@ class SantaClaus(val reindeerNumber: Int, val elvesNumber: Int, var actions: Int
     implicit val ec = ExecutionContext.global
 
     Future {
-      val start = System.nanoTime
+      val start                     = System.nanoTime
+      val messages: ListBuffer[Msg] = ListBuffer()
 
       while actions > 0 do
-        val messages = ListBuffer(q.take)
+        // _println(f"match: $actions")
+        val reindeersBack = messages.filter(_.isInstanceOf[IsBack])
 
-        messages(0) match
-          case IsBack(n: Int) =>
-            reindeersBack(n) = true
-
-            if reindeersBack.forall(r => r) then
-              _println("awake")
-              _println("delivering presents")
-              reinDeerRefs.foreach(_.get.send(CanLeave()))
-              reindeersBack = Array.fill[Boolean](reindeerNumber)(false)
-              _println("sleeping")
-              actions -= 1
-          case _ =>
+        if reindeersBack.size >= 9 then
+          // _println("awake")
+          // _println("delivering presents")
+          reinDeerRefs.foreach(_.get.send(CanLeave()))
+          messages.subtractAll(reindeersBack)
+          // _println("sleeping")
+          actions -= 1
+        else
+          val needHelps = messages.filter(_.isInstanceOf[NeedHelp])
+          if needHelps.size >= 3 then
+            // _println("awake")
+            // _println(f"fixing difficulties of ${needHelps(0)}, ${needHelps(1)}, ${needHelps(2)}")
+            val consume = needHelps.take(3)
+            consume
+              .map(_.asInstanceOf[NeedHelp].n)
+              .foreach((n: Int) => elvesRefs(n).get.send(Helped()))
+            messages.subtractAll(consume)
+            // _println("sleeping")
+            actions -= 1
+          else
+            messages.append(q.take())
             q.drainTo(messages)
-            val needHelps = messages.filter(_.isInstanceOf[NeedHelp])
-            if needHelps.size >= 3 then
-              // _println("awake")
-              // _println(f"fixing difficulties of $n0, $n1, $n2")
-              val consume = needHelps.take(3)
-              consume
-                .map(_.asInstanceOf[NeedHelp].n)
-                .foreach((n: Int) => elvesRefs(n).get.send(Helped()))
-              // _println("sleeping")
-              (messages --= consume).foreach(q.put)
-              actions -= 1
-            else messages.foreach(q.put)
 
         Thread.`yield`()
 
@@ -111,17 +120,15 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
 
   protected val matcher = receive { (y: Msg) =>
     y match
-      case CanLeave() if isBack() =>
-        onHoliday = true
+      case CanLeave() =>
         // _println("Going on holiday")
         actions -= 1
   }
 
   def comesBack() =
-    if onHoliday then
-      onHoliday = false
-      // _println("Came back")
-      santaRef.get.send(IsBack(number))
+    onHoliday = false
+    // _println("Came back")
+    santaRef.get.send(IsBack())
 
   def run_as_future: Future[Long] =
     implicit val ec = ExecutionContext.global
@@ -147,12 +154,8 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
         comesBack()
         val message = q.take
 
-        if isBack() then
-          assert(!onHoliday)
-          onHoliday = true
-          // _println("Going on holiday")
-          actions -= 1
-        else q.put(message)
+        // _println("Going on holiday")
+        actions -= 1
 
         Thread.`yield`()
 
@@ -175,17 +178,16 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
 
   protected val matcher = receive { (y: Msg) =>
     y match
-      case Helped() if _needHelp() =>
+      case Helped() =>
         needHelp = false
         // _println("Has been helped")
         actions -= 1
   }
 
   def askForHelp() =
-    if !needHelp then
-      needHelp = true
-      // _println("Needs help")
-      santaRef.get.send(NeedHelp(number))
+    needHelp = true
+    // _println("Needs help")
+    santaRef.get.send(NeedHelp(number))
 
   def run_as_future: Future[Long] =
     implicit val ec = ExecutionContext.global
@@ -211,12 +213,9 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
         askForHelp()
         val message = q.take
 
-        if _needHelp() then
-          assert(needHelp)
-          needHelp = false
-          // _println("Has been helped")
-          actions -= 1
-        else q.put(message)
+        needHelp = false
+        // _println("Has been helped")
+        actions -= 1
 
         Thread.`yield`()
 

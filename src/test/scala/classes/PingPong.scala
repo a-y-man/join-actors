@@ -23,7 +23,6 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
 
         hits += 1
         if hits >= maxHits then isDone = true
-    // println("ping is done")
   }
 
   def run_as_future: Future[Long] =
@@ -79,7 +78,6 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
 
         hits += 1
         if hits >= maxHits then isDone = true
-    // println("pong is done")
   }
 
   def run_as_future: Future[Long] =

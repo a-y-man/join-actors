@@ -129,7 +129,7 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
-    toFile(boxplot(results))
+    // toFile(boxplot(results))
 
     results.map(_._2.sum).sum
 }
