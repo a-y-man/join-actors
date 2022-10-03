@@ -12,17 +12,17 @@ case class F(b: Int, a: String)                     extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
 object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
-  def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = a.size.compare(b.size)
+  def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]): Int = a.size.compare(b.size)
 }
 
 @main
 def main(): Unit =
-  val i: Int                 = 0;
+  val i: Int                 = 0
   val m                      = 0
   val isZero: Int => Boolean = (n: Int) => n == 0
   val q                      = LinkedTransferQueue[Msg]
 
-  var f = receive { (y: Msg) =>
+  val f = receive { (y: Msg) =>
     y match
       case A() => 5
     /*
@@ -53,4 +53,4 @@ def main(): Unit =
   q.add(F(2, "t"))
    */
   val ret1 = f(q)
-  println(f"After receiving A, f returned: ${ret1}")
+  println(f"After receiving A, f returned: $ret1")

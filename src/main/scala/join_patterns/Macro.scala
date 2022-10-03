@@ -1,21 +1,21 @@
 package join_patterns
 
-import java.util.concurrent.{LinkedTransferQueue => Queue}
-
-import scala.quoted.{Expr, Type, Quotes, Varargs}
+import java.util.concurrent.LinkedTransferQueue as Queue
+import scala.quoted.{Expr, Quotes, Type, Varargs}
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map => mutMap}
+import scala.collection.mutable.Map as mutMap
+import scala.language.postfixOps
 
 case class JoinPattern[M, T](
-    val extract: List[M] => (List[M], Map[String, Any]),
-    val guard: Map[String, Any] => Boolean,
-    val rhs: Map[String, Any] => T,
-    val size: Int
+    extract: List[M] => (List[M], Map[String, Any]),
+    guard: Map[String, Any] => Boolean,
+    rhs: Map[String, Any] => T,
+    size: Int
 )
 
 class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private var messages = ListBuffer[M]()
+  private val messages = ListBuffer[M]()
 
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
@@ -25,12 +25,12 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
     while (result.isEmpty)
       for
         pattern <- patterns
-        if !result.isDefined
+        if result.isEmpty
       do
         if messages.size >= pattern.size then
           val (matchedMessages, substs) = pattern.extract(messages.toList)
 
-          if !matchedMessages.isEmpty && pattern.guard(substs) then
+          if matchedMessages.nonEmpty && pattern.guard(substs) then
             result = Some(pattern.rhs(substs))
             messages.subtractAll(matchedMessages)
 
@@ -59,7 +59,7 @@ private def extractInner(using quotes: Quotes)(
     case typed @ Typed(Wildcard(), TypeIdent(_)) => ("_", typed.tpt.tpe.dealias.simplified)
     // add support for Wildcard !!! : (_)
     // add support for Bind(String, WildCard) : (name: _)
-    case default =>
+    case _ =>
       errorTree("Unsupported bottom-level pattern", t)
       ("", TypeRepr.of[Nothing])
 
@@ -103,9 +103,9 @@ private def generateExtractor(using
   Lambda(
     owner = Symbol.spliceOwner,
     tpe = MethodType(List(""))(_ => List(outerType), _ => TypeRepr.of[Map[String, Any]]),
-    rhsFn = (sym: Symbol, params: List[Tree]) =>
+    rhsFn = (_: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
-      val isMemberName: (Symbol => Boolean) =
+      val isMemberName: Symbol => Boolean =
         (p: Symbol) => p.name.head == '_' && p.name.tail.toIntOption.isDefined
       val memberSymbols: List[Symbol] = outerType.typeSymbol.methodMembers
         .filter(isMemberName(_))
@@ -137,13 +137,13 @@ private def generateGuard(using quotes: Quotes)(
     override def transformTerm(term: Term)(owner: Symbol): Term = super.transformTerm(term)(owner)
   }
 
-  var _rhsFn = (sym: Symbol, params: List[Tree]) =>
-    _transform.transformTerm(('{ true }).asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
+  var _rhsFn = (sym: Symbol, _: List[Tree]) =>
+    _transform.transformTerm('{ true }.asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
 
   guard match
     case Some(apply: Apply) =>
       if inners.isEmpty then
-        _rhsFn = (sym: Symbol, params: List[Tree]) =>
+        _rhsFn = (sym: Symbol, _: List[Tree]) =>
           _transform.transformTerm(apply.changeOwner(sym))(sym)
       else
         _rhsFn = (sym: Symbol, params: List[Tree]) =>
@@ -152,7 +152,7 @@ private def generateGuard(using quotes: Quotes)(
           val transform = new TreeMap {
             override def transformTerm(term: Term)(owner: Symbol): Term = term match
               case Ident(n) if inners.exists(_._1 == n) =>
-                val inner = '{ ${ p0.asExprOf[Map[String, Any]] }(${ Expr(n) }) }
+                val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
 
                 inners.find(_._1 == n).get._2.asType match
                   case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
@@ -195,7 +195,7 @@ private def generateRhs[T](using
       val transform = new TreeMap {
         override def transformTerm(term: Term)(owner: Symbol): Term = term match
           case Ident(n) if inners.exists(_._1 == n) =>
-            val inner = '{ ${ p0.asExprOf[Map[String, Any]] }(${ Expr(n) }) }
+            val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
 
             inners.find(_._1 == n).get._2.asType match
               case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
@@ -243,7 +243,7 @@ private def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
                     m.find(_.isInstanceOf[ot]) match
                       case None => (List(), Map())
                       case Some(message) =>
-                        (List(message), ${ extractor }(message.asInstanceOf[ot]))
+                        (List(message), $extractor(message.asInstanceOf[ot]))
                   }
               (List(outer), inners)
             // (A, B, C ...)
@@ -319,7 +319,7 @@ private def getCases[M, T](
 
   expr.asTerm match
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
-      stmts(0) match
+      stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           val code = cases.map { generate[M, T](_) }
           /*

@@ -13,7 +13,7 @@ def showExpr[T](expr: Expr[T])(using Quotes): Expr[String] =
   val code: String = expr.show
   Expr(code)
 
-def _println[T](x: Expr[T])(using Quotes) = {
+def _println[T](x: Expr[T])(using Quotes): Unit = {
   import quotes.reflect.*
 
   val tree: Tree = x.asTerm
