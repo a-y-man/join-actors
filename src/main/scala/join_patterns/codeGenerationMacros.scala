@@ -6,7 +6,6 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as mutMap
 import scala.language.postfixOps
 
-
 /** Extracts a type's name and representation from a `Tree`.
   *
   * @param t
@@ -113,15 +112,22 @@ private def generateGuard(using quotes: Quotes)(
       else
         _rhsFn = (sym: Symbol, params: List[Tree]) =>
           val p0 = params.head.asInstanceOf[Ident]
+          // report.info(s"generateGuard:transformTerm ---> ${p0.asExpr.show}")
 
           val transform = new TreeMap {
-            override def transformTerm(term: Term)(owner: Symbol): Term = term match
-              case Ident(n) if inners.exists(_._1 == n) =>
-                val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
+            override def transformTerm(term: Term)(owner: Symbol): Term =
+              term match
+                case Ident(n)
+                  if inners.exists(_._1 == n) =>
+                    val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
+                    report.info(s"generateGuard:transformTerm ===> ${inner.show}")
 
-                inners.find(_._1 == n).get._2.asType match
-                  case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-              case x => super.transformTerm(x)(owner)
+                    inners.find(_._1 == n).get._2.asType match
+                      case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
+                case x =>
+                  // report.info(s"generateGuard:transformTerm ---> ${x}")
+
+                  super.transformTerm(x)(owner)
           }
 
           transform.transformTerm(apply.changeOwner(sym))(sym)
@@ -287,11 +293,12 @@ private def getCases[M, T](
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           val code = cases.map { generate[M, T](_) }
-          /*
-          report.info(
-            f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
-          )
-           */
+
+          // for exp <- code do _println(exp)
+
+          // report.info(
+          //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
+          // )
           code
         case default =>
           errorTree("Unsupported code", default)

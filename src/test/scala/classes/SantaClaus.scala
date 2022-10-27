@@ -38,15 +38,16 @@ class SantaClaus(
           ) =>
         // _println("awake")
         // _println("delivering presents")
-        reinDeerRefs.foreach(_.get.send(CanLeave()))
+        // reinDeerRefs.foreach(_.get.send(CanLeave()))
+        reinDeerRefs.foreach(_.map(_ ! CanLeave()))
         // _println("sleeping")
         actions -= 1
       case (NeedHelp(n0: Int), NeedHelp(n1: Int), NeedHelp(n2: Int)) =>
         // _println("awake")
         // _println(f"fixing difficulties of $n0, $n1, $n2")
-        elvesRefs(n0).get.send(Helped())
-        elvesRefs(n1).get.send(Helped())
-        elvesRefs(n2).get.send(Helped())
+        elvesRefs(n0).foreach(_ ! Helped())
+        elvesRefs(n1).foreach(_ ! Helped())
+        elvesRefs(n2).foreach(_ ! Helped())
         // _println("sleeping")
         actions -= 1
   }
@@ -128,7 +129,8 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   def comesBack() =
     onHoliday = false
     // _println("Came back")
-    santaRef.get.send(IsBack())
+    // santaRef.get.send(IsBack())
+    santaRef.foreach(_ ! IsBack())
 
   def run_as_future: Future[Long] =
     implicit val ec = ExecutionContext.global
