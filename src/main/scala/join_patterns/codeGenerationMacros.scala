@@ -74,11 +74,9 @@ private def generateExtractor(using
       val memberSymbols: List[Symbol] = outerType.typeSymbol.methodMembers
         .filter(isMemberName(_))
         .sortBy(_.name)
-
       val args = varNames.zipWithIndex.map { (name, i) =>
         Expr.ofTuple(Expr(name), Select(p0, memberSymbols(i)).asExprOf[Any])
       }
-
       ('{ Map[String, Any](${ Varargs[(String, Any)](args) }: _*) }).asTerm
   )
 
@@ -120,7 +118,7 @@ private def generateGuard(using quotes: Quotes)(
                 case Ident(n)
                   if inners.exists(_._1 == n) =>
                     val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
-                    report.info(s"generateGuard:transformTerm ===> ${inner.show}")
+                    // report.info(s"generateGuard:transformTerm ===> ${inner.show}")
 
                     inners.find(_._1 == n).get._2.asType match
                       case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
@@ -240,7 +238,6 @@ private def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
                 val matched: ListBuffer[M]      = ListBuffer()
                 val fields: mutMap[String, Any] = mutMap()
                 val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-
                 if messages.size >= _extractors.size then
                   for
                     // Cannot use "(typecheck, extractor) <- _extractors"
@@ -267,7 +264,7 @@ private def generate[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
           rhs = generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
           size = outers.size
         case w: Wildcard =>
-          report.info("Wildcards should be defined last", w.asExpr)
+          // report.info("Wildcards should be defined last", w.asExpr)
 
           extract = '{ (m: List[M]) => (m, Map()) }
           predicate = generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
@@ -293,9 +290,6 @@ private def getCases[M, T](
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           val code = cases.map { generate[M, T](_) }
-
-          // for exp <- code do _println(exp)
-
           // report.info(
           //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
           // )

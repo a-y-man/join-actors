@@ -8,7 +8,7 @@ case class B()                                      extends Msg
 case class C()                                      extends Msg
 case class D()                                      extends Msg
 case class E(n: Int)                                extends Msg
-case class F(b: Int, a: String)                     extends Msg
+case class F(b: Int)                     extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
 object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
@@ -20,12 +20,15 @@ def test() : Unit =
 
   var f = receive { (y: Msg) =>
     y match
-      // case E(x : Int) if x == 42 => 100
-      case E(y : Int) if y == 43 => 200
+      case (E(x : Int), F(y : Int)) if (x == y + 1) => 100
+      // case E(y : Int) if y == 43 => 200
       // case A() => 300
   }
 
-  q.add(A())
+  q.add((E(1)))
+  q.add((E(3)))
+  q.add((F(2)))
+
 
   println(f"f returned: ${f(q)}")
 
@@ -37,22 +40,24 @@ def test() : Unit =
 //   val isZero: Int => Boolean = (n: Int) => n == 0
 //   val q                      = LinkedTransferQueue[Msg]
 
-//   var f = receive { (y: Msg) =>
-//     y match
-//       case E(n : Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
-//       case (A(), B(), E(n: Int)) => 500 * n
-//       case (G(x : Int, _: String, z: Int, bool: Boolean), F(b: Int, _: String)) if x == 42 => z + b
-//       case (E(x: Int)) => 12
+//   var f = receive {
+//     (y: Msg) =>
+//       y match
+//         // case E(n : Int) if n == 2 => { { val z = "hi"; println(z) }; n + 1 }
+//         case (A(), B(), E(n: Int)) if n == 2 => 500 * n
+//         case (B(), A(), E(n: Int)) if n == 2 => 600 * n
+//         // case (G(x : Int, _: String, z: Int, bool: Boolean), F(b: Int, _: String)) if x == 42 => z + b
 
+//         // case (E(x: Int)) if x == 2 => 12
 //   }
 
-//   q.add(A())
+//   q.add(A()) // E -> A, B
 //   q.add(B())
-//   q.add(E(2))
+//   // q.add(E(2))
 
 //   println(f"f returned: ${f(q)}")
 
-
+// A E E B A B
 @main
 def main(): Unit =
   test()
