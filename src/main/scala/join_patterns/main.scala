@@ -20,13 +20,13 @@ def test() : Unit =
 
   var f = receive { (y: Msg) =>
     y match
-      case (E(x : Int), F(y : Int)) if (x == y + 1) => 100
-      // case E(y : Int) if y == 43 => 200
+      //case E(y : Int) if y == 43 => 200
+      case (E(x : Int), F(y : Int), A()) if (x == y - 1) => 100
       // case A() => 300
   }
 
   q.add((E(1)))
-  q.add((E(3)))
+  // q.add((E(3)))
   q.add((F(2)))
 
 

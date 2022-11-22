@@ -21,6 +21,16 @@ def _println[T](x: Expr[T])(using Quotes): Unit = {
   println(prettyPrint(tree))
 }
 
+def infoTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
+  import quotes.reflect.*
+
+  val t = token.show(using Printer.TreeStructure)
+
+  token.symbol.pos match
+    case Some(pos) => report.info(f"$msg: $t", pos)
+    case None      => report.info(f"$msg: $t")
+
+
 def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
   import quotes.reflect.*
 
