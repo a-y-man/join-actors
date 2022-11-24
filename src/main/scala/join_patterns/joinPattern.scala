@@ -5,7 +5,7 @@ package join_patterns
   *
   * */
 case class JoinPattern[M, T](
-    extract: List[M] => (List[M], Map[String, Any]),
+    extract: List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any]),
     guard: Map[String, Any] => Boolean,
     rhs: Map[String, Any] => T,
     size: Int

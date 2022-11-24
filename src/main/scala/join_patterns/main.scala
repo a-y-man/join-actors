@@ -1,14 +1,16 @@
 package join_patterns
 
 import java.util.concurrent.LinkedTransferQueue
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.collection.mutable.ListBuffer
 
 sealed abstract class Msg
 case class A()                                      extends Msg
 case class B()                                      extends Msg
 case class C()                                      extends Msg
-case class D()                                      extends Msg
-case class E(n: Int)                                extends Msg
-case class F(b: Int)                     extends Msg
+case class D(a: Int)                                extends Msg
+case class E(a: Int)                                extends Msg
+case class F(a: Int)                                extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
 object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
@@ -20,48 +22,64 @@ def test() : Unit =
 
   var f = receive { (y: Msg) =>
     y match
-      //case E(y : Int) if y == 43 => 200
-      case (E(x : Int), F(y : Int), A()) if (x == y - 1) => 100
-      // case A() => 300
+      case (D(x : Int), E(y : Int), F(z: Int)) => 1 + x * y * z
+      case (D(x : Int), F(y : Int), E(z: Int)) => 2 + x * y * z
+      case (F(x : Int), D(y : Int), E(z: Int)) => 3 + x * y * z
+      case (E(x : Int), D(y : Int), F(z: Int)) => 4 + x * y * z
+      case (F(x : Int), E(y : Int), D(z: Int)) => 5 + x * y * z
+      case (E(x : Int), F(y : Int), D(z: Int)) => 6 + x * y * z
+      case (A(), B(), A()) => 42
   }
 
-  q.add((E(1)))
-  // q.add((E(3)))
-  q.add((F(2)))
+  q.add(A())
+  q.add(F(2))
+  q.add(E(1))
+  q.add(B())
+  q.add(D(3))
+  q.add(A())
 
-
+  val initalQ = q.toArray.toList.zipWithIndex
+  println(s"Q =  ${initalQ}")
   println(f"f returned: ${f(q)}")
 
+  println("\n======================================================\n\n")
 
 
-// def testMsg() : Unit =
-//   val i: Int                 = 0;
-//   val m                      = 0
-//   val isZero: Int => Boolean = (n: Int) => n == 0
-//   val q                      = LinkedTransferQueue[Msg]
 
-//   var f = receive {
-//     (y: Msg) =>
-//       y match
-//         // case E(n : Int) if n == 2 => { { val z = "hi"; println(z) }; n + 1 }
-//         case (A(), B(), E(n: Int)) if n == 2 => 500 * n
-//         case (B(), A(), E(n: Int)) if n == 2 => 600 * n
-//         // case (G(x : Int, _: String, z: Int, bool: Boolean), F(b: Int, _: String)) if x == 42 => z + b
+def testMsg() : Unit =
+  val i: Int                 = 0;
+  val m                      = 0
+  val isZero: Int => Boolean = (n: Int) => n == 0
+  val q                      = LinkedTransferQueue[Msg]
 
-//         // case (E(x: Int)) if x == 2 => 12
-//   }
+  var f = receive {
+    (y: Msg) =>
+      y match
+        case E(n : Int) if n == 2 => { { val z = "hi"; println(z) }; n + 1 }
+        case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
+        case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
+  }
 
-//   q.add(A()) // E -> A, B
-//   q.add(B())
-//   // q.add(E(2))
+  q.add(A())
+  q.add(E(2))
+  q.add(E(2))
+  q.add(B())
+  q.add(A())
+  q.add(B())
 
-//   println(f"f returned: ${f(q)}")
+
+  val initalQ = q.toArray.toList.zipWithIndex
+  println(s"Q =  ${initalQ}")
+  println(s"f returned: ${f(q)}")
+
+  println("\n======================================================\n\n")
+
 
 // A E E B A B
 @main
 def main(): Unit =
   test()
-  // testMsg()
+  testMsg()
 
 
 
