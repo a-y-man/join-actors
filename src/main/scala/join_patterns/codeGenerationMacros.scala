@@ -42,12 +42,12 @@ private def getTypesData(using quotes: Quotes)(
   import quotes.reflect.*
 
   patterns.map {
-      case TypedOrTest(Unapply(Select(_, "unapply"), _, binds), tt: TypeTree) =>
-        tt.tpe.dealias.simplified match
-          case tp: TypeRef => tp -> binds.map(extractInner(_))
-      case default =>
-        errorTree("Unsupported top-level pattern", default)
-        TypeRepr.of[Nothing] -> List()
+    case TypedOrTest(Unapply(Select(_, "unapply"), _, binds), tt: TypeTree) =>
+      tt.tpe.dealias.simplified match
+        case tp: TypeRef => tp -> binds.map(extractInner(_))
+    case default =>
+      errorTree("Unsupported top-level pattern", default)
+      TypeRepr.of[Nothing] -> List()
   }
 
 /** Creates an extractor function.
@@ -117,13 +117,9 @@ private def generateGuard(using quotes: Quotes)(
               term match
                 case Ident(n) if inners.exists(_._1 == n) =>
                   val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
-                  // report.info(s"generateGuard:transformTerm ===> ${inner.show}")
-
                   inners.find(_._1 == n).get._2.asType match
                     case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
                 case x =>
-                  // report.info(s"generateGuard:transformTerm ---> ${x}")
-
                   super.transformTerm(x)(owner)
           }
 
@@ -171,9 +167,8 @@ private def generateRhs[T](using
       transform.transformTerm(rhs.changeOwner(sym))(sym)
   )
 
-
-/** Generates a join-pattern for singleton patterns e.g. A(*)
-  * the asterix represents a potential payload.
+/** Generates a join-pattern for singleton patterns e.g. A(*) the asterix represents a potential
+  * payload.
   * @param dataType
   *   The type of the case class representing the message.
   *
@@ -183,12 +178,14 @@ private def generateRhs[T](using
   * @param _rhs
   *   The right-hand side of the pattern.
   *
-  * @return A join-pattern for a singleton pattern
+  * @return
+  *   A join-pattern for a singleton pattern
   */
-private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
-                                         (dataType: quotes.reflect.Tree,
-                                          guard: Option[quotes.reflect.Term],
-                                          _rhs: quotes.reflect.Term) : Expr[JoinPattern[M, T]] =
+private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
+    dataType: quotes.reflect.Tree,
+    guard: Option[quotes.reflect.Term],
+    _rhs: quotes.reflect.Term
+): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
   val typesData       = getTypesData(List(dataType))
@@ -200,20 +197,21 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         .asExprOf[ot => Map[String, Any]]
 
       val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
-      '{ (m: List[M]) =>
-        m.find(_.isInstanceOf[ot]) match
-          case None => (None, List(), Map())
-          case Some(message) =>
-            (None, List((m.indexOf(message), message)), $extractor(message.asInstanceOf[ot]))
-      }
-      val predicate: Expr[Map[String, Any] => Boolean] = generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-      val rhs: Expr[Map[String, Any] => T] = generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
+        '{ (m: List[M]) =>
+          m.find(_.isInstanceOf[ot]) match
+            case None => (None, List(), Map())
+            case Some(message) =>
+              (Some(List(message)), List((m.indexOf(message), message)), $extractor(message.asInstanceOf[ot]))
+        }
+      val predicate: Expr[Map[String, Any] => Boolean] =
+        generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
+      val rhs: Expr[Map[String, Any] => T] =
+        generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
       val size = 1
       '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }) }
 
-
-/** Generates a join-pattern for composite patterns e.g. (A(*), B(*), C(*), ...)
-  * the asterix represents a potential payload.
+/** Generates a join-pattern for composite patterns e.g. (A(*), B(*), C(*), ...) the asterix
+  * represents a potential payload.
   * @param dataType
   *   The type of the case class representing the message.
   *
@@ -223,12 +221,14 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
   * @param _rhs
   *   The right-hand side of the pattern.
   *
-  * @return A join-pattern for a composite pattern
+  * @return
+  *   A join-pattern for a composite pattern
   */
-private def generateCompositePattern[M, T](using quotes : Quotes, tm: Type[M], tt: Type[T])
-                                         (dataType: List[quotes.reflect.Tree],
-                                          guard: Option[quotes.reflect.Term],
-                                          _rhs: quotes.reflect.Term) : Expr[JoinPattern[M, T]] =
+private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
+    dataType: List[quotes.reflect.Tree],
+    guard: Option[quotes.reflect.Term],
+    _rhs: quotes.reflect.Term
+): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
   val typesData = getTypesData(dataType)
@@ -248,33 +248,36 @@ private def generateCompositePattern[M, T](using quotes : Quotes, tm: Type[M], t
 
   val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
     '{ (m: List[M]) =>
-          val messages                    = ListBuffer.from(m.zipWithIndex)
-          val matched : ListBuffer[(Int, M)] = ListBuffer()
-          val fields: MutMap[String, Any] = MutMap()
-          val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-          val msgPattern : ListBuffer[M] = ListBuffer()
+      val messages                      = ListBuffer.from(m.zipWithIndex)
+      val matched: ListBuffer[(Int, M)] = ListBuffer()
+      val fields: MutMap[String, Any]   = MutMap()
+      val _extractors                   = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+      val msgPattern: ListBuffer[M]     = ListBuffer()
 
-          val msgPatterns = _extractors
-          if messages.size >= _extractors.size then
-            for
-              (msg, field) <- msgPatterns
-              if matched.size < _extractors.size
-            do
-              messages.find((_m, _) => msg(_m)) match
-                case Some((matchedMessage, idx)) =>
-                  matched.addOne((idx, matchedMessage))
-                  msgPattern.addOne(matchedMessage)
-                  messages.subtractOne((matchedMessage, idx))
-                  fields.addAll(field(matchedMessage))
-                case None => ()
+      val msgPatterns = _extractors
+      if messages.size >= _extractors.size then
+        for
+          (msg, field) <- msgPatterns
+          if matched.size < _extractors.size
+        do
+          messages.find((_m, _) => msg(_m)) match
+            case Some((matchedMessage, idx)) =>
+              matched.addOne((idx, matchedMessage))
+              msgPattern.addOne(matchedMessage)
+              messages.subtractOne((matchedMessage, idx))
+              fields.addAll(field(matchedMessage))
+            case None => ()
 
-          val patternVectorEntry = Some(msgPattern.toList)
-          if matched.size == _extractors.size then (patternVectorEntry, matched.toList, fields.toMap)
-          else (None, List(), Map())
-      }
+      if matched.size == _extractors.size then
+        val patternVectorEntry = Some(msgPattern.toList)
+        (patternVectorEntry, matched.toList, fields.toMap)
+      else (None, List(), Map())
+    }
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
-  val predicate: Expr[Map[String, Any] => Boolean] = generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-  val rhs: Expr[Map[String, Any] => T] = generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
+  val predicate: Expr[Map[String, Any] => Boolean] =
+    generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
+  val rhs: Expr[Map[String, Any] => T] =
+    generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
   val size = outers.size
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }) }
@@ -290,20 +293,25 @@ private def generateCompositePattern[M, T](using quotes : Quotes, tm: Type[M], t
   * @param _rhs
   *   The right-hand side of the pattern.
   *
-  * @return A join-pattern for a wildcard pattern
+  * @return
+  *   A join-pattern for a wildcard pattern
   */
-private def generateWildcardPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
-                                  (guard: Option[quotes.reflect.Term],
-                                   _rhs: quotes.reflect.Term) : Expr[JoinPattern[M, T]] =
+private def generateWildcardPattern[M, T](using
+    quotes: Quotes,
+    tm: Type[M],
+    tt: Type[T]
+)(guard: Option[quotes.reflect.Term], _rhs: quotes.reflect.Term): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] = '{ (m: List[M]) => (None, List(), Map()) } // FIXME: (Map(), m, Map())
-  val predicate: Expr[Map[String, Any] => Boolean] = generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
+  val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] = '{
+    (m: List[M]) => (None, List(), Map())
+  }
+  val predicate: Expr[Map[String, Any] => Boolean] =
+    generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
   val rhs: Expr[Map[String, Any] => T] = '{ (_: Map[String, Any]) => ${ _rhs.asExprOf[T] } }
-  val size = 1
+  val size                             = 1
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }) }
-
 
 /** Creates a join-pattern from a `CaseDef`.
   *
@@ -348,7 +356,7 @@ private def getCases[M, T](
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          val code = cases.map { generateJoinPattern[M, T](_).get }
+          val code = cases.flatMap { generateJoinPattern[M, T](_) }
           // report.info(
           //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
           // )

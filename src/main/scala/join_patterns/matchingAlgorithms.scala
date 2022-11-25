@@ -16,22 +16,26 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
     import math.Ordered.orderingToOrdered
     (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
-  def apply(q: Queue[M]): Either[T, MatchError] =
+  def apply(q: Queue[M]): Either[MatchError, T] =
     import collection.convert.ImplicitConversions._
 
     val idxsI = ListBuffer[List[Int]]()
-    val index = MutMap[List[Int], List[M]]()
-    val patternVector : Map[List[M], T] =
-      patterns.foldLeft(Map[List[M], T]()) {
+    val index = MutMap[List[Int], (List[M], Map[String, Any])]()
+    val patternVector : Map[(List[M], Map[String, Any]), Map[String, Any] => T] =
+      patterns.foldLeft(Map[(List[M], Map[String, Any]), Map[String, Any] => T]()) {
         (patternVector, pattern) => // ASK: tuple accumulator
           if messages.isEmpty then
             messages.append(q.take())
             q.drainTo(messages)
 
           val (patternVectorEntry, idxMsgs, substs) = pattern.extract(messages.toList)
+
           val (msgIdxsQ, msgPattern) = idxMsgs.unzip
-          idxsI.addOne(msgIdxsQ)
-          index(msgIdxsQ) = (msgPattern)
+
+          if !msgIdxsQ.isEmpty then
+            idxsI.addOne(msgIdxsQ)
+            index(msgIdxsQ) = (msgPattern, substs)
+
           val isGuardTrue =
             if substs.isEmpty then true
             else pattern.guard(substs)
@@ -39,24 +43,25 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
           if (messages.size >= pattern.size) && isGuardTrue then
             patternVectorEntry match
               case Some(entry) =>
-                patternVector.updated(entry, pattern.rhs(substs))
+                patternVector.updated((entry, substs), (subs : Map[String, Any]) => pattern.rhs(subs))
               case None => patternVector
           else patternVector
       }
 
     println(s"I  = ${idxsI.mkString("; ")}")
-    println(s"A = \nPattern\t\t -> \t RHS Value\n${patternVector.mkString("\n")}")
+    println(s"A = \n(Pattern, Substitutions)\t\t -> \t RHS Closure\n${patternVector.mkString("\n")}")
 
     val candidateMatches = idxsI.sortWith(compareIndcies).filter(!_.isEmpty)
     if !candidateMatches.forall(_.isEmpty) then
       println(s"I' = ${candidateMatches.mkString("; ")}\n")
-      val selectedMatch = index(candidateMatches.head)
-      val _match : Option[T] = patternVector.get(selectedMatch)
+      val selectedMatch @ (msgs, subs) = index(candidateMatches.head)
+      messages.subtractAll(msgs)
+      val _match : Option[Map[String, Any] => T] = patternVector.get(selectedMatch)
       _match match
-        case Some(result) => Left(result)
-        case None => Right(MatchError(s"No match!"))
+        case Some(rhsFn) => Right(rhsFn(subs))
+        case None => Left(MatchError(s"No match!"))
     else
-      Right(MatchError(s"No candidate matches for the messages {${messages.mkString("; ")}}"))
+      Left(MatchError(s"No candidate matches for the messages {${messages.mkString("; ")}}"))
 
 }
 

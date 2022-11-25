@@ -17,7 +17,7 @@ object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
   def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = a.size.compare(b.size)
 }
 
-def test() : Unit =
+def test01() : Unit =
   val q = LinkedTransferQueue[Msg]
 
   var f = receive { (y: Msg) =>
@@ -32,21 +32,23 @@ def test() : Unit =
   }
 
   q.add(A())
-  q.add(F(2))
   q.add(E(1))
+  q.add(F(2))
   q.add(B())
-  q.add(D(3))
   q.add(A())
+  q.add(D(3))
+
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
   println(f"f returned: ${f(q)}")
+  println(f"f returned after: ${f(q)}")
 
   println("\n======================================================\n\n")
 
 
 
-def testMsg() : Unit =
+def test02() : Unit =
   val i: Int                 = 0;
   val m                      = 0
   val isZero: Int => Boolean = (n: Int) => n == 0
@@ -60,6 +62,7 @@ def testMsg() : Unit =
         case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
   }
 
+  // A E E B A B
   q.add(A())
   q.add(E(2))
   q.add(E(2))
@@ -75,11 +78,10 @@ def testMsg() : Unit =
   println("\n======================================================\n\n")
 
 
-// A E E B A B
 @main
 def main(): Unit =
-  test()
-  testMsg()
+  test01()
+  test02()
 
 
 
