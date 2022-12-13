@@ -46,8 +46,6 @@ def test01() : Unit =
 
   println("\n======================================================\n\n")
 
-
-
 def test02() : Unit =
   val i: Int                 = 0;
   val m                      = 0
@@ -78,11 +76,36 @@ def test02() : Unit =
   println("\n======================================================\n\n")
 
 
+def demo() : Unit =
+  val queue = LinkedTransferQueue[Msg]()
+
+  val f = receive {
+    (msg: Msg) => msg match
+      case (A(), B(), C()) => println(s"I've received 3 messages: A, B and C :)")
+      case D(n : Int) if n > 0 => println(s"I've received one message with the payload ${n} :)")
+      case E(n : Int) if n != n => println(s"I cannot happen :(")
+      case (F(a : Int), E(b : Int)) if (a + b == 42) => println(s"I've received 2 messages with the same payload :)")
+  }
+
+  // queue.add(A())
+  // queue.add(B())
+  // queue.add(C())
+
+  // queue.add(D(42))
+
+  queue.add(E(2))
+
+  // queue.add(F(21))
+  // queue.add(E(21))
+
+  println(s"f returned: ${f(queue)}")
+
+
 @main
 def main(): Unit =
-  test01()
-  test02()
-
+  // test01()
+  // test02()
+  demo()
 
 
 /*
