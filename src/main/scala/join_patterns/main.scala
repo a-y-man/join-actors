@@ -42,7 +42,7 @@ def test01() : Unit =
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
   println(f"f returned: ${f(q)}")
-  println(f"f returned after: ${f(q)}")
+  // println(f"f returned after: ${f(q)}")
 
   println("\n======================================================\n\n")
 
@@ -75,6 +75,26 @@ def test02() : Unit =
 
   println("\n======================================================\n\n")
 
+// def test04()=
+//   val result                 = Random.nextInt
+//     val isZero: Int => Boolean = (n: Int) => n == 0
+//     val rcv = receive { (y: Msg) =>
+//       y match
+//         case (A(), D(), E(b: Int)) if isZero(0) => result + 1
+//         case (A(), D(), E())              => result
+//     }
+//     val q = LinkedTransferQueue[Msg]
+
+//     q.add(A())
+//     q.add(D())
+//     q.add(E())
+
+//   val initalQ = q.toArray.toList.zipWithIndex
+//   println(s"Q =  ${initalQ}")
+//   println(s"f returned: ${f(q)}")
+
+//   println("\n======================================================\n\n")
+
 
 def demo() : Unit =
   val queue = LinkedTransferQueue[Msg]()
@@ -86,26 +106,27 @@ def demo() : Unit =
       case E(n : Int) if n != n => println(s"I cannot happen :(")
       case (F(a : Int), E(b : Int)) if (a + b == 42) => println(s"I've received 2 messages with the same payload :)")
   }
+  queue.add(F(21))
+  queue.add(E(21))
 
-  // queue.add(A())
-  // queue.add(B())
-  // queue.add(C())
+  queue.add(A())
+  queue.add(B())
+  queue.add(C())
 
   // queue.add(D(42))
 
-  queue.add(E(2))
+  // queue.add(E(2))
 
-  // queue.add(F(21))
-  // queue.add(E(21))
 
   println(s"f returned: ${f(queue)}")
 
 
 @main
 def main(): Unit =
-  // test01()
+  test01()
   // test02()
-  demo()
+  // demo()
+  // test04()
 
 
 /*

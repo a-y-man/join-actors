@@ -4,12 +4,17 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
 
 import java.util.concurrent.LinkedTransferQueue as Queue
+import java.util.concurrent.TimeUnit
 
+type ActivatedPatterns[M, T] = Map[(List[M], Map[String, Any]), Map[String, Any] => T]
+object ActivatedPatterns:
+  def apply[M, T]() : ActivatedPatterns[M, T] =
+    Map[(List[M], Map[String, Any]), Map[String, Any] => T]()
 
-case class MatchError(msg : String)
-
-// type ActivatedPatterns[M, T] = Map[(List[M], Map[String, Any]), Map[String, Any] => T]
-// type Index[M] = Map[List[Int], (List[M], Map[String, Any])]
+type Index[M] = MutMap[List[Int], (List[M], Map[String, Any])]
+object Index:
+  def apply[M]() : Index[M] =
+    MutMap[List[Int], (List[M], Map[String, Any])]()
 
 class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   // Messages extracted from the queue are saved here to survive across apply() calls
@@ -19,7 +24,6 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
     import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
     (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
-  def getActivatedPatterns[M, T](messages: ListBuffer[M]) : Map[(List[M], Map[String, Any]), Map[String, Any] => T] = ???
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
 
@@ -27,12 +31,13 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
     while result.isEmpty do
       if messages.isEmpty then
-      messages.append(q.take())
-      q.drainTo(messages)
+        messages.append(q.poll(2, TimeUnit.SECONDS)) // Wait two seconds
+        q.drainTo(messages)
+
       val idxsI = ListBuffer[List[Int]]()
-      val index = MutMap[List[Int], (List[M], Map[String, Any])]()
-      val activatedPatterns : Map[(List[M], Map[String, Any]), Map[String, Any] => T] =
-        patterns.foldLeft(Map[(List[M], Map[String, Any]), Map[String, Any] => T]()) {
+      val index = Index[M]()
+      val activatedPatterns : ActivatedPatterns[M, T] =
+        patterns.foldLeft(ActivatedPatterns[M, T]()) {
           (activatedPattern, pattern) =>
             val (activatedPatternsEntry, idxMsgs, substs) = pattern.extract(messages.toList)
 
@@ -54,22 +59,20 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
             else activatedPattern
         }
 
-      println(s"I  = ${idxsI.mkString("; ")}")
-      println(s"A = \n(Pattern, Substitutions)\t\t -> \t RHS Closure\n${activatedPatterns.mkString("\n")}")
+      // println(s"I  = ${idxsI.mkString("; ")}")
+      // println(s"A = \n(Pattern, Substitutions)\t\t -> \t RHS Closure\n${activatedPatterns.mkString("\n")}")
 
       val candidateMatches = idxsI.filter(!_.isEmpty).sortWith(compareIndices)
-      if !candidateMatches.forall(_.isEmpty) then
-        println(s"I' = ${candidateMatches.mkString("; ")}\n")
+      // println(s"I' = ${candidateMatches.mkString("; ")}\n")
+      if !candidateMatches.isEmpty then
         val selectedMatch @ (msgs, subs) = index(candidateMatches.head)
         messages.subtractAll(msgs)
         val _match : Option[Map[String, Any] => T] = activatedPatterns.get(selectedMatch)
-        _match match
-          case Some(rhsFn) => result = Some(rhsFn(subs))
-          case None => result = None
-
+        result = _match.flatMap(rhsFn => Some(rhsFn(subs)))
 
       if result.isEmpty then
-        messages.append(q.take())
+        // println(s"Blocking... {${messages.mkString(", ")}}}")
+        messages.append(q.poll(2, TimeUnit.SECONDS)) // Wait two seconds
         q.drainTo(messages)
 
     result.get

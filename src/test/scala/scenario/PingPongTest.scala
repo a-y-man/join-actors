@@ -16,13 +16,13 @@ class PingPongTest extends AnyFunSuite {
     ping.pongRef = Some(pong.ref)
     pong.pingRef = Some(ping.ref)
 
-    println("start")
+    // println("start")
     pingThread.start
     pongThread.start
 
     pingThread.join
     pongThread.join
-    println("end")
+    // println("end")
 
     assert(ping.hits == maxHits)
     assert(pong.hits == maxHits)

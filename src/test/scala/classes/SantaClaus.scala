@@ -129,7 +129,6 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
   def comesBack() =
     onHoliday = false
     // _println("Came back")
-    // santaRef.get.send(IsBack())
     santaRef.foreach(_ ! IsBack())
 
   def run_as_future: Future[Long] =

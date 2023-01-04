@@ -47,7 +47,7 @@ class SantaClausTest extends AnyFunSuite {
     santaThread.join
     reindeerThreads.foreach(_.join)
 
-    assert(reindeers.forall(!_.isBack()))
+    assert(reindeers.forall(_.isBack()))
   }
 
   test("Reindeers have priority over elves") {
@@ -82,7 +82,7 @@ class SantaClausTest extends AnyFunSuite {
     elfThreads.foreach(_.join)
 
     assert(elves.forall(!_._needHelp()))
-    assert(reindeers.forall(!_.isBack()))
+    assert(reindeers.forall(_.isBack()))
   }
 
   test("Preserve Elves' help order") {
