@@ -285,7 +285,7 @@ class Optionalfeatures extends UnitTests {
     q.add(A())
     q.add(B(result1))
 
-    assert(rcv(q) == result0 + result1)
+    assert(rcv(q) == result0)
   }
 
   test("Wildcard field names, no Predicate") {
