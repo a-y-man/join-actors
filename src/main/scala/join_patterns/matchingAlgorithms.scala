@@ -80,6 +80,22 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 }
 
 
+class MatcherTree[M, T](val patterns: List[JoinPattern[M, T]], val cases : List[M]) {
+  // Messages extracted from the queue are saved here to survive across apply() calls
+  private val messages = ListBuffer[M]()
+
+  private def compareIndices(i1 : List[Int], i2: List[Int]) : Boolean =
+    import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
+    (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
+
+  private def getIndex(msgs : List[M]) : List[Int] =
+    msgs.map(m => cases.indexOf(m))
+}
+
+
+type Patterns[M] = List[M]
+
+
 // class NaiveMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 //   // Messages extracted from the queue are saved here to survive across apply() calls
 //   private val messages = ListBuffer[M]()

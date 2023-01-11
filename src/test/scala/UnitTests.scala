@@ -226,123 +226,123 @@ class MultipleClasses extends UnitTests {
   }
 }
 
-// class Optionalfeatures extends UnitTests {
-//   test("Wildcard, no Predicate") {
-//     val result = Random.nextInt
-//     val rcv = receive { (y: Msg) =>
-//       y match
-//         case _ => result
-//     }
-//     val q = LinkedTransferQueue[Msg]
+class Optionalfeatures extends UnitTests {
+  // test("Wildcard, no Predicate") {
+  //   val result = Random.nextInt
+  //   val rcv = receive { (y: Msg) =>
+  //     y match
+  //       case _ => result
+  //   }
+  //   val q = LinkedTransferQueue[Msg]
 
-//     q.add(A())
+  //   q.add(A())
 
-//     assert(rcv(q) == result)
-//   }
+  //   assert(rcv(q) == result)
+  // }
 
-//   test("Wildcard, Predicate") {
-//     val result = Random.nextInt
-//     val ifZero = (i: Int) => i == 0
-//     val rcv = receive { (y: Msg) =>
-//       y match
-//         case _ if ifZero(1) => result + 1
-//         case _ if ifZero(0) => result
-//     }
-//     val q = LinkedTransferQueue[Msg]
+  // test("Wildcard, Predicate") {
+  //   val result = Random.nextInt
+  //   val ifZero = (i: Int) => i == 0
+  //   val rcv = receive { (y: Msg) =>
+  //     y match
+  //       case _ if ifZero(1) => result + 1
+  //       case _ if ifZero(0) => result
+  //   }
+  //   val q = LinkedTransferQueue[Msg]
 
-//     q.add(A())
+  //   q.add(A())
 
-//     assert(rcv(q) == result)
-//   }
+  //   assert(rcv(q) == result)
+  // }
 
-//   test("Multiple Messages of the same Class, One Int Member, no Predicate") {
-//     val (result0, result1) = (Random.nextInt, Random.nextInt)
-//     val rcv = receive { (y: Msg) =>
-//       y match
-//         case (B(i0: Int), B(i1: Int)) => i0 + i1
-//         case B(i: Int)                => i
-//     }
-//     val q = LinkedTransferQueue[Msg]
+  // test("Multiple Messages of the same Class, One Int Member, no Predicate") {
+  //   val (result0, result1) = (Random.nextInt, Random.nextInt)
+  //   val rcv = receive { (y: Msg) =>
+  //     y match
+  //       case (B(i0: Int), B(i1: Int)) => i0 + i1
+  //       case B(i: Int)                => i
+  //   }
+  //   val q = LinkedTransferQueue[Msg]
 
-//     q.add(B(result0))
-//     q.add(B(result1))
+  //   q.add(B(result0))
+  //   q.add(B(result1))
 
-//     assert(rcv(q) == result0 + result1)
-//   }
+  //   assert(rcv(q) == result0 + result1)
+  // }
 
-//   test("Multiple Messages of the same Class, One Int Member, Predicate") {
-//     val (result0, result1) = (Random.nextInt(Int.MaxValue - 1) + 1, Random.nextInt)
-//     val ifNotZero          = (i: Int) => i != 0
-//     val rcv = receive { (y: Msg) =>
-//       y match
-//         case (B(i0: Int), B(i1: Int), A()) if ifNotZero(result0) => i0 + i1
-//         case (B(i0: Int), B(i1: Int), A())                       => i0
-//         case B(i: Int)                                           => i
-//     }
-//     val q = LinkedTransferQueue[Msg]
+  test("Multiple Messages of the same Class, One Int Member, Predicate") {
+    val (result0, result1) = (Random.nextInt(Int.MaxValue - 1) + 1, Random.nextInt)
+    val ifNotZero          = (i: Int) => i != 0
+    val rcv = receive { (y: Msg) =>
+      y match
+        case (B(i0: Int), B(i1: Int), A()) if ifNotZero(result0) => i0 + i1
+        case (B(i0: Int), B(i1: Int), A())                       => i0
+        case B(i: Int)                                           => i
+    }
+    val q = LinkedTransferQueue[Msg]
 
-//     q.add(B(result0))
-//     q.add(A())
-//     q.add(B(result1))
+    q.add(B(result0))
+    q.add(A())
+    q.add(B(result1))
 
-//     assert(rcv(q) == result0 + result1)
-//   }
+    assert(rcv(q) == result0 + result1)
+  }
 
-//   test("Wildcard field names, no Predicate") {
-//     val (result0, result1, result2) = (Random.nextInt, Random.nextInt.toString, Random.nextInt)
-//     val rcv = receive { (y: Msg) =>
-//       y match
-//         case G(_: Int, y: String, z: Int, _: Boolean) => y + z
-//     }
-//     val q = LinkedTransferQueue[Msg]
+  test("Wildcard field names, no Predicate") {
+    val (result0, result1, result2) = (Random.nextInt, Random.nextInt.toString, Random.nextInt)
+    val rcv = receive { (y: Msg) =>
+      y match
+        case G(_: Int, y: String, z: Int, _: Boolean) => y + z
+    }
+    val q = LinkedTransferQueue[Msg]
 
-//     q.add(G(result0, result1, result2, false))
+    q.add(G(result0, result1, result2, false))
 
-//     assert(rcv(q) == result1 + result2)
-//   }
+    assert(rcv(q) == result1 + result2)
+  }
 
-//   test("Wildcard field names, Predicate") {
-//     val (result0, result1, result2, result3) =
-//       (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
-//     val is: Boolean => Boolean =
-//       (boolean: Boolean) => boolean
-//     val rcv = receive { (y: Msg) =>
-//       y match
-//         case G(_: Int, _: String, z: Int, b: Boolean) if is(b)  => z
-//         case G(y: Int, _: String, _: Int, b: Boolean) if is(!b) => y
-//     }
-//     val q = LinkedTransferQueue[Msg]
+  // test("Wildcard field names, Predicate") {
+  //   val (result0, result1, result2, result3) =
+  //     (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
+  //   val is: Boolean => Boolean =
+  //     (boolean: Boolean) => boolean
+  //   val rcv = receive { (y: Msg) =>
+  //     y match
+  //       case G(_: Int, _: String, z: Int, b: Boolean) if is(b)  => z
+  //       case G(y: Int, _: String, _: Int, b: Boolean) if is(!b) => y
+  //   }
+  //   val q = LinkedTransferQueue[Msg]
 
-//     q.add(G(result0, result1, result2, result3))
+  //   q.add(G(result0, result1, result2, result3))
 
-//     assert(rcv(q) == (if result3 then result2 else result0))
-//   }
+  //   assert(rcv(q) == (if result3 then result2 else result0))
+  // }
 
-//   test("Dynamic join patterns") {
-//     val (result0, result1, result2, result3) =
-//       (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
-//     var rcv = receive { (y: Msg) =>
-//       y match
-//         case A() => result0
-//         case _   => result1
-//     }
-//     val q = LinkedTransferQueue[Msg]
+  test("Dynamic join patterns") {
+    val (result0, result1, result2, result3) =
+      (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
+    var rcv = receive { (y: Msg) =>
+      y match
+        case A() => result0
+        case _   => result1
+    }
+    val q = LinkedTransferQueue[Msg]
 
-//     q.add(A())
-//     val outcome0 = rcv(q)
+    q.add(A())
+    val outcome0 = rcv(q)
 
-//     rcv = receive { (y: Msg) =>
-//       y match
-//         case D() => result2
-//         case _   => result3
-//     }
+    rcv = receive { (y: Msg) =>
+      y match
+        case D() => result2
+        case _   => result3
+    }
 
-//     q.add(D())
-//     val outcome1 = rcv(q)
+    q.add(D())
+    val outcome1 = rcv(q)
 
-//     assert(outcome0 == result0 && outcome1 == result2)
-//   }
-// }
+    assert(outcome0 == result0 && outcome1 == result2)
+  }
+}
 
 // class JoinPatternOrdering extends UnitTests {
 //   import join_patterns.JoinPattern
