@@ -88,44 +88,66 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
 }
 
+// //                 Msgs from Q     | Pattern Idxs from Pattern case
+// //                 [ Ø            -> {} ]
+// //                 [ {1}          -> { [1, 3] }]
+// //                 [ {1, 2}       -> { [1, 2], [3, 2] }]
+// //                 [ {2}          -> { [2] }]
+// type NodeMapping = Map[Set[Int], Set[List[Int]]]
+// object NodeMapping:
+//   def apply() : Map[Set[Int], Set[List[Int]]] =
+//     Map[Set[Int], Set[List[Int]]]()
 
-class MatcherTree[M, T](val patterns: List[JoinPattern[M, T]], val cases : List[M]) {
+// // Edges
+// //               { (Ø, {1}), ({1}, {[1, 3]}), ({1, 2},  ) }
+// type TreeEdges = Set[Tuple2[Set[Int], Set[Int]]]
+// object TreeEdges:
+//   def apply() : Set[Tuple2[Set[Int], Set[Int]]] =
+//     Set[Tuple2[Set[Int], Set[Int]]]()
+
+
+// case class MatchingTree[M](
+//   nodeMapping : NodeMapping,
+//   treeEdges : TreeEdges
+// )
+
+class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages = ListBuffer[M]()
+  private val patternsWithIdxs = patterns.zipWithIndex
 
-  private def compareIndices(i1 : List[Int], i2: List[Int]) : Boolean =
+  private def compareIndices(i1WithPatIdx : (Int, List[Int]), i2WithPatIdx: (Int, List[Int])) : Boolean =
     import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
+
+    val (_, i1) = i1WithPatIdx
+    val (_, i2) = i2WithPatIdx
+
     (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
-  private def getIndex(msgs : List[M]) : List[Int] =
-    msgs.map(m => cases.indexOf(m))
+
+  def apply(q: Queue[M]): T =
+    import collection.convert.ImplicitConversions._
+
+    var result : Option[T] = None
+
+    while result.isEmpty do
+      if messages.isEmpty then
+        messages.append(q.poll(2, TimeUnit.SECONDS)) // Wait two seconds
+        q.drainTo(messages)
+
+
+
+
+
+
+
+
+      if result.isEmpty then
+        messages.append(q.poll(2, TimeUnit.SECONDS)) // Wait two seconds
+        q.drainTo(messages)
+
+    result.get
+
+
+
 }
-
-// class NaiveMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
-//   // Messages extracted from the queue are saved here to survive across apply() calls
-//   private val messages = ListBuffer[M]()
-
-//   def apply(q: Queue[M]): T =
-//     import collection.convert.ImplicitConversions._
-
-//     var result: Option[T] = None
-
-//     while (result.isEmpty)
-//       for
-//         pattern <- patterns
-//         if result.isEmpty
-//       do
-//         if messages.size >= pattern.size then
-//           val (matchedMessages, substs) = pattern.extract(messages.toList)
-
-//           if matchedMessages.nonEmpty && pattern.guard(substs) then
-//             result = Some(pattern.rhs(substs))
-//             messages.subtractAll(matchedMessages)
-
-//       if result.isEmpty then
-//         // If we arrive here, no pattern has been matched and we need more msgs
-//         messages.append(q.take())
-//         q.drainTo(messages)
-
-//     result.get
-// }
