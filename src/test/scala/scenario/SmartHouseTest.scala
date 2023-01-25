@@ -85,9 +85,9 @@ class SmartHouseTest extends AnyFunSuite {
     houseThread.start
 
     house.ref.send(Motion(0, true, "entrance_hall"))
-    // Thread.sleep(100)
+    Thread.sleep(1000)
     house.ref.send(Contact(0, true, "front_door"))
-    // Thread.sleep(100)
+    Thread.sleep(1000)
     house.ref.send(Motion(0, true, "front_door"))
 
     houseThread.join

@@ -22,12 +22,14 @@ def test01() : Unit =
 
   var f = receive { (y: Msg) =>
     y match
-      case (D(x : Int), E(y : Int), F(z: Int)) => 1 + x * y * z
-      case (D(x : Int), F(y : Int), E(z: Int)) => 2 + x * y * z
-      case (F(x : Int), D(y : Int), E(z: Int)) => 3 + x * y * z
-      case (E(x : Int), D(y : Int), F(z: Int)) => 4 + x * y * z
-      case (F(x : Int), E(y : Int), D(z: Int)) => 5 + x * y * z
-      case (E(x : Int), F(y : Int), D(z: Int)) => 6 + x * y * z
+      case (D(x : Int), E(y : Int), F(z: Int)) => 1 + x * y * z // 0
+      case (D(x : Int), F(y : Int), E(z: Int)) => 2 + x * y * z // 1
+      case (F(x : Int), D(y : Int), E(z: Int)) => 3 + x * y * z // 2
+      case (E(x : Int), D(y : Int), F(z: Int)) => 4 + x * y * z // 3
+      case (F(x : Int), E(y : Int), D(z: Int)) => 5 + x * y * z // 4
+      case (E(x : Int), F(y : Int), D(z: Int)) => 6 + z + 1    // 5
+      case (E(x : Int), F(y : Int), D(z: Int)) => 6 + x * y * z // 6
+      case (E(x : Int), F(y : Int), D(z: Int)) => 6 + z + 1234567890 // 7
       case (A(), B(), A()) => 42
   }
 

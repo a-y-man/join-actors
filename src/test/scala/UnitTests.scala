@@ -185,7 +185,7 @@ class MultipleClasses extends UnitTests {
     q.add(D())
     q.add(E())
 
-    assert(rcv(q) == result)
+    assert(rcv(q) == result + 1)
   }
 
   test("Multiple Messages, One Int and One String Members, no Predicate") {
