@@ -201,14 +201,18 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
           m.find(_.isInstanceOf[ot]) match
             case None => (None, List(), Map())
             case Some(message) =>
-              (Some(List(message)), List((m.indexOf(message), message)), $extractor(message.asInstanceOf[ot]))
+              (
+                Some(List(message)),
+                List((m.indexOf(message), message)),
+                $extractor(message.asInstanceOf[ot])
+              )
         }
       val predicate: Expr[Map[String, Any] => Boolean] =
         generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
       val rhs: Expr[Map[String, Any] => T] =
         generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
-      val size = 1
-      val partialExtract = '{ (m : List[M], mTree : MatchingTree) => None }
+      val size           = 1
+      val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
 
       '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
@@ -282,10 +286,38 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
   val size = outers.size
 
-  val partialExtract = '{ (m : List[M], mTree : MatchingTree) => None }
+  val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
+def possibleFitsInPattern[M, T](using
+    quotes: Quotes,
+    tm: Type[M],
+    tt: Type[T]
+)(newQi: (M, Int), mPat: List[(M, Int)], curMapping: NodeMapping) =
+  import quotes.reflect.*
+
+  val newNodeMapping = curMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
+    val (k, v) = mapping
+
+    val (mQ, mQidx) = newQi
+
+    if mPat.contains(newQi) then
+      val possibleFits = mPat.filter((mP, mPidx) => mQ == mP).map(j => (List(j._2))).toSet
+      val newMapping = possibleFits
+        .flatMap { possibleFit =>
+          val e = possibleFit.head
+          v.map { fit =>
+            if !fit.contains(e) then possibleFit.concat(fit) else List.empty
+          }
+        }
+        .filter(!_.isEmpty)
+
+      acc + ((k.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
+    else acc + (List(mQidx) -> Set.empty) + mapping
+  }
+
+  newNodeMapping
 
 private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
     dataType: List[quotes.reflect.Tree],
@@ -309,21 +341,49 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
           )
     }.toList
 
-  val partialExtract : Expr[(List[M], MatchingTree) => Option[MatchingTree]] =
-    '{ (m : List[M], mTree : MatchingTree) =>
-        val messages                      = ListBuffer.from(m.zipWithIndex)
-        val matched: ListBuffer[(Int, M)] = ListBuffer()
-        val fields: MutMap[String, Any]   = MutMap()
-        val _extractors                   = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-        val msgPattern: ListBuffer[M]     = ListBuffer()
+  val partialExtract: Expr[(List[M], MatchingTree) => Option[MatchingTree]] =
+    '{ (m: List[M], mTree: MatchingTree) =>
+      val messages                    = ListBuffer.from(m.zipWithIndex)
+      val fields: MutMap[String, Any] = MutMap()
+      val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
 
-        None
+      val msgPatterns = _extractors.zipWithIndex
+      val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
+        val (k, v) = mapping
 
+        val (mQ, mQidx) = messages.head // Take the newest msg from the queue
 
+        val isMsgInPat = msgPatterns.exists { msgPat =>
+          val ((msg, _), _) = msgPat
+          msg(mQ)
+        }
+
+        if isMsgInPat then
+          val possibleFits = msgPatterns
+            .filter { msgPat =>
+              val ((msg, _), _) = msgPat
+              msg(mQ)
+            }
+            .map(j => (List(j._2)))
+            .toSet
+          val newMapping = possibleFits
+            .flatMap { possibleFit =>
+              val e = possibleFit.head
+              v.map { fit =>
+                if !fit.contains(e) then possibleFit.concat(fit) else List.empty
+              }
+            }
+            .filter(!_.isEmpty)
+
+          acc + ((k.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
+        else acc + (List(mQidx) -> Set.empty) + mapping
+      }
+
+      Some(MatchingTree(newNodeMapping, mTree.treeEdges))
     }
 
   // Not used
-  val extract : Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
+  val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
     '{ (m: List[M]) => (None, List(), Map()) }
 
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
@@ -337,7 +397,6 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
   val size = outers.size
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
-
 
 /** Generates a join-pattern for a pattern written as a wildcard e.g. (_)
   *
@@ -368,7 +427,7 @@ private def generateWildcardPattern[M, T](using
   val rhs: Expr[Map[String, Any] => T] = '{ (_: Map[String, Any]) => ${ _rhs.asExprOf[T] } }
   val size                             = 1
 
-  val partialExtract = '{ (m : List[M], mTree : MatchingTree) => None }
+  val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
@@ -399,6 +458,34 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
           errorTree("Unsupported case pattern", default)
           None
 
+/** Creates a join-pattern with partial matches
+  *
+  * @param case
+  *   the source `CaseDef`
+  *
+  * @return
+  *   a join-pattern
+  */
+private def generatePartialJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
+    `case`: quotes.reflect.CaseDef
+): Option[Expr[JoinPattern[M, T]]] =
+  import quotes.reflect.*
+  `case` match
+    case CaseDef(pattern, guard, _rhs) =>
+      pattern match
+        case t @ TypedOrTest(Unapply(fun, Nil, patterns), _) =>
+          fun match
+            case Select(_, "unapply") =>
+              Some(generateSingletonPattern[M, T](t, guard, _rhs))
+            case TypeApply(Select(_, "unapply"), _) =>
+              Some(generatePartialMatch[M, T](patterns, guard, _rhs))
+        case w: Wildcard =>
+          // report.info("Wildcards should be defined last", w.asExpr)
+          Some(generateWildcardPattern[M, T](guard, _rhs))
+        case default =>
+          errorTree("Unsupported case pattern", default)
+          None
+
 /** Translates a series of match clauses into a list of join-pattern.
   *
   * @param expr
@@ -407,7 +494,8 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
   *   a list of join-pattern expressions.
   */
 private def getCases[M, T](
-    expr: Expr[M => T]
+    expr: Expr[M => T],
+    isPartial: Boolean
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
@@ -415,11 +503,17 @@ private def getCases[M, T](
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          val code = cases.flatMap { generateJoinPattern[M, T](_) }
-          // report.info(
-          //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
-          // )
-          code
+          if !isPartial then
+            val code = cases.flatMap { generateJoinPattern[M, T](_) }
+            code
+          else
+            val code = cases.flatMap { generatePartialJoinPattern[M, T](_) }
+            code
+
+        // report.info(
+        //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
+        // )
+        // code
         case default =>
           errorTree("Unsupported code", default)
           List()
@@ -437,15 +531,30 @@ private def getCases[M, T](
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
 )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  Matcher[M, T](${ Expr.ofList(getCases(expr)) })
+  Matcher[M, T](${ Expr.ofList(getCases(expr, false)) })
 }
+
+/** Generate the code returned by the receive macro. This generates join-patterns with partial
+  * matches
+  *
+  * @param expr
+  *   the match expression.
+  * @return
+  *   a matcher instance.
+  */
+private def receivePartialCodegen[M, T](
+    expr: Expr[M => T]
+)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
+  Matcher[M, T](${ Expr.ofList(getCases(expr, true)) })
+}
+
 private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(
     using
     tm: Type[M],
     tt: Type[T],
     quotes: Quotes
 ) = '{
-  Matcher[M, T]((${ Expr.ofList(getCases(expr)) }).sorted($strat))
+  Matcher[M, T]((${ Expr.ofList(getCases(expr, false)) }).sorted($strat))
 }
 
 /** Entry point of the `receive` macro.
@@ -456,6 +565,9 @@ private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[Joi
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
 inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
+
+inline def receivePartial[M, T](inline f: M => T): Matcher[M, T] = ${ receivePartialCodegen('f) }
+
 inline def receiveOrd[M, T](inline s: Ordering[JoinPattern[M, T]])(
     inline f: M => T
 ): Matcher[M, T] = ${ receiveCodegenOrd('f, 's) }

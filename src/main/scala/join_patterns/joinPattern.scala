@@ -2,16 +2,16 @@ package join_patterns
 
 //                 Msgs from Q     | Pattern Idxs from Pattern case
 //                 [ Ø            -> {} ]
-//                 [ {1}          -> { [1], [3] }]
-//                 [ {1, 2}       -> { [1, 2], [3, 2] }]
-//                 [ {2}          -> { [2] }]
-type NodeMapping = Map[Set[Int], Set[List[Int]]]
+//                 [ {0}          -> { [0], [2] }]
+//                 [ {0, 1}       -> { [0, 1], [2, 1] }]
+//                 [ {1}          -> { [1] }]
+type NodeMapping = Map[List[Int], Set[List[Int]]]
 object NodeMapping:
-  def apply() : Map[Set[Int], Set[List[Int]]] =
-    Map[Set[Int], Set[List[Int]]]()
+  def apply() : Map[List[Int], Set[List[Int]]] =
+    Map[List[Int], Set[List[Int]]]()
 
 // Edges
-//               { (Ø, {1}), ({1}, {1, 3}), ({1, 2},  ) }
+//               { (Ø, {1}), ({1}, {1, 2}), ({1, 2}, Ø) }
 type TreeEdges = Set[Tuple2[Set[Int], Set[Int]]]
 object TreeEdges:
   def apply() : Set[Tuple2[Set[Int], Set[Int]]] =
@@ -19,8 +19,8 @@ object TreeEdges:
 
 
 case class MatchingTree(
-  nodeMapping : NodeMapping,
-  treeEdges : TreeEdges
+  nodeMapping : NodeMapping = NodeMapping(),
+  treeEdges : TreeEdges = TreeEdges()
 ) {
   def isEmpty : Boolean =
     nodeMapping.isEmpty && treeEdges.isEmpty

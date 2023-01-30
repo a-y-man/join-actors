@@ -97,7 +97,6 @@ def test02() : Unit =
 
 //   println("\n======================================================\n\n")
 
-
 def demo() : Unit =
   val queue = LinkedTransferQueue[Msg]()
 
@@ -123,40 +122,30 @@ def demo() : Unit =
   println(s"f returned: ${f(queue)}")
 
 
+
+def testPartial() : Unit =
+  val q = LinkedTransferQueue[Msg]
+
+  var f = receivePartial { (y: Msg) =>
+    y match
+      case (A(), B(), A()) => 42
+  }
+
+  q.add(A())
+  q.add(B())
+  q.add(A())
+
+  val initalQ = q.toArray.toList.zipWithIndex
+  println(s"Q =  ${initalQ}")
+  println(f"f returned: ${f(q)}")
+  // println(f"f returned after: ${f(q)}")
+
+  println("\n======================================================\n\n")
+
 @main
 def main(): Unit =
-  test01()
+  // test01()
   // test02()
   // demo()
   // test04()
-
-
-/*
-case E(n: Int) if isZero(n) => { { val z = "hi"; println(z) }; n + 1 }
-case E(n: Int) => { { val z = "hi2"; println(z) }; n + 2 }
-case F(z: Int, c: String) if isZero(z) => "Hello " + c + "! "
-case (G(_: Int, _: String, z: Int, bool: Boolean), F(b: Int, _: String)) => z + b
-  */
-// case (E(a: Int), E(b: Int), C()) => a + b
-// case (A(), _) => 46
-// case (A(), A()) => 46
-
-
-
-/*
-val g = receive {
-  (m: List[Msg]) =>
-    m.exists(_.isInstanceOf[A]) && m.exists(_.isInstanceOf[B]) && m.exists(_.isInstanceOf[C])
-}
-*/
-
-/*
-val ret1 = f(q)
-println(f"After receiving A, f returned: ${ret1}")
-
-q.add(F(0, "Antoine"))
-val ret5 = f(q)
-println(f"After receiving F(3, 'id'), f returned: ${ret5}")
-q.add(G(2, "t", -5, false))
-q.add(F(2, "t"))
-  */
+  testPartial()
