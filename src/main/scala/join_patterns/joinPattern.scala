@@ -12,10 +12,10 @@ object NodeMapping:
 
 // Edges
 //               { (Ø, {1}), ({1}, {1, 2}), ({1, 2}, Ø) }
-type TreeEdges = Set[Tuple2[Set[Int], Set[Int]]]
+type TreeEdges = Set[(List[Int], List[Int])]
 object TreeEdges:
-  def apply() : Set[Tuple2[Set[Int], Set[Int]]] =
-    Set[Tuple2[Set[Int], Set[Int]]]()
+  def apply() : Set[(List[Int], List[Int])] =
+    Set[(List[Int], List[Int])]()
 
 
 case class MatchingTree(
@@ -24,6 +24,9 @@ case class MatchingTree(
 ) {
   def isEmpty : Boolean =
     nodeMapping.isEmpty && treeEdges.isEmpty
+
+  def addEdge(edge : (List[Int], List[Int])) =
+    treeEdges.++(Set(edge))
 }
 
 
@@ -38,3 +41,6 @@ case class JoinPattern[M, T](
     size: Int,
     partialExtract : (List[M], MatchingTree) => Option[MatchingTree]
 )
+
+
+

@@ -290,35 +290,6 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
-def possibleFitsInPattern[M, T](using
-    quotes: Quotes,
-    tm: Type[M],
-    tt: Type[T]
-)(newQi: (M, Int), mPat: List[(M, Int)], curMapping: NodeMapping) =
-  import quotes.reflect.*
-
-  val newNodeMapping = curMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
-    val (k, v) = mapping
-
-    val (mQ, mQidx) = newQi
-
-    if mPat.contains(newQi) then
-      val possibleFits = mPat.filter((mP, mPidx) => mQ == mP).map(j => (List(j._2))).toSet
-      val newMapping = possibleFits
-        .flatMap { possibleFit =>
-          val e = possibleFit.head
-          v.map { fit =>
-            if !fit.contains(e) then possibleFit.concat(fit) else List.empty
-          }
-        }
-        .filter(!_.isEmpty)
-
-      acc + ((k.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
-    else acc + (List(mQidx) -> Set.empty) + mapping
-  }
-
-  newNodeMapping
-
 private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
     dataType: List[quotes.reflect.Tree],
     guard: Option[quotes.reflect.Term],
@@ -348,24 +319,25 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
       val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
 
       val msgPatterns = _extractors.zipWithIndex
-      val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
-        val (k, v) = mapping
+      val (mQ, mQidx) = messages.head // Take the newest msg from the queue
 
-        val (mQ, mQidx) = messages.head // Take the newest msg from the queue
-
-        val isMsgInPat = msgPatterns.exists { msgPat =>
+      val newEdge = Set((List.empty, List(mQidx)))
+      val isMsgInPat = msgPatterns.exists { msgPat =>
           val ((msg, _), _) = msgPat
           msg(mQ)
         }
 
-        if isMsgInPat then
-          val possibleFits = msgPatterns
-            .filter { msgPat =>
-              val ((msg, _), _) = msgPat
-              msg(mQ)
-            }
-            .map(j => (List(j._2)))
-            .toSet
+      if isMsgInPat then
+        val possibleFits = msgPatterns
+          .filter { msgPat =>
+            val ((msg, _), _) = msgPat
+            msg(mQ)
+          }
+          .map(j => (List(j._2)))
+          .toSet
+
+        val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
+          val (k, v) = mapping
           val newMapping = possibleFits
             .flatMap { possibleFit =>
               val e = possibleFit.head
@@ -375,16 +347,31 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
             }
             .filter(!_.isEmpty)
 
-          acc + ((k.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
-        else acc + (List(mQidx) -> Set.empty) + mapping
-      }
+            acc + ((k.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
+          }
 
-      Some(MatchingTree(newNodeMapping, mTree.treeEdges))
+
+        val newTreeEdges = mTree.nodeMapping.foldLeft(TreeEdges()) {
+          (acc, mapping) =>
+            val (node, fits) = mapping
+
+            val updatedEdges =
+              if !node.contains(mQidx) then
+                (node, node.appended(mQidx))
+              else (List.empty, List.empty)
+
+            acc + updatedEdges
+          }.++(mTree.treeEdges.++(newEdge)).filter(!_._2.isEmpty)
+
+        Some(MatchingTree(newNodeMapping, newTreeEdges))
+
+      else
+        Some(MatchingTree(mTree.nodeMapping + (List(mQidx) -> Set.empty), mTree.treeEdges.++(newEdge)))
     }
 
   // Not used
   val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
-    '{ (m: List[M]) => (None, List(), Map()) }
+    '{ (_: List[M]) => (None, List(), Map()) }
 
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
 
