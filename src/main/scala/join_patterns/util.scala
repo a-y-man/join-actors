@@ -30,7 +30,6 @@ def infoTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Uni
     case Some(pos) => report.info(f"$msg: $t", pos)
     case None      => report.info(f"$msg: $t")
 
-
 def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
   import quotes.reflect.*
 

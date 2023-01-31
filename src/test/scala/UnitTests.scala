@@ -213,8 +213,9 @@ class MultipleClasses extends UnitTests {
     val rcv = receive { (y: Msg) =>
       y match
         case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) => "Hello World"
-        case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) == false => ("Hello " + s).repeat(i0 + i1)
-        case B(i: Int)                                => rep.toString
+        case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) == false =>
+          ("Hello " + s).repeat(i0 + i1)
+        case B(i: Int) => rep.toString
     }
     val q = LinkedTransferQueue[Msg]
 
