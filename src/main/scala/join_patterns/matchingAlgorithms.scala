@@ -56,7 +56,7 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
           val (msgIdxsQ, msgPattern) = idxMsgs.unzip
 
-          val isGuardTrue = pattern.guard(substs)
+          val isGuardTrue = if activatedPatternsEntry.nonEmpty then pattern.guard(substs) else false
 
           if !msgIdxsQ.isEmpty && isGuardTrue then
             idxsI.addOne((patternIdx, msgIdxsQ))
@@ -139,3 +139,27 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
     result.get
 
 }
+
+
+// Msgs from Q     | Pattern Idxs from Pattern case A() & B() & A()
+
+// Q = [(A(), 0)]
+// [0]	 -> { [0], [2] }
+// []	 -> {  }
+
+// Q = [(A(), 0), (B(), 1)]
+// [ []            -> {} ]
+// [ [0]          -> { [0], [2] }]
+// [ [0, 1]       -> { [0, 1], [2, 1] }]
+// [ [1]          -> { [1] }]
+
+// Q = [(A(), 0), (B(), 1), (A(), 2)]
+// []	         -> {  }
+// [0]	       -> { [0], [2] }
+// [1]	       -> { [1] }
+// [2]	       -> { [0], [2] }
+// [3]	       -> {  }
+// [0, 1]	     -> { [1, 0], [1, 2] }
+// [1, 2]	     -> { [0, 1], [2, 1] }
+// [0, 2]	     -> { [0, 2], [2, 0] }
+// [0, 1, 2]	 -> { [0, 1, 2], [2, 1, 0] }

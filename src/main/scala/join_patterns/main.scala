@@ -33,12 +33,12 @@ def test01(): Unit =
       case (A(), B(), A())                   => 42
   }
 
-  // q.add(A())
-  q.add(E(1))
-  q.add(F(2))
-  // q.add(B())
-  // q.add(A())
-  q.add(D(3))
+  q.add(A())
+  // q.add(E(1))
+  // q.add(F(2))
+  q.add(B())
+  q.add(A())
+  // q.add(D(3))
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
@@ -139,8 +139,8 @@ def testPartial(): Unit =
 
 @main
 def main(): Unit =
-  // test01()
+  test01()
   // test02()
   // demo()
   // test04()
-  testPartial()
+  // testPartial()

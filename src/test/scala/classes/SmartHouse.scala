@@ -115,11 +115,11 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
         // println("turn_off_light()")
         actions -= 1
       // E3. Send a notification when a window has been open for over an hour.
-      // case Contact(_: Int, open: Boolean, _: String, timestamp: Date)
-      //     if sendAlert(open, timestamp, Duration.ofHours(1)) =>
-      //   lastNotification = Date()
-      //   // println("send_alert()")
-      //   actions -= 1
+      case Contact(_: Int, open: Boolean, _: String, timestamp: Date)
+          if sendAlert(open, timestamp, Duration.ofHours(1)) =>
+        lastNotification = Date()
+        // println("send_alert()")
+        actions -= 1
       // E4. Send a notification if someone presses the doorbell, but only if no notification was sent in the past 30 seconds.
       case DoorBell(_: Int, _: Date) if doorBell(Duration.ofSeconds(30)) =>
         lastNotification = Date()
