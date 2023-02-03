@@ -6,6 +6,7 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
 import scala.language.postfixOps
 import scala.annotation.meta.field
+import scala.annotation.newMain
 
 /** Extracts a type's name and representation from a `Tree`.
   *
@@ -215,8 +216,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val size = 1
 
       val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-        val matchingTree: Option[MatchingTree] = None
-        val dummyFields: Map[String, Any]      = Map.empty
+        val matchingTree: Option[MatchingTree]           = None
+        val dummyFields: Map[(Int, Int), (M, Map[String, Any])] = Map.empty
         (matchingTree, dummyFields)
       }
 
@@ -293,8 +294,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
   val size = outers.size
 
   val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-    val matchingTree: Option[MatchingTree] = None
-    val dummyFields: Map[String, Any]      = Map.empty
+    val matchingTree: Option[MatchingTree]           = None
+    val dummyFields: Map[(Int, Int), (M, Map[String, Any])] = Map.empty
     (matchingTree, dummyFields)
   }
 
@@ -322,69 +323,66 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
           )
     }.toList
 
-  val partialExtract: Expr[(List[M], MatchingTree) => (Option[MatchingTree], Map[String, Any])] =
+  val partialExtract
+      : Expr[(List[M], MatchingTree) => (Option[MatchingTree], Map[(Int, Int), (M, Map[String, Any])])] =
     '{ (m: List[M], mTree: MatchingTree) =>
       val messages                    = ListBuffer.from(m.zipWithIndex)
       val fields: MutMap[String, Any] = MutMap()
       val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+      val msgTypesInPattern           = _extractors.zipWithIndex
 
-      val msgPatterns = _extractors.zipWithIndex
+      val patternTypeData: MutMap[(Int, Int), (M, Map[String, Any])] = MutMap()
 
-      // NOTE: possible issue with many messages arriving at once
-      val (mQ, mQidx) = messages.head // Take the newest msg from the queue
+      val (mQ, mQidx) = messages.last // Take the newest msg from the queue
 
       val newEdge = Set(
         (List.empty, List(mQidx))
       ) // Always add an edge for the new incoming msg regardless of it having candidate match
-      val isMsgInPat = msgPatterns.exists { msgPat =>
+      val isMsgInPat = msgTypesInPattern.exists { msgPat =>
         val ((msg, _), _) = msgPat
         msg(mQ)
       }
 
       if isMsgInPat then
-        val matches = msgPatterns
+        val matches = msgTypesInPattern
           .filter { msgPat =>
             val ((msg, field), _) = msgPat
             msg(mQ)
           }
 
-        // Not sure about this yet!
         matches.foreach { msgPat =>
-          val ((msg, field), _) = msgPat
-          fields.addAll(field(mQ))
+          val ((msg, field), msgPosInPat) = msgPat
+          patternTypeData.update((mQidx, msgPosInPat), (mQ, field(mQ)))
         }
-        val possibleFits = matches.map(j => (List(j._2))).toSet
 
-        println(s"HI! ${fields.mkString("; ")}")
+
+        val possibleFits = matches.map(j => List(j._2)).toSet
 
         val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
-          val (k, v) = mapping
+          val (node, fits) = mapping
           val newMapping = possibleFits
             .flatMap { possibleFit =>
               val e = possibleFit.head
-              v.map { fit =>
+              fits.map { fit =>
                 if !fit.contains(e) then possibleFit.concat(fit) else List.empty
               }
             }
             .filter(!_.isEmpty)
-
-          acc + ((k.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
+          acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
         }
 
         val newTreeEdges = mTree.nodeMapping
           .foldLeft(TreeEdges()) { (acc, mapping) =>
             val (node, fits) = mapping
 
-            val updatedEdges =
-              if !node.contains(mQidx) then (node, node.appended(mQidx))
-              else (List.empty, List.empty)
+            val updatedEdges = (node, node.appended(mQidx))
 
             acc + updatedEdges
           }
           .++(mTree.treeEdges.++(newEdge))
           .filter(!_._2.isEmpty)
 
-        (Some(MatchingTree(newNodeMapping, newTreeEdges)), fields.toMap)
+        (Some(MatchingTree(newNodeMapping, newTreeEdges)), patternTypeData.toMap)
       else
         (
           Some(
@@ -393,7 +391,7 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
               mTree.treeEdges.++(newEdge)
             )
           ),
-          fields.toMap
+          patternTypeData.toMap
         )
     }
 
@@ -443,8 +441,8 @@ private def generateWildcardPattern[M, T](using
   val size                             = 1
 
   val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-    val matchingTree: Option[MatchingTree] = None
-    val dummyFields: Map[String, Any]      = Map.empty
+    val matchingTree: Option[MatchingTree]           = None
+    val dummyFields: Map[(Int, Int), (M, Map[String, Any])] = Map.empty
     (matchingTree, dummyFields)
   }
 
@@ -564,7 +562,7 @@ private def receiveCodegen[M, T](
 private def receivePartialCodegen[M, T](
     expr: Expr[M => T]
 )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  Matcher[M, T](${ Expr.ofList(getCases(expr, true)) })
+  TreeMatcher[M, T](${ Expr.ofList(getCases(expr, true)) })
 }
 
 private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(
@@ -585,7 +583,7 @@ private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[Joi
   */
 inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
 
-inline def receivePartial[M, T](inline f: M => T): Matcher[M, T] = ${ receivePartialCodegen('f) }
+inline def receivePartial[M, T](inline f: M => T): TreeMatcher[M, T] = ${ receivePartialCodegen('f) }
 
 inline def receiveOrd[M, T](inline s: Ordering[JoinPattern[M, T]])(
     inline f: M => T

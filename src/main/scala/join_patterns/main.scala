@@ -123,24 +123,26 @@ def testPartial(): Unit =
 
   var f = receivePartial { (y: Msg) =>
     y match
+      case (E(x:Int), D(z: Int), E(y:Int)) => 42
       case (A(), B(), A()) => 42
   }
 
-  q.add(A())
+  q.add(E(42))
+  q.add(D(43))
+  q.add(E(45))
+  // q.add(A())
   // q.add(B())
   // q.add(A())
-
   val initalQ = q.toArray.toList.zipWithIndex
-  println(s"Q =  ${initalQ}")
-  println(f"f returned: ${f(q)}")
-  // println(f"f returned after: ${f(q)}")
 
+  println(s"Q =  ${initalQ}")
+  println(f"receive = ${f(q)}")
   println("\n======================================================\n\n")
 
 @main
 def main(): Unit =
-  test01()
+  // test01()
   // test02()
   // demo()
   // test04()
-  // testPartial()
+  testPartial()
