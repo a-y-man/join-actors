@@ -98,15 +98,32 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
 }
 
-type PatternVector[M, T] = Map[List[Int], (Map[String, Any], Map[String, Any] => T)]
+type PatternVector[M, T] = Map[List[Int], List[(Map[String, Any], Map[String, Any] => T)]]
 object PatternVector:
   def apply[M, T](): PatternVector[M, T] =
-    Map[List[Int], (Map[String, Any], Map[String, Any] => T)]()
+    Map[List[Int], List[(Map[String, Any], Map[String, Any] => T)]]()
+
+def printVector[M, T](patternVector: PatternVector[M, T]): Unit =
+  patternVector.foreach { (k, v) =>
+    val kToStr = s"${k.mkString("[", ", ", "]")}"
+    val vToStr = v
+      .map((fields, _) =>
+        s"(${fields.map((k, v) => s"${k} -> ${v}").mkString("Map(", " , ", ")")}, RHS-closure)"
+      )
+      .mkString("{ ", ", ", " }")
+    val mToStr = s"${kToStr}\t -> ${vToStr}"
+    println(mToStr)
+  }
 
 class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
+
+  def compareQIndices(i1: List[Int], i2: List[Int]): Boolean =
+    import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
+
+    (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
   var patternsWithMatchingTrees = patternsWithIdxs
@@ -125,24 +142,21 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
       println("Msgs = " + messages.mkString("[", "; ", "]"))
       if messages.isEmpty then
         messages.append(q.take())
-        // q.drainTo(messages) // remove this and maintain two queues; one for used messages and one for new messages
 
       val activatedPatterns: PatternVector[M, T] =
         patternsWithMatchingTrees.foldLeft(PatternVector[M, T]()) {
-          (activatedPattern, patternWithMatchingTree) =>
+          (patternVector, patternWithMatchingTree) =>
             val ((pattern, patternIdx), mTree) = patternWithMatchingTree
-            val (updatedMatchingTree, patternTypeData) =
-              pattern.partialExtract(messages.toList, mTree)
+            val updatedMatchingTree            = pattern.partialExtract(messages.toList, mTree)
 
             updatedPatternsWithMatchingTrees.addOne(
               ((pattern, patternIdx), updatedMatchingTree.get)
             )
 
-            // printMapping(updatedMatchingTree.get.nodeMapping)
-
             updatedMatchingTree match
               case Some(mTree) =>
                 println("-------------------------------------------------------")
+                println(s"Pattern Idx ${patternIdx}")
                 printMapping(mTree.nodeMapping)
                 println("-------------------------------------------------------")
 
@@ -150,7 +164,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
                   mTree.nodeMapping.view.filterKeys(node => node.size >= pattern.size).toMap
 
                 val fitToPattern = enoughMsgToMatch
-                  .mapValues(candidateMatches =>
+                  .view.mapValues(candidateMatches =>
                     candidateMatches.filter((idxs, fields) => idxs.size == pattern.size)
                   )
                   .toMap
@@ -161,46 +175,52 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
                 printMapping(fitToPattern)
                 println("***********************************************************")
 
-                val (msgIdxs, substs) =
-                  patternTypeData.foldLeft((List[Int](), Map[String, Any]())) { (acc, data) =>
-                    // (0, (A(x), [x -> 2])) ~~> (0, [A, B, A], [x -> 2, y -> 3, z -> 4])
-                    val ((msgIdxInQ, msgIdxInPat), (msg, fields)) = data
-
-                    val (msgsAcc, fieldsAcc) = acc
-
-                    (msgIdxInQ :: msgsAcc, fields ++ fieldsAcc)
+                val whereGuardTrue = fitToPattern
+                  .view.mapValues { candidateMatches =>
+                    val trueGuardCandidates =
+                      candidateMatches.filter((idxs, substs) => pattern.guard(substs))
+                    trueGuardCandidates
                   }
-                activatedPattern.updated(
-                  msgIdxs,
-                  (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
-                )
+                  .toMap
+                  .filter((k, v) => v.nonEmpty)
 
-              case None => activatedPattern
+                val withRhs = whereGuardTrue.map { (msgIdxs, candidateMatches) =>
+                  (
+                    msgIdxs,
+                    candidateMatches.map { (_, substs) =>
+                      (substs, (subs: Map[String, Any]) => pattern.rhs(substs))
+                    }.toList
+                  )
+                }
+
+                patternVector ++ withRhs
+
+              case None => patternVector
         }
 
-      // println(s"A = ${activatedPatterns}")
       patternsWithMatchingTrees = updatedPatternsWithMatchingTrees.toList
+      println("Vector")
+      printVector(activatedPatterns)
 
-      if result.isEmpty then
-        messages.append(q.take())
-        // println("q = " + q.toList.mkString("; "))
+      if activatedPatterns.nonEmpty then
+        val candidateQidxs = activatedPatterns.keys.toList.sortWith(compareQIndices)
+
+        val candidateRHS = activatedPatterns.get(candidateQidxs.head).get
+
+        if candidateRHS.nonEmpty then
+          val (subst, rhsFn) = candidateRHS.head
+          result = Some(rhsFn(subst))
+          println(s"Q = ${messages.mkString("[", "; ", "]")}")
+          // candidateQidxs.head.foreach {
+          //   i => messages.remove(i)
+          // }
+          println(s"Q = ${messages.mkString("[", "; ", "]")}")
+
+      if result.isEmpty then messages.append(q.take())
 
     result.get
 
 }
-
-// if msgTypesInPattern.size == matches.size then
-//
-//   val enoughMsgToMatch = newNodeMapping.view.filterKeys(node => node.size == msgTypesInPattern.size).toMap
-
-//   val fitToPattern = enoughMsgToMatch.mapValues(cidxs => cidxs.filter(i => i.size == msgTypesInPattern.size)).toMap.filter((k, v) => v.nonEmpty)
-
-// fitToPattern.foreach { (node, fit) =>
-//   val iToM = s"Node Msgs = ${node.map(i => messages(i)).mkString("[", "; ", "]")}"
-//   val piToM = s"Pat  Msgs = ${fit.map(idxs => idxs.mkString("--") ).mkString("[", "; ", "]")}"
-
-//   println(s"${iToM}\n${piToM}")
-// }
 
 // Msgs from Q     | Pattern Idxs from Pattern case A(x) & B() & A()
 
@@ -254,6 +274,3 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 // [0, 2, 3]	   -> {  }
 // [1, 2, 3]	   -> { [0, 1, 2], [2, 1, 0] }
 // [0, 1, 2, 3]	 -> {  }
-
-/// Notes
-//

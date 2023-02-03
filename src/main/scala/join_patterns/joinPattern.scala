@@ -47,8 +47,5 @@ case class JoinPattern[M, T](
     guard: Map[String, Any] => Boolean,
     rhs: Map[String, Any] => T,
     size: Int,
-    partialExtract: (List[M], MatchingTree) => (
-        Option[MatchingTree],
-        Map[(Int, Int), (M, Map[String, Any])]
-    )
+    partialExtract: (List[M], MatchingTree) => Option[MatchingTree]
 )

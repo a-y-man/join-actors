@@ -215,11 +215,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
       val size = 1
 
-      val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-        val matchingTree: Option[MatchingTree]                  = None
-        val dummyFields: Map[(Int, Int), (M, Map[String, Any])] = Map.empty
-        (matchingTree, dummyFields)
-      }
+      val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
 
       '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
@@ -293,11 +289,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
   val size = outers.size
 
-  val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-    val matchingTree: Option[MatchingTree]                  = None
-    val dummyFields: Map[(Int, Int), (M, Map[String, Any])] = Map.empty
-    (matchingTree, dummyFields)
-  }
+  val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
@@ -324,7 +316,7 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
     }.toList
 
   val partialExtract: Expr[
-    (List[M], MatchingTree) => (Option[MatchingTree], Map[(Int, Int), (M, Map[String, Any])])
+    (List[M], MatchingTree) => Option[MatchingTree]
   ] =
     '{ (m: List[M], mTree: MatchingTree) =>
       val messages                    = ListBuffer.from(m.zipWithIndex)
@@ -388,16 +380,13 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
           .++(mTree.treeEdges.++(newEdge))
           .filter(!_._2.isEmpty)
 
-        (Some(MatchingTree(newNodeMapping, newTreeEdges)), patternTypeData.toMap)
+        Some(MatchingTree(newNodeMapping, newTreeEdges))
       else
-        (
-          Some(
-            MatchingTree(
-              mTree.nodeMapping + (List(mQidx) -> Set.empty),
-              mTree.treeEdges.++(newEdge)
-            )
-          ),
-          patternTypeData.toMap
+        Some(
+          MatchingTree(
+            mTree.nodeMapping + (List(mQidx) -> Set.empty),
+            mTree.treeEdges.++(newEdge)
+          )
         )
     }
 
@@ -446,11 +435,7 @@ private def generateWildcardPattern[M, T](using
   val rhs: Expr[Map[String, Any] => T] = '{ (_: Map[String, Any]) => ${ _rhs.asExprOf[T] } }
   val size                             = 1
 
-  val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-    val matchingTree: Option[MatchingTree]                  = None
-    val dummyFields: Map[(Int, Int), (M, Map[String, Any])] = Map.empty
-    (matchingTree, dummyFields)
-  }
+  val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
 
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
