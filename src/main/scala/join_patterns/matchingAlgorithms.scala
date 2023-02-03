@@ -98,13 +98,10 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
 }
 
-
-
 type PatternVector[M, T] = Map[List[Int], (Map[String, Any], Map[String, Any] => T)]
 object PatternVector:
   def apply[M, T](): PatternVector[M, T] =
     Map[List[Int], (Map[String, Any], Map[String, Any] => T)]()
-
 
 class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
   // Messages extracted from the queue are saved here to survive across apply() calls
@@ -153,7 +150,9 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
                   mTree.nodeMapping.view.filterKeys(node => node.size >= pattern.size).toMap
 
                 val fitToPattern = enoughMsgToMatch
-                  .mapValues(cidxs => cidxs.filter(i => i.size == pattern.size))
+                  .mapValues(candidateMatches =>
+                    candidateMatches.filter((idxs, fields) => idxs.size == pattern.size)
+                  )
                   .toMap
                   .filter((k, v) => v.nonEmpty)
 
@@ -171,12 +170,15 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
                     (msgIdxInQ :: msgsAcc, fields ++ fieldsAcc)
                   }
-                activatedPattern.updated(msgIdxs, (substs, (subs: Map[String, Any]) => pattern.rhs(subs)))
+                activatedPattern.updated(
+                  msgIdxs,
+                  (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
+                )
 
               case None => activatedPattern
         }
 
-      println(s"A = ${activatedPatterns}")
+      // println(s"A = ${activatedPatterns}")
       patternsWithMatchingTrees = updatedPatternsWithMatchingTrees.toList
 
       if result.isEmpty then
@@ -192,7 +194,6 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 //   val enoughMsgToMatch = newNodeMapping.view.filterKeys(node => node.size == msgTypesInPattern.size).toMap
 
 //   val fitToPattern = enoughMsgToMatch.mapValues(cidxs => cidxs.filter(i => i.size == msgTypesInPattern.size)).toMap.filter((k, v) => v.nonEmpty)
-
 
 // fitToPattern.foreach { (node, fit) =>
 //   val iToM = s"Node Msgs = ${node.map(i => messages(i)).mkString("[", "; ", "]")}"
@@ -224,8 +225,6 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 // [ [0, 2]	               -> { ([0, 2], Map(x -> 42, z -> 84)), ([2, 0], Map(z -> 42, x -> 84)) }]
 // [ [1, 2]	               -> { ([0, 1], Map(x -> 42, y -> 21)), ([2, 1], Map(z -> 42, y -> 21)) }]
 // [ [0, 1, 2]	           -> { ([0, 1, 2], Map(x -> 42, y -> 21, z -> 84)), ([2, 1, 0], Map(z -> 42, y -> 21, x -> 84)) }]
-
-
 
 // Q = [(A(), 0), (B(), 1), (A(), 2)]
 // []	         -> {  }

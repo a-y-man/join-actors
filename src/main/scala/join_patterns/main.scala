@@ -123,16 +123,17 @@ def testPartial(): Unit =
 
   var f = receivePartial { (y: Msg) =>
     y match
-      case (E(x:Int), D(z: Int), E(y:Int)) => 42
-      case (A(), B(), A()) => 42
+      case (E(x: Int), D(z: Int), E(y: Int)) => 42
+      case (A(), B(), A())                   => 42
   }
 
   q.add(E(42))
   q.add(D(43))
   q.add(E(45))
-  // q.add(A())
-  // q.add(B())
-  // q.add(A())
+  q.add(E(490))
+  q.add(A())
+  q.add(B())
+  q.add(A())
   val initalQ = q.toArray.toList.zipWithIndex
 
   println(s"Q =  ${initalQ}")
