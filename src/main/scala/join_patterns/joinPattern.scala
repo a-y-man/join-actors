@@ -49,3 +49,7 @@ case class JoinPattern[M, T](
     size: Int,
     partialExtract: (List[M], MatchingTree) => Option[MatchingTree]
 )
+
+
+enum AlgorithmType:
+  case NaiveAlgorithm, BasicAlgorithm, TreeBasedAlgorithm

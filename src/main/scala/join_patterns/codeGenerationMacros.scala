@@ -215,7 +215,20 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
       val size = 1
 
-      val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
+      val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
+        val messages                    = ListBuffer.from(m.zipWithIndex)
+
+        val (mQ, mQidx) = messages.last // Take the newest msg from the queue
+        if mQ.isInstanceOf[ot] then
+          Some(
+            MatchingTree(
+              mTree.nodeMapping + (List(mQidx) -> Set((List(0), $extractor(mQ.asInstanceOf[ot])))),
+              mTree.treeEdges.++(Set((List.empty, List(mQidx))))
+            )
+          )
+        else
+          Some(mTree)
+      }
 
       '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
@@ -320,11 +333,8 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
   ] =
     '{ (m: List[M], mTree: MatchingTree) =>
       val messages                    = ListBuffer.from(m.zipWithIndex)
-      val fields: MutMap[String, Any] = MutMap()
       val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
       val msgTypesInPattern           = _extractors.zipWithIndex
-
-      val patternTypeData: MutMap[(Int, Int), (M, Map[String, Any])] = MutMap()
 
       val (mQ, mQidx) = messages.last // Take the newest msg from the queue
 
@@ -503,7 +513,7 @@ private def generatePartialJoinPattern[M, T](using quotes: Quotes, tm: Type[M], 
   */
 private def getCases[M, T](
     expr: Expr[M => T],
-    isPartial: Boolean
+    algorithm: AlgorithmType
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
@@ -511,12 +521,9 @@ private def getCases[M, T](
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          if !isPartial then
-            val code = cases.flatMap { generateJoinPattern[M, T](_) }
-            code
-          else
-            val code = cases.flatMap { generatePartialJoinPattern[M, T](_) }
-            code
+          algorithm match
+            case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => cases.flatMap { generateJoinPattern[M, T](_) }
+            case AlgorithmType.TreeBasedAlgorithm => cases.flatMap { generatePartialJoinPattern[M, T](_) }
 
         // report.info(
         //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
@@ -539,30 +546,7 @@ private def getCases[M, T](
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
 )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  Matcher[M, T](${ Expr.ofList(getCases(expr, false)) })
-}
-
-/** Generate the code returned by the receive macro. This generates join-patterns with partial
-  * matches
-  *
-  * @param expr
-  *   the match expression.
-  * @return
-  *   a matcher instance.
-  */
-private def receivePartialCodegen[M, T](
-    expr: Expr[M => T]
-)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  TreeMatcher[M, T](${ Expr.ofList(getCases(expr, true)) })
-}
-
-private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(
-    using
-    tm: Type[M],
-    tt: Type[T],
-    quotes: Quotes
-) = '{
-  Matcher[M, T]((${ Expr.ofList(getCases(expr, false)) }).sorted($strat))
+  ((algorithm: AlgorithmType) => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, algorithm)) }))
 }
 
 /** Entry point of the `receive` macro.
@@ -572,15 +556,44 @@ private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[Joi
   * @return
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): Matcher[M, T] = ${ receiveCodegen('f) }
+inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
+  ${ receiveCodegen('f) }
 
-inline def receivePartial[M, T](inline f: M => T): TreeMatcher[M, T] = ${
-  receivePartialCodegen('f)
-}
 
-inline def receiveOrd[M, T](inline s: Ordering[JoinPattern[M, T]])(
-    inline f: M => T
-): Matcher[M, T] = ${ receiveCodegenOrd('f, 's) }
+
+
+/** Generate the code returned by the receive macro. This generates join-patterns with partial
+  * matches
+  *
+  * @param expr
+  *   the match expression.
+  * @return
+  *   a matcher instance.
+  */
+// private def receivePartialCodegen[M, T](
+//     expr: Expr[M => T]
+// )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
+
+//   ((name: String) => Matcher[M, T](name, ${ Expr.ofList(getCases(expr, true)) }))
+// }
+
+// private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(
+//     using
+//     tm: Type[M],
+//     tt: Type[T],
+//     quotes: Quotes
+// ) = '{
+//   Matcher[M, T]((${ Expr.ofList(getCases(expr, false)) }).sorted($strat))
+// }
+
+
+// inline def receivePartial[M, T](inline f: M => T): Matcher[M, T] = ${
+//   receivePartialCodegen('f)
+// }
+
+// inline def receiveOrd[M, T](inline s: Ordering[JoinPattern[M, T]])(
+//     inline f: M => T
+// ): Matcher[M, T] = ${ receiveCodegenOrd('f, 's) }
 
 /*
 receive(e) {

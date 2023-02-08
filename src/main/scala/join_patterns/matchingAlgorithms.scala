@@ -25,7 +25,17 @@ def compareIndices(i1WithPatIdx: (Int, List[Int]), i2WithPatIdx: (Int, List[Int]
 
   (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
-class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) {
+trait Matcher[M, T]
+
+object Matcher:
+  def apply[M, T](algorithm: AlgorithmType, patterns: List[JoinPattern[M, T]]) =
+    algorithm match
+      case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => BasicMatcher(patterns)
+      case AlgorithmType.TreeBasedAlgorithm => TreeMatcher(patterns)
+
+
+
+class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
@@ -115,7 +125,7 @@ def printCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]): Unit 
     println(mToStr)
   }
 
-class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
+class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
@@ -141,7 +151,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
     while result.isEmpty do
       if messages.isEmpty then
         messages.append(q.take())
-        println("Msgs = " + messages.mkString("[", "; ", "]"))
+        // println("Msgs = " + messages.mkString("[", "; ", "]"))
 
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithMatchingTrees.foldLeft(CandidateMatches[M, T]()) {
@@ -164,7 +174,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
 
                 val fitToPattern = enoughMsgToMatch
                   .view.mapValues(candidateMatches =>
-                    candidateMatches.filter((idxs, fields) => idxs.size == pattern.size)
+                    candidateMatches.filter((idxs, fields) => true )// idxs.size == pattern.size)
                   )
                   .toMap
                   .filter((k, v) => v.nonEmpty)
@@ -210,71 +220,31 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) {
         if candidateRHS.nonEmpty then
           val (subst, rhsFn) = candidateRHS.head
           result = Some(rhsFn(subst))
-          println(s"Q = ${q.toList.mkString("[", "; ", "]")}")
+          // println(s"Q = ${q.toList.mkString("[", "; ", "]")}")
           // candidateQidxs.head.foreach {
           //   i => messages.remove(i)
           // }
-          println(s"Q = ${q.toList.mkString("[", "; ", "]")}")
+          // println(s"Q = ${q.toList.mkString("[", "; ", "]")}")
 
       if result.isEmpty then
-        println("Result still empty")
+        // println("Result still empty")
         messages.append(q.take())
-        println("Msgs' = " + messages.mkString("[", "; ", "]"))
+        // println("Msgs' = " + messages.mkString("[", "; ", "]"))
 
 
     result.get
 
 }
 
-// Msgs from Q     | Pattern Idxs from Pattern case A(x) & B() & A()
-
-// Q = [(A(), 0)]
-// [0]	 -> { [0], [2] }
-// []	 -> {  }
-
-// Q = [(A(), 0), (B(), 1)]
-// [ []           -> { } ]
-// [ [0]          -> { [0], [2] }]
-// [ [0, 1]       -> { [0, 1], [2, 1] }]
-// [ [1]          -> { [1] }]
 
 //        0      1      2             0      1     2
 // Q = [A(42), B(21), A(84)]       | A(x) & B(y) & A(z)
 // Msgs from Q                     | Pattern Idxs from Pattern case
 // [ Ø                     -> {} ]
-// [ [1]                   -> { ([1], Map(y -> 21)) }]
 // [ [0]                   -> { ([0], Map(x -> 42)), ([2], Map(z -> 42)) }]
+// [ [1]                   -> { ([1], Map(y -> 21)) }]
 // [ [2]	                 -> { ([0], Map(x -> 84)), ([2], Map(z -> 84)) }]
 // [ [0, 1]                -> { ([0, 1], Map(x -> 42, y -> 21)), ([2, 1], Map(z -> 42, y -> 21)) }]
 // [ [0, 2]	               -> { ([0, 2], Map(x -> 42, z -> 84)), ([2, 0], Map(z -> 42, x -> 84)) }]
 // [ [1, 2]	               -> { ([0, 1], Map(x -> 42, y -> 21)), ([2, 1], Map(z -> 42, y -> 21)) }]
 // [ [0, 1, 2]	           -> { ([0, 1, 2], Map(x -> 42, y -> 21, z -> 84)), ([2, 1, 0], Map(z -> 42, y -> 21, x -> 84)) }]
-
-// Q = [(A(), 0), (B(), 1), (A(), 2)]
-// []	         -> {  }
-// [0]	       -> { [0], [2] }
-// [1]	       -> { [1] }
-// [2]	       -> { [0], [2] }
-// [3]	       -> {  }
-// [0, 1]	     -> { [1, 0], [1, 2] }
-// [1, 2]	     -> { [0, 1], [2, 1] }
-// [0, 2]	     -> { [0, 2], [2, 0] }
-// [0, 1, 2]	 -> { [0, 1, 2], [2, 1, 0] }
-
-// Q = [(C(), 0), (A(), 1), (B(), 2), (A(), 3)]
-// []	           -> {  }
-// [0]	         -> {  }
-// [1]	         -> { [0], [2] }
-// [2]	         -> { [1] }
-// [3]	         -> { [0], [2] }
-// [0, 3]	       -> {  }
-// [2, 3]	       -> { [0, 1], [2, 1] }
-// [0, 1]	       -> {  }
-// [1, 2]	       -> { [1, 0], [1, 2] }
-// [0, 2]	       -> {  }
-// [1, 3]	       -> { [0, 2], [2, 0] }
-// [0, 1, 2]	   -> {  }
-// [0, 1, 3]	   -> {  }
-// [0, 2, 3]	   -> {  }
-// [1, 2, 3]	   -> { [0, 1, 2], [2, 1, 0] }
-// [0, 1, 2, 3]	 -> {  }
