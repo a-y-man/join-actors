@@ -123,18 +123,19 @@ def testPartial(): Unit =
 
   var f = receivePartial { (y: Msg) =>
     y match
-      case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 0"); x
-      // case (E(x: Int), D(z: Int), E(y: Int)) if x == 42 => println("Case 1"); x
-      // case (E(x: Int), D(z: Int), E(y: Int)) if x == 84 => println("Case 2"); x
-      // case (E(x: Int), D(z: Int), E(y: Int)) if y == 21 => println("Case 3"); x
+      // case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 0"); x
+      // case (D(z: Int), E(x: Int), E(y: Int)) if x == 42 => println("Case 1"); x
+      case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
+      case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c => println("Case 3"); x
       // case (A(), B(), A()) => println("Case 4"); 42
   }
 
   q.add(E(1))
+  q.add(A())
+  q.add(G(42, "Hi", 1, true))
   q.add(E(2))
   q.add(E(3))
   q.add(D(42))
-  q.add(A())
   q.add(B())
   q.add(A())
   q.add(E(84))
