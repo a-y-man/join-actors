@@ -13,9 +13,49 @@ case class E(a: Int)                                extends Msg
 case class F(a: Int)                                extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
-// object PatternOrdering extends Ordering[JoinPattern[Msg, Int]] {
-//   def compare(a: JoinPattern[Msg, Int], b: JoinPattern[Msg, Int]) = a.size.compare(b.size)
-// }
+def testPartial(algorithm: AlgorithmType): Unit =
+  val q = LinkedTransferQueue[Msg]
+
+  // This will return a lambda that takes algorithm type and returns matcher
+  var rcv: AlgorithmType => Matcher[Msg, Int] =
+    receive
+      { (y: Msg) =>
+        y match
+          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 0"); x
+          case (D(z: Int), E(x: Int)) if x == 42 => println("Case 1"); x
+          case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
+          case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c => println("Case 3"); x
+          case G(_: Int, a: String, c: Int, d: Boolean) => println("Case 4"); 42
+      }
+
+  val matcher: TreeMatcher[Msg, Int] = rcv(AlgorithmType.TreeBasedAlgorithm).asInstanceOf[TreeMatcher[Msg, Int]] // (AlgorithmType.TreeBasedAlgorithm)
+
+  q.add(C())
+  q.add(C())
+  q.add(G(42, "Hi", 1, true))
+  q.add(B())
+  q.add(A())
+  q.add(E(1))
+  q.add(D(42))
+  q.add(E(2))
+  q.add(E(3))
+  q.add(E(84))
+  val initalQ = q.toArray.toList.zipWithIndex
+
+  // val f : TreeMatcher[Msg, Int] = matcher(AlgorithmType.TreeBasedAlgorithm)
+  println(s"Q =  ${initalQ}")
+  println(f"receive = ${matcher(q)}")
+  println("\n======================================================\n\n")
+
+@main
+def main(): Unit =
+  testPartial(AlgorithmType.TreeBasedAlgorithm)
+
+
+
+
+
+
 
 // def test01(): Unit =
 //   val q = LinkedTransferQueue[Msg]
@@ -118,35 +158,4 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
 //   println(s"f returned: ${f(queue)}")
 
-def testPartial(algorithm: AlgorithmType): Unit =
-  val q = LinkedTransferQueue[Msg]
 
-  var matcher = receive { (y: Msg) =>
-    y match
-      case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 0"); x
-      case (D(z: Int), E(x: Int)) if x == 42 => println("Case 1"); x
-      case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
-      case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c => println("Case 3"); x
-      // case G(_: Int, a: String, c: Int, d: Boolean) => println("Case 4"); 42
-  }
-
-  q.add(C())
-  q.add(C())
-  q.add(G(42, "Hi", 1, true))
-  q.add(B())
-  q.add(A())
-  q.add(E(1))
-  q.add(D(42))
-  q.add(E(2))
-  q.add(E(3))
-  q.add(E(84))
-  val initalQ = q.toArray.toList.zipWithIndex
-
-  // val f : TreeMatcher[Msg, Int] = matcher(AlgorithmType.TreeBasedAlgorithm)
-  println(s"Q =  ${initalQ}")
-  println(f"receive = ${matcher(q)}")
-  println("\n======================================================\n\n")
-
-@main
-def main(): Unit =
-  testPartial(AlgorithmType.TreeBasedAlgorithm)

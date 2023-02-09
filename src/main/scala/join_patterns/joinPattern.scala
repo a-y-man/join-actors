@@ -63,4 +63,4 @@ case class JoinPattern[M, T](
 )
 
 enum AlgorithmType:
-  case NaiveAlgorithm, BasicAlgorithm, TreeBasedAlgorithm
+  case BasicAlgorithm, TreeBasedAlgorithm

@@ -5,7 +5,6 @@ import scala.collection.mutable.Map as MutMap
 
 import java.util.concurrent.LinkedTransferQueue as Queue
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 
 type ActivatedPatterns[M, T] = Map[(Int, List[M], Map[String, Any]), Map[String, Any] => T]
 object ActivatedPatterns:
@@ -25,17 +24,16 @@ def compareIndices(i1WithPatIdx: (Int, List[Int]), i2WithPatIdx: (Int, List[Int]
 
   (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
-// trait Matcher[M, T]
+trait Matcher[M, T]
 
-// object Matcher:
-//   def apply[M, T](algorithm: AlgorithmType, patterns: List[JoinPattern[M, T]]) =
-//     algorithm match
-//       case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => BasicMatcher(patterns)
-//       case AlgorithmType.TreeBasedAlgorithm => TreeMatcher(patterns)
+object Matcher:
+  def apply[M, T](algorithm: AlgorithmType, patterns: List[JoinPattern[M, T]]) : Matcher[M, T] =
+    algorithm match
+      case AlgorithmType.BasicAlgorithm => BasicMatcher(patterns)
+      case AlgorithmType.TreeBasedAlgorithm => TreeMatcher(patterns)
 
 
-
-class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[M, T] {
+class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
@@ -125,7 +123,7 @@ def printCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]): Unit 
     println(mToStr)
   }
 
-class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[M, T] {
+class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex

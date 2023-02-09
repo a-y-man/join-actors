@@ -511,7 +511,7 @@ private def generatePartialJoinPattern[M, T](using quotes: Quotes, tm: Type[M], 
   */
 private def getCases[M, T](
     expr: Expr[M => T],
-    algorithm: Boolean
+    algorithm: AlgorithmType
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
@@ -520,8 +520,8 @@ private def getCases[M, T](
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           algorithm match
-            case false => cases.flatMap { generateJoinPattern[M, T](_) }
-            case true => cases.flatMap { generatePartialJoinPattern[M, T](_) }
+            case AlgorithmType.BasicAlgorithm => cases.flatMap { generateJoinPattern[M, T](_) }
+            case AlgorithmType.TreeBasedAlgorithm => cases.flatMap { generatePartialJoinPattern[M, T](_) }
 
         // report.info(
         //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
@@ -544,11 +544,7 @@ private def getCases[M, T](
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
 )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  Matcher[M, T](${ Expr.ofList(getCases(expr, true)) })
-  // ((algorithm: AlgorithmType) =>
-  //   algorithm match
-  //     case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, false)) })
-  //     case _ => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, true)) }))
+  (algorithm: AlgorithmType) => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, algorithm)) })
 }
 
 /** Entry point of the `receive` macro.
@@ -558,7 +554,7 @@ private def receiveCodegen[M, T](
   * @return
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): Matcher[M, T] =
+inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
   ${ receiveCodegen('f) }
 
 
