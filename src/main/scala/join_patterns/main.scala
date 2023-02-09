@@ -21,25 +21,20 @@ def testPartial(algorithm: AlgorithmType): Unit =
     receive
       { (y: Msg) =>
         y match
-          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 0"); x
           case (D(z: Int), E(x: Int)) if x == 42 => println("Case 1"); x
           case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
           case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c => println("Case 3"); x
           case G(_: Int, a: String, c: Int, d: Boolean) => println("Case 4"); 42
+          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 02"); x
+          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 11"); x
+          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 21"); x
       }
 
-  val matcher: TreeMatcher[Msg, Int] = rcv(AlgorithmType.TreeBasedAlgorithm).asInstanceOf[TreeMatcher[Msg, Int]] // (AlgorithmType.TreeBasedAlgorithm)
+  val matcher: Matcher[Msg, Int] = rcv(AlgorithmType.TreeBasedAlgorithm) // (AlgorithmType.TreeBasedAlgorithm)
 
-  q.add(C())
-  q.add(C())
-  q.add(G(42, "Hi", 1, true))
-  q.add(B())
-  q.add(A())
   q.add(E(1))
   q.add(D(42))
   q.add(E(2))
-  q.add(E(3))
-  q.add(E(84))
   val initalQ = q.toArray.toList.zipWithIndex
 
   // val f : TreeMatcher[Msg, Int] = matcher(AlgorithmType.TreeBasedAlgorithm)
