@@ -127,23 +127,24 @@ def testPartial(algorithm: AlgorithmType): Unit =
       case (D(z: Int), E(x: Int)) if x == 42 => println("Case 1"); x
       case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
       case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c => println("Case 3"); x
-      case A() => println("Case 4"); 42
+      // case G(_: Int, a: String, c: Int, d: Boolean) => println("Case 4"); 42
   }
 
-  q.add(E(1))
-  q.add(A())
+  q.add(C())
+  q.add(C())
   q.add(G(42, "Hi", 1, true))
-  q.add(E(2))
-  q.add(E(3))
-  q.add(D(42))
   q.add(B())
   q.add(A())
+  q.add(E(1))
+  q.add(D(42))
+  q.add(E(2))
+  q.add(E(3))
   q.add(E(84))
   val initalQ = q.toArray.toList.zipWithIndex
 
-  val f = matcher
+  // val f : TreeMatcher[Msg, Int] = matcher(AlgorithmType.TreeBasedAlgorithm)
   println(s"Q =  ${initalQ}")
-  println(f"receive = ${f}")
+  println(f"receive = ${matcher(q)}")
   println("\n======================================================\n\n")
 
 @main

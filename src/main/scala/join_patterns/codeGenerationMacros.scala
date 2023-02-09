@@ -23,8 +23,6 @@ private def extractInner(using quotes: Quotes)(
   t match
     case Bind(n, typed @ Typed(_, TypeIdent(_))) => (n, typed.tpt.tpe.dealias.simplified)
     case typed @ Typed(Wildcard(), TypeIdent(_)) => ("_", typed.tpt.tpe.dealias.simplified)
-    // add support for Wildcard !!! : (_)
-    // add support for Bind(String, WildCard) : (name: _)
     case _ =>
       errorTree("Unsupported bottom-level pattern", t)
       ("", TypeRepr.of[Nothing])
@@ -513,7 +511,7 @@ private def generatePartialJoinPattern[M, T](using quotes: Quotes, tm: Type[M], 
   */
 private def getCases[M, T](
     expr: Expr[M => T],
-    algorithm: AlgorithmType
+    algorithm: Boolean
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
@@ -522,8 +520,8 @@ private def getCases[M, T](
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           algorithm match
-            case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => cases.flatMap { generateJoinPattern[M, T](_) }
-            case AlgorithmType.TreeBasedAlgorithm => cases.flatMap { generatePartialJoinPattern[M, T](_) }
+            case false => cases.flatMap { generateJoinPattern[M, T](_) }
+            case true => cases.flatMap { generatePartialJoinPattern[M, T](_) }
 
         // report.info(
         //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
@@ -546,7 +544,11 @@ private def getCases[M, T](
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
 )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  ((algorithm: AlgorithmType) => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, algorithm)) }))
+  Matcher[M, T](${ Expr.ofList(getCases(expr, true)) })
+  // ((algorithm: AlgorithmType) =>
+  //   algorithm match
+  //     case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, false)) })
+  //     case _ => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, true)) }))
 }
 
 /** Entry point of the `receive` macro.
@@ -556,7 +558,7 @@ private def receiveCodegen[M, T](
   * @return
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
+inline def receive[M, T](inline f: M => T): Matcher[M, T] =
   ${ receiveCodegen('f) }
 
 

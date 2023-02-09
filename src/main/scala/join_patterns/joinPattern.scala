@@ -1,5 +1,7 @@
 package join_patterns
 
+import scala.util.matching.Regex.Match
+
 // Q = [A(42), B(21), A(84)]       | A(x) & B(y) & A(z)
 //                 Msgs from Q     | Pattern Idxs from Pattern case
 //                 [ Ø            -> {} ]
@@ -21,11 +23,21 @@ object TreeEdges:
     Set[(List[Int], List[Int])]()
 
 case class MatchingTree(
-    nodeMapping: NodeMapping = NodeMapping(),
-    treeEdges: TreeEdges = TreeEdges()
+    val nodeMapping: NodeMapping = NodeMapping(),
+    val treeEdges: TreeEdges = TreeEdges()
 ) {
   def isEmpty: Boolean =
     nodeMapping.isEmpty && treeEdges.isEmpty
+
+  def pruneTree(idxsToRemove: List[Int]): MatchingTree =
+    val updatedNodeMapping =
+      nodeMapping.view.filterKeys(node => !node.exists(i => idxsToRemove.contains(i))).toMap
+    val updatedTreeEdges = treeEdges.view
+      .filter((src, dest) =>
+        !src.exists(i => idxsToRemove.contains(i)) && !dest.exists(i => idxsToRemove.contains(i))
+      )
+      .toSet
+    MatchingTree(updatedNodeMapping, updatedTreeEdges)
 }
 
 def printMapping(mapping: NodeMapping): Unit =
@@ -49,7 +61,6 @@ case class JoinPattern[M, T](
     size: Int,
     partialExtract: (List[M], MatchingTree) => Option[MatchingTree]
 )
-
 
 enum AlgorithmType:
   case NaiveAlgorithm, BasicAlgorithm, TreeBasedAlgorithm

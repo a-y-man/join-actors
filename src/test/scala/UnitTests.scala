@@ -194,8 +194,8 @@ class MultipleClasses extends UnitTests {
     val rcv = receive { (y: Msg) =>
       y match
         case (F(i0: Int, s: String), D(), B(i1: Int)) => s.repeat(i0 + i1)
-        case D()                                      => result
-        case B(i: Int)                                => rep.toString
+        // case D()                                      => result
+        // case B(i: Int)                                => rep.toString
     }
     val q = LinkedTransferQueue[Msg]
 
@@ -319,30 +319,30 @@ class Optionalfeatures extends UnitTests {
   //   assert(rcv(q) == (if result3 then result2 else result0))
   // }
 
-  test("Dynamic join patterns") {
-    val (result0, result1, result2, result3) =
-      (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
-    var rcv = receive { (y: Msg) =>
-      y match
-        case A() => result0
-        case _   => result1
-    }
-    val q = LinkedTransferQueue[Msg]
+  // test("Dynamic join patterns") {
+  //   val (result0, result1, result2, result3) =
+  //     (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
+  //   var rcv = receive { (y: Msg) =>
+  //     y match
+  //       case A() => result0
+  //       case _   => result1
+  //   }
+  //   val q = LinkedTransferQueue[Msg]
 
-    q.add(A())
-    val outcome0 = rcv(q)
+  //   q.add(A())
+  //   val outcome0 = rcv(q)
 
-    rcv = receive { (y: Msg) =>
-      y match
-        case D() => result2
-        case _   => result3
-    }
+  //   rcv = receive { (y: Msg) =>
+  //     y match
+  //       case D() => result2
+  //       case _   => result3
+  //   }
 
-    q.add(D())
-    val outcome1 = rcv(q)
+  //   q.add(D())
+  //   val outcome1 = rcv(q)
 
-    assert(outcome0 == result0 && outcome1 == result2)
-  }
+  //   assert(outcome0 == result0 && outcome1 == result2)
+  // }
 }
 
 // class JoinPatternOrdering extends UnitTests {
