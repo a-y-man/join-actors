@@ -174,7 +174,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
                   (
                     (patternIdx, msgIdxs),
                     candidateMatches.map { (_, substs) =>
-                      (substs, (subs: Map[String, Any]) => pattern.rhs(substs))
+                      (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
                     }.toList
                   )
                 }
