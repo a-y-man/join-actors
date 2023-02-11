@@ -4,6 +4,7 @@ import test.classes.santaClaus.{Elf, Reindeer, SantaClaus}
 import test.classes.Msg
 import test.benchmark.{Benchmark, BenchmarkPass}
 import scala.concurrent.Await
+import test.ALGORITHM
 
 def setup(
     reindeerNumber: Int,
@@ -12,15 +13,15 @@ def setup(
     elvesActions: Int,
     santaActions: Int
 ): (Array[Elf], Array[Reindeer], SantaClaus) =
-  val santa = SantaClaus(elvesNumber, santaActions)
+  val santa = SantaClaus(elvesNumber, santaActions, ALGORITHM)
   val elves = (0 to elvesNumber - 1).map { i =>
-    val e = Elf(i, elvesActions)
+    val e = Elf(i, elvesActions, ALGORITHM)
     santa.elvesRefs.update(i, Some(e.ref))
     e.santaRef = Some(santa.ref)
     e
   }.toArray
   val reindeers = (0 to reindeerNumber - 1).map { i =>
-    val r = Reindeer(i, reindeerActions)
+    val r = Reindeer(i, reindeerActions, ALGORITHM)
     santa.reinDeerRefs.update(i, Some(r.ref))
     r.santaRef = Some(santa.ref)
     r
@@ -35,7 +36,6 @@ def santaClausBenchmark =
   val elvesNumber     = 6 // multiple of 3
   val elvesActions    = 15
   val santaActions    = reindeerActions + ((elvesNumber * elvesActions) / 3)
-
   Benchmark(
     "Santa Claus",
     10,
@@ -52,7 +52,7 @@ def santaClausBenchmark =
     ),
     List(
       BenchmarkPass(
-        "Macro",
+        s"Macro using ${ALGORITHM.toString()}",
         () => {
           val (elves, reindeers, santa) =
             setup(reindeerNumber, reindeerActions, elvesNumber, elvesActions, santaActions)

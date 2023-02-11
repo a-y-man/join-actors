@@ -214,7 +214,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val size = 1
 
       val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-        val messages                    = ListBuffer.from(m.zipWithIndex)
+        val messages = ListBuffer.from(m.zipWithIndex)
 
         val (mQ, mQidx) = messages.last // Take the newest msg from the queue
         if mQ.isInstanceOf[ot] then
@@ -224,8 +224,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
               mTree.treeEdges.++(Set((List.empty, List(mQidx))))
             )
           )
-        else
-          Some(mTree)
+        else Some(mTree)
       }
 
       '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
@@ -304,9 +303,9 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     (List[M], MatchingTree) => Option[MatchingTree]
   ] =
     '{ (m: List[M], mTree: MatchingTree) =>
-      val messages                    = ListBuffer.from(m.zipWithIndex)
-      val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgTypesInPattern           = _extractors.zipWithIndex
+      val messages          = ListBuffer.from(m.zipWithIndex)
+      val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+      val msgTypesInPattern = _extractors.zipWithIndex
 
       val (mQ, mQidx) = messages.last // Take the newest msg from the queue
 
@@ -443,7 +442,7 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
   */
 private def getCases[M, T](
     expr: Expr[M => T]
-    )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
+)(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
   expr.asTerm match
@@ -472,8 +471,8 @@ private def getCases[M, T](
   */
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
-)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  (algorithm: AlgorithmType) => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
+)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{ (algorithm: AlgorithmType) =>
+  Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
 }
 
 /** Entry point of the `receive` macro.
@@ -485,9 +484,6 @@ private def receiveCodegen[M, T](
   */
 inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
   ${ receiveCodegen('f) }
-
-
-
 
 /** Generate the code returned by the receive macro. This generates join-patterns with partial
   * matches
@@ -512,7 +508,6 @@ inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
 // ) = '{
 //   Matcher[M, T]((${ Expr.ofList(getCases(expr, false)) }).sorted($strat))
 // }
-
 
 // inline def receivePartial[M, T](inline f: M => T): Matcher[M, T] = ${
 //   receivePartialCodegen('f)

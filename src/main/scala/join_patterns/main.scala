@@ -18,19 +18,19 @@ def testPartial(algorithm: AlgorithmType): Unit =
 
   // This will return a lambda that takes algorithm type and returns matcher
   var rcv: AlgorithmType => Matcher[Msg, Int] =
-    receive
-      { (y: Msg) =>
-        y match
-          case (D(z: Int), E(x: Int)) if x == 42 => println("Case 1"); x
-          case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
-          case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c => println("Case 3"); x
-          case G(_: Int, a: String, c: Int, d: Boolean) => println("Case 4"); 42
-          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 02"); x
-          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 11"); x
-          case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 21"); x
-      }
+    receive { (y: Msg) =>
+      y match
+        case (D(z: Int), E(x: Int)) if x == 42      => println("Case 1"); x
+        case (E(x: Int), A(), D(y: Int)) if x == 84 => println("Case 2"); x
+        case (E(x: Int), A(), G(b: Int, a: String, c: Int, d: Boolean)) if x == c =>
+          println("Case 3"); x
+        case G(_: Int, a: String, c: Int, d: Boolean) => println("Case 4"); 42
+        case (E(x: Int), D(z: Int), E(y: Int))        => println("Case 02"); x
+      // case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 11"); x
+      // case (E(x: Int), D(z: Int), E(y: Int)) => println("Case 21"); x
+    }
 
-  val matcher: Matcher[Msg, Int] = rcv(AlgorithmType.TreeBasedAlgorithm) // (AlgorithmType.TreeBasedAlgorithm)
+  val matcher: Matcher[Msg, Int] = rcv(algorithm)
 
   q.add(E(1))
   q.add(D(42))
@@ -44,13 +44,12 @@ def testPartial(algorithm: AlgorithmType): Unit =
 
 @main
 def main(): Unit =
+  println(
+    "Basic"
+  ) // NOTE: In case of identical cases with no guard then the substition may differ between the tree-based matcher and the basic matcher.
+  testPartial(AlgorithmType.BasicAlgorithm)
+  println("Tree")
   testPartial(AlgorithmType.TreeBasedAlgorithm)
-
-
-
-
-
-
 
 // def test01(): Unit =
 //   val q = LinkedTransferQueue[Msg]
@@ -80,7 +79,7 @@ def main(): Unit =
 //   println(f"f returned: ${f(q)}")
 //   // println(f"f returned after: ${f(q)}")
 
-  // println("\n======================================================\n\n")
+// println("\n======================================================\n\n")
 
 // def test02(): Unit =
 //   val i: Int                 = 0;
@@ -152,5 +151,3 @@ def main(): Unit =
 //   // queue.add(E(2))
 
 //   println(s"f returned: ${f(queue)}")
-
-

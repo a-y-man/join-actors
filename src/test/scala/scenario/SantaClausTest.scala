@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Random
 
 import test.classes.santaClaus._
+import test.ALGORITHM
 
 class SantaClausTest extends AnyFunSuite {
   test("Elves are helped") {

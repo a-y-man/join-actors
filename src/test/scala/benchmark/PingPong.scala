@@ -3,6 +3,7 @@ package test.benchmark.pingPong
 import test.classes.pingPong.{Pinger, Ponger}
 import test.classes.Msg
 import test.benchmark.{Benchmark, BenchmarkPass}
+import test.ALGORITHM
 
 def setup(maxHits: Int): (Pinger, Ponger) =
   val ping = Pinger(maxHits)
@@ -16,7 +17,6 @@ def setup(maxHits: Int): (Pinger, Ponger) =
 @main
 def pingPongBenchmark =
   val maxHits = 100
-
   Benchmark(
     "Ping Pong",
     10,
@@ -31,7 +31,7 @@ def pingPongBenchmark =
     ),
     List(
       BenchmarkPass(
-        "Macro",
+        s"Macro using ${ALGORITHM.toString()}",
         () => {
           val (ping, pong) = setup(maxHits)
           pong.run_as_future

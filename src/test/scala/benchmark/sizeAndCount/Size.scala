@@ -5,7 +5,7 @@ import test.classes.sizeCount.sizes._
 import test.classes.Msg
 import test.benchmark.{Benchmark, BenchmarkPass}
 import test.classes.sizeCount.{A, B, C, D, E, F, G, H, I, J}
-
+import test.ALGORITHM
 @main
 def sizeBenchmark =
   val maxHits = 2000
@@ -15,7 +15,7 @@ def sizeBenchmark =
     10,
     100,
     BenchmarkPass(
-      "Size1",
+      s"Size1 using ${ALGORITHM.toString()}",
       () => {
         val actor  = Size1Count1(maxHits)
         val result = actor.run_as_future
@@ -27,7 +27,7 @@ def sizeBenchmark =
     ),
     List(
       BenchmarkPass(
-        "Size2",
+        s"Size2 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size2(maxHits)
           val result = actor.run_as_future
@@ -40,7 +40,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size3",
+        s"Size3 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size3(maxHits)
           val result = actor.run_as_future
@@ -54,7 +54,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size4",
+        s"Size4 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size4(maxHits)
           val result = actor.run_as_future
@@ -69,7 +69,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size5",
+        s"Size5 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size5(maxHits)
           val result = actor.run_as_future
@@ -85,7 +85,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size6",
+        s"Size6 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size6(maxHits)
           val result = actor.run_as_future
@@ -102,7 +102,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size7",
+        s"Size7 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size7(maxHits)
           val result = actor.run_as_future
@@ -120,7 +120,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size8",
+        s"Size8 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size8(maxHits)
           val result = actor.run_as_future
@@ -139,7 +139,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size9",
+        s"Size9 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size9(maxHits)
           val result = actor.run_as_future
@@ -159,7 +159,7 @@ def sizeBenchmark =
         }
       ),
       BenchmarkPass(
-        "Size10",
+        s"Size10 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Size10(maxHits)
           val result = actor.run_as_future
