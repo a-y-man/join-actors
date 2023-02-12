@@ -13,15 +13,15 @@ def setup(
     elvesActions: Int,
     santaActions: Int
 ): (Array[Elf], Array[Reindeer], SantaClaus) =
-  val santa = SantaClaus(elvesNumber, santaActions, ALGORITHM)
+  val santa = SantaClaus(elvesNumber, santaActions)
   val elves = (0 to elvesNumber - 1).map { i =>
-    val e = Elf(i, elvesActions, ALGORITHM)
+    val e = Elf(i, elvesActions)
     santa.elvesRefs.update(i, Some(e.ref))
     e.santaRef = Some(santa.ref)
     e
   }.toArray
   val reindeers = (0 to reindeerNumber - 1).map { i =>
-    val r = Reindeer(i, reindeerActions, ALGORITHM)
+    val r = Reindeer(i, reindeerActions)
     santa.reinDeerRefs.update(i, Some(r.ref))
     r.santaRef = Some(santa.ref)
     r
