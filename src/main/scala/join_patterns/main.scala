@@ -13,7 +13,38 @@ case class E(a: Int)                                extends Msg
 case class F(a: Int)                                extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
-def testPartial(algorithm: AlgorithmType): Unit =
+def test01(algorithm: AlgorithmType): Unit =
+  println(s"Using ${algorithm}\n\n")
+
+  val q = LinkedTransferQueue[Msg]
+
+  var rcv = receive { (y: Msg) =>
+    y match
+      case (D(x: Int), E(y: Int), F(z: Int)) => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
+      case (D(x: Int), F(z: Int), E(y: Int)) => println(s"Case 01: x = ${x}, y = ${y}, z = ${z}")
+      case (E(y: Int), D(x: Int), F(z: Int)) => println(s"Case 02: x = ${x}, y = ${y}, z = ${z}")
+      case (E(y: Int), F(z: Int), D(x: Int)) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
+      case (F(z: Int), D(x: Int), E(y: Int)) => println(s"Case 04: x = ${x}, y = ${y}, z = ${z}")
+      case (F(z: Int), E(y: Int), D(x: Int)) => println(s"Case 05: x = ${x}, y = ${y}, z = ${z}")
+  }
+
+
+  val matcher = rcv(algorithm)
+  q.add(A())
+  q.add(B())
+  q.add(C())
+  q.add(D(3))
+  q.add(E(1))
+  q.add(F(2))
+
+  val initalQ = q.toArray.toList.zipWithIndex
+  println(s"Q =  ${initalQ}")
+  println(f"f returned: ${matcher(q)}")
+  println("\n======================================================\n\n")
+
+
+def test02(algorithm: AlgorithmType): Unit =
+  println(s"Using ${algorithm}\n\n")
   val q = LinkedTransferQueue[Msg]
 
   // This will return a lambda that takes algorithm type and returns matcher
@@ -43,43 +74,10 @@ def testPartial(algorithm: AlgorithmType): Unit =
 
 @main
 def main(): Unit =
-  println(
-    "Basic"
-  ) // NOTE: In case of identical cases with no guard then the substition may differ between the tree-based matcher and the basic matcher.
-  testPartial(AlgorithmType.BasicAlgorithm)
-  println("Tree")
-  testPartial(AlgorithmType.TreeBasedAlgorithm)
-
-// def test01(): Unit =
-//   val q = LinkedTransferQueue[Msg]
-
-//   var f = receive { (y: Msg) =>
-//     y match
-//       case (D(x: Int), E(y: Int), F(z: Int)) => 1 + x * y * z      // 0
-//       case (D(x: Int), F(y: Int), E(z: Int)) => 2 + x * y * z      // 1
-//       case (F(x: Int), D(y: Int), E(z: Int)) => 3 + x * y * z      // 2
-//       case (E(x: Int), D(y: Int), F(z: Int)) => 4 + x * y * z      // 3
-//       case (F(x: Int), E(y: Int), D(z: Int)) => 5 + x * y * z      // 4
-//       case (E(x: Int), F(y: Int), D(z: Int)) => 6 + z + 1          // 5
-//       case (E(x: Int), F(y: Int), D(z: Int)) => 6 + x * y * z      // 6
-//       case (E(x: Int), F(y: Int), D(z: Int)) => 6 + z + 1234567890 // 7
-//       case (A(), B(), A())                   => 42
-//   }
-
-//   q.add(A())
-//   // q.add(E(1))
-//   // q.add(F(2))
-//   q.add(B())
-//   q.add(A())
-//   // q.add(D(3))
-
-//   val initalQ = q.toArray.toList.zipWithIndex
-//   println(s"Q =  ${initalQ}")
-//   println(f"f returned: ${f(q)}")
-//   // println(f"f returned after: ${f(q)}")
-
-// println("\n======================================================\n\n")
-
+  test01(AlgorithmType.BasicAlgorithm)
+  // test01(AlgorithmType.TreeBasedAlgorithm)
+  // test02(AlgorithmType.BasicAlgorithm)
+  // test02(AlgorithmType.TreeBasedAlgorithm)
 // def test02(): Unit =
 //   val i: Int                 = 0;
 //   val m                      = 0
