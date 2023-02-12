@@ -4,6 +4,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Random
 
 import test.classes.pingPong._
+import join_patterns.AlgorithmType
 
 class PingPongTest extends AnyFunSuite {
   test("Fixed number of iterations") {

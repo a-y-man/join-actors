@@ -7,6 +7,7 @@ import test.classes.Msg
 import test.benchmark.Benchmarkable
 import join_patterns.receive
 import actor.ActorRef
+import test.ALGORITHM
 
 case class IsBack()         extends Msg
 case class CanLeave()       extends Msg
@@ -50,7 +51,7 @@ class SantaClaus(
         elvesRefs(n2).foreach(_ ! Helped())
         // _println("sleeping")
         actions -= 1
-  }
+  }(ALGORITHM)
 
   def run_as_future: Future[Long] =
     implicit val ec = ExecutionContext.global
@@ -124,7 +125,7 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
       case CanLeave() =>
         // _println("Going on holiday")
         actions -= 1
-  }
+  }(ALGORITHM)
 
   def comesBack() =
     onHoliday = false
@@ -183,7 +184,7 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
         needHelp = false
         // _println("Has been helped")
         actions -= 1
-  }
+  }(ALGORITHM)
 
   def askForHelp() =
     needHelp = true

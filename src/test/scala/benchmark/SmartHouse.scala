@@ -6,6 +6,7 @@ import test.benchmark.{Benchmark, BenchmarkPass}
 import actor.ActorRef
 import test.classes.smartHouse.{AmbientLight, Consumption, Contact, HeatingF, Light, Motion}
 import scala.util.Random
+import test.ALGORITHM
 
 def sendE1(ref: ActorRef[Msg]) =
   ref.send(Motion(0, true, "bathroom"))
@@ -31,7 +32,6 @@ def sendE7(ref: ActorRef[Msg]) =
 @main
 def smartHouseBenchmark =
   val smartHouseActions = 2_000
-
   Benchmark(
     "Smart House",
     10,
@@ -52,7 +52,7 @@ def smartHouseBenchmark =
     ),
     List(
       BenchmarkPass(
-        "Macro",
+        s"Macro using ${ALGORITHM.toString}",
         () => {
           val smartHouse = SmartHouse(smartHouseActions)
           val future     = smartHouse.run_as_future

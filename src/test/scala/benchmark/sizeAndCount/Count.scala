@@ -6,7 +6,7 @@ import test.classes.Msg
 import test.benchmark.{Benchmark, BenchmarkPass}
 import test.classes.sizeCount.{A, B, C, D, E, F, G, H, I, J}
 import scala.util.Random
-
+import test.ALGORITHM
 @main
 def countBenchmark =
   val maxHits = 3_000
@@ -16,7 +16,7 @@ def countBenchmark =
     10,
     100,
     BenchmarkPass(
-      "Count1",
+      s"Count1 using ${ALGORITHM.toString()}",
       () => {
         val actor  = Size1Count1(maxHits)
         val result = actor.run_as_future
@@ -28,7 +28,7 @@ def countBenchmark =
     ),
     List(
       BenchmarkPass(
-        "Count2",
+        s"Count2 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count2(maxHits)
           val result = actor.run_as_future
@@ -44,7 +44,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count3",
+        s"Count3 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count3(maxHits)
           val result = actor.run_as_future
@@ -61,7 +61,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count4",
+        s"Count4 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count4(maxHits)
           val result = actor.run_as_future
@@ -79,7 +79,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count5",
+        s"Count5 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count5(maxHits)
           val result = actor.run_as_future
@@ -98,7 +98,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count6",
+        s"Count6 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count6(maxHits)
           val result = actor.run_as_future
@@ -118,7 +118,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count7",
+        s"Count7 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count7(maxHits)
           val result = actor.run_as_future
@@ -139,7 +139,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count8",
+        s"Count8 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count8(maxHits)
           val result = actor.run_as_future
@@ -161,7 +161,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count9",
+        s"Count9 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count9(maxHits)
           val result = actor.run_as_future
@@ -184,7 +184,7 @@ def countBenchmark =
         }
       ),
       BenchmarkPass(
-        "Count10",
+        s"Count10 using ${ALGORITHM.toString()}",
         () => {
           val actor  = Count10(maxHits)
           val result = actor.run_as_future

@@ -1,7 +1,5 @@
 package join_patterns
 
-import scala.util.matching.Regex.Match
-
 // Q = [A(42), B(21), A(84)]       | A(x) & B(y) & A(z)
 //                 Msgs from Q     | Pattern Idxs from Pattern case
 //                 [ Ø            -> {} ]
@@ -63,4 +61,4 @@ case class JoinPattern[M, T](
 )
 
 enum AlgorithmType:
-  case NaiveAlgorithm, BasicAlgorithm, TreeBasedAlgorithm
+  case BasicAlgorithm, TreeBasedAlgorithm

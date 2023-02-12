@@ -6,6 +6,7 @@ import scala.collection.mutable.ListBuffer
 import join_patterns.receive
 import test.classes.Msg
 import test.benchmark.Benchmarkable
+import test.ALGORITHM
 
 case class A() extends Msg
 case class B() extends Msg
@@ -70,7 +71,7 @@ class Size1Count1(private val maxHits: Int) extends SizeCount(maxHits) {
       case A() =>
         hits += 1
         if hits >= maxHits then isDone = true
-  }
+  }(ALGORITHM)
 
   override def messageMatching = () => q.take.isInstanceOf[A]
 }
@@ -82,7 +83,7 @@ package object sizes {
         case (A(), B()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -102,7 +103,7 @@ package object sizes {
         case (A(), B(), C()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -123,7 +124,7 @@ package object sizes {
         case (A(), B(), C(), D()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -145,7 +146,7 @@ package object sizes {
         case (A(), B(), C(), D(), E()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -168,7 +169,7 @@ package object sizes {
         case (A(), B(), C(), D(), E(), F()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -192,7 +193,7 @@ package object sizes {
         case (A(), B(), C(), D(), E(), F(), G()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -217,7 +218,7 @@ package object sizes {
         case (A(), B(), C(), D(), E(), F(), G(), H()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -243,7 +244,7 @@ package object sizes {
         case (A(), B(), C(), D(), E(), F(), G(), H(), I()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -270,7 +271,7 @@ package object sizes {
         case (A(), B(), C(), D(), E(), F(), G(), H(), I(), J()) =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () =>
       val search = List(
@@ -303,7 +304,7 @@ package object counts {
         case B() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B]
   }
@@ -320,7 +321,7 @@ package object counts {
         case C() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C]
   }
@@ -340,7 +341,7 @@ package object counts {
         case D() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D]
   }
@@ -363,7 +364,7 @@ package object counts {
         case E() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D | E]
   }
@@ -389,7 +390,7 @@ package object counts {
         case F() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D | E | F]
   }
@@ -418,7 +419,7 @@ package object counts {
         case G() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D | E | F | G]
   }
@@ -450,7 +451,7 @@ package object counts {
         case H() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D | E | F | G | H]
   }
@@ -485,7 +486,7 @@ package object counts {
         case I() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D | E | F | G | H | I]
   }
@@ -523,7 +524,7 @@ package object counts {
         case J() =>
           hits += 1
           if hits >= maxHits then isDone = true
-    }
+    }(ALGORITHM)
 
     override def messageMatching = () => q.take.isInstanceOf[A | B | C | D | E | F | G | H | I | J]
   }

@@ -10,6 +10,7 @@ import test.classes.Msg
 import test.benchmark.Benchmarkable
 import actor.Actor
 import actor.DynamicActor
+import test.ALGORITHM
 
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Msg
 case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Msg
@@ -170,13 +171,13 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
           actions -= 1
       // E7. Send a notification if the boiler fires three Floor Heating Failures and one Internal Failure within the past hour, but only if no notification was sent in the past hour.
       case HeatingF(_: Int, _type: String, timestamp: Date) =>
-        failures += (timestamp, _type)
+        failures.addOne((timestamp, _type))
         lastNotification = Date()
 
         if heatingFailure(Duration.ofHours(1)) then
           // println("notify()")
           actions -= 1
-  }
+  }(ALGORITHM)
 
   def run_as_future: Future[Long] =
     implicit val ec = ExecutionContext.global
@@ -314,7 +315,7 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
               if heatingF.isDefined then
                 val _heatingF = consumption.get.asInstanceOf[HeatingF]
 
-                failures += (_heatingF.timestamp, _heatingF._type)
+                failures.addOne((_heatingF.timestamp, _heatingF._type))
                 lastNotification = Date()
 
                 if heatingFailure(Duration.ofHours(1)) then
@@ -374,7 +375,7 @@ package smallSmartHouse {
               cRoom
             ) =>
           println("activate_home_scene(l, i, t)")
-    }
+    }(ALGORITHM)
 
     def run(): Unit = ???
   }
@@ -419,7 +420,7 @@ package smallSmartHouse {
               cRoom
             ) =>
           println("activate_home_scene(l, i, t)")
-    }
+    }(ALGORITHM)
 
     def changeConfiguration =
       matcher = receive { (y: Msg) =>
@@ -437,10 +438,10 @@ package smallSmartHouse {
             then println("send notification")
           // E7. Send a notification if the boiler fires three Floor Heating Failures and one Internal Failure within the past hour, but only if no notification was sent in the past hour.
           case HeatingF(_: Int, _type: String, timestamp: Date) =>
-            failures += (timestamp, _type)
+            failures.addOne((timestamp, _type))
 
             if heatingFailure(Duration.ofHours(1)) then println("notify()")
-      }
+      }(ALGORITHM)
 
     def run(): Unit = ???
   }

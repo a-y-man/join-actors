@@ -214,7 +214,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val size = 1
 
       val partialExtract = '{ (m: List[M], mTree: MatchingTree) =>
-        val messages                    = ListBuffer.from(m.zipWithIndex)
+        val messages = ListBuffer.from(m.zipWithIndex)
 
         val (mQ, mQidx) = messages.last // Take the newest msg from the queue
         if mQ.isInstanceOf[ot] then
@@ -224,8 +224,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
               mTree.treeEdges.++(Set((List.empty, List(mQidx))))
             )
           )
-        else
-          Some(mTree)
+        else Some(mTree)
       }
 
       '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
@@ -300,39 +299,13 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
   val size = outers.size
 
-  val partialExtract = '{ (m: List[M], mTree: MatchingTree) => None }
-
-  '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
-
-private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
-    dataType: List[quotes.reflect.Tree],
-    guard: Option[quotes.reflect.Term],
-    _rhs: quotes.reflect.Term
-): Expr[JoinPattern[M, T]] =
-  import quotes.reflect.*
-
-  val typesData = getTypesData(dataType)
-  val extractors: List[(Expr[M => Boolean], Expr[M => Map[String, Any]])] =
-    typesData.map { (outer, inners) =>
-      val extractor = generateExtractor(outer, inners.map(_._1))
-
-      outer.asType match
-        case '[ot] =>
-          (
-            '{ (m: M) => m.isInstanceOf[ot] },
-            '{ (m: M) =>
-              ${ extractor.asExprOf[ot => Map[String, Any]] }(m.asInstanceOf[ot])
-            }
-          )
-    }.toList
-
   val partialExtract: Expr[
     (List[M], MatchingTree) => Option[MatchingTree]
   ] =
     '{ (m: List[M], mTree: MatchingTree) =>
-      val messages                    = ListBuffer.from(m.zipWithIndex)
-      val _extractors                 = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgTypesInPattern           = _extractors.zipWithIndex
+      val messages          = ListBuffer.from(m.zipWithIndex)
+      val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+      val msgTypesInPattern = _extractors.zipWithIndex
 
       val (mQ, mQidx) = messages.last // Take the newest msg from the queue
 
@@ -398,20 +371,6 @@ private def generatePartialMatch[M, T](using quotes: Quotes, tm: Type[M], tt: Ty
         )
     }
 
-  // Not used
-  val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
-    '{ (_: List[M]) => (None, List(), Map()) }
-
-  val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
-
-  val predicate: Expr[Map[String, Any] => Boolean] =
-    generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-
-  val rhs: Expr[Map[String, Any] => T] =
-    generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
-
-  val size = outers.size
-
   '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
 
 /** Generates a join-pattern for a pattern written as a wildcard e.g. (_)
@@ -474,34 +433,6 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
           errorTree("Unsupported case pattern", default)
           None
 
-/** Creates a join-pattern with partial matches
-  *
-  * @param case
-  *   the source `CaseDef`
-  *
-  * @return
-  *   a join-pattern
-  */
-private def generatePartialJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
-    `case`: quotes.reflect.CaseDef
-): Option[Expr[JoinPattern[M, T]]] =
-  import quotes.reflect.*
-  `case` match
-    case CaseDef(pattern, guard, _rhs) =>
-      pattern match
-        case t @ TypedOrTest(Unapply(fun, Nil, patterns), _) =>
-          fun match
-            case Select(_, "unapply") =>
-              Some(generateSingletonPattern[M, T](t, guard, _rhs))
-            case TypeApply(Select(_, "unapply"), _) =>
-              Some(generatePartialMatch[M, T](patterns, guard, _rhs))
-        case w: Wildcard =>
-          // report.info("Wildcards should be defined last", w.asExpr)
-          Some(generateWildcardPattern[M, T](guard, _rhs))
-        case default =>
-          errorTree("Unsupported case pattern", default)
-          None
-
 /** Translates a series of match clauses into a list of join-pattern.
   *
   * @param expr
@@ -510,8 +441,7 @@ private def generatePartialJoinPattern[M, T](using quotes: Quotes, tm: Type[M], 
   *   a list of join-pattern expressions.
   */
 private def getCases[M, T](
-    expr: Expr[M => T],
-    algorithm: Boolean
+    expr: Expr[M => T]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
 
@@ -519,9 +449,7 @@ private def getCases[M, T](
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          algorithm match
-            case false => cases.flatMap { generateJoinPattern[M, T](_) }
-            case true => cases.flatMap { generatePartialJoinPattern[M, T](_) }
+          cases.flatMap { generateJoinPattern[M, T](_) }
 
         // report.info(
         //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
@@ -543,12 +471,8 @@ private def getCases[M, T](
   */
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
-)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-  Matcher[M, T](${ Expr.ofList(getCases(expr, true)) })
-  // ((algorithm: AlgorithmType) =>
-  //   algorithm match
-  //     case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, false)) })
-  //     case _ => Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr, true)) }))
+)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{ (algorithm: AlgorithmType) =>
+  Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
 }
 
 /** Entry point of the `receive` macro.
@@ -558,11 +482,8 @@ private def receiveCodegen[M, T](
   * @return
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): Matcher[M, T] =
+inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
   ${ receiveCodegen('f) }
-
-
-
 
 /** Generate the code returned by the receive macro. This generates join-patterns with partial
   * matches
@@ -587,7 +508,6 @@ inline def receive[M, T](inline f: M => T): Matcher[M, T] =
 // ) = '{
 //   Matcher[M, T]((${ Expr.ofList(getCases(expr, false)) }).sorted($strat))
 // }
-
 
 // inline def receivePartial[M, T](inline f: M => T): Matcher[M, T] = ${
 //   receivePartialCodegen('f)

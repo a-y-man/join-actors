@@ -54,7 +54,7 @@ class SmartHouseTest extends AnyFunSuite {
 
     houseThread.start
 
-    house.ref.send(DoorBell(0)) // BUG ! does not work ?
+    house.ref.send(DoorBell(0))
 
     houseThread.join
   }

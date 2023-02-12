@@ -6,15 +6,15 @@ import scala.collection.mutable.Map as MutMap
 import java.util.concurrent.LinkedTransferQueue as Queue
 import java.util.concurrent.TimeUnit
 
-type ActivatedPatterns[M, T] = Map[(Int, List[M], Map[String, Any]), Map[String, Any] => T]
-object ActivatedPatterns:
-  def apply[M, T](): ActivatedPatterns[M, T] =
-    Map[(Int, List[M], Map[String, Any]), Map[String, Any] => T]()
+trait Matcher[M, T] {
+  def apply(q: Queue[M]): T
+}
 
-type Index[M] = MutMap[(Int, List[Int]), (List[M], Map[String, Any])]
-object Index:
-  def apply[M](): Index[M] =
-    MutMap[(Int, List[Int]), (List[M], Map[String, Any])]()
+object Matcher:
+  def apply[M, T](algorithm: AlgorithmType, patterns: List[JoinPattern[M, T]]): Matcher[M, T] =
+    algorithm match
+      case AlgorithmType.BasicAlgorithm     => BasicMatcher(patterns)
+      case AlgorithmType.TreeBasedAlgorithm => TreeMatcher(patterns)
 
 def compareIndices(i1WithPatIdx: (Int, List[Int]), i2WithPatIdx: (Int, List[Int])): Boolean =
   import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
@@ -24,28 +24,21 @@ def compareIndices(i1WithPatIdx: (Int, List[Int]), i2WithPatIdx: (Int, List[Int]
 
   (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
-// trait Matcher[M, T]
+class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
+  // Type aliases used only within this class
+  type ActivatedPatterns[M, T] = Map[(Int, List[M], Map[String, Any]), Map[String, Any] => T]
+  object ActivatedPatterns:
+    def apply[M, T](): ActivatedPatterns[M, T] =
+      Map[(Int, List[M], Map[String, Any]), Map[String, Any] => T]()
 
-// object Matcher:
-//   def apply[M, T](algorithm: AlgorithmType, patterns: List[JoinPattern[M, T]]) =
-//     algorithm match
-//       case AlgorithmType.BasicAlgorithm | AlgorithmType.NaiveAlgorithm => BasicMatcher(patterns)
-//       case AlgorithmType.TreeBasedAlgorithm => TreeMatcher(patterns)
+  type Index[M] = MutMap[(Int, List[Int]), (List[M], Map[String, Any])]
+  object Index:
+    def apply[M](): Index[M] =
+      MutMap[(Int, List[Int]), (List[M], Map[String, Any])]()
 
-
-
-class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
-
-  // private def compareIndices(i1WithPatIdx : (Int, List[Int]), i2WithPatIdx: (Int, List[Int])) : Boolean =
-  //   import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
-
-  //   val (i1PatIdx, i1) = i1WithPatIdx
-  //   val (i2PatIdx, i2) = i2WithPatIdx
-
-  //   (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
@@ -87,7 +80,7 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Mat
       // println(s"A = \n(Pattern, Substitutions)\t\t -> \t RHS Closure\n${activatedPatterns.mkString("\n")}")
 
       val candidateMatches = idxsI.filter((_, mIdxsQ) => !mIdxsQ.isEmpty).sortWith(compareIndices)
-      // print(s"Candidate matches: \n${candidateMatches.mkString("; \n")}\n")
+      print(s"Candidate matches: \n${candidateMatches.mkString("; \n")}\n")
       val candidateMatchesIdxs = candidateMatches // .map(_._2)
       if !candidateMatchesIdxs.isEmpty then
         val (patternIdx, msgIdxQ) = candidateMatchesIdxs.head
@@ -107,32 +100,29 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Mat
 
 }
 
-type CandidateMatches[M, T] = Map[List[Int], List[(Map[String, Any], Map[String, Any] => T)]]
-object CandidateMatches:
-  def apply[M, T](): CandidateMatches[M, T] =
-    Map[List[Int], List[(Map[String, Any], Map[String, Any] => T)]]()
+class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
+  // Type alias used only within this class
+  type CandidateMatches[M, T] =
+    Map[(Int, List[Int]), List[(Map[String, Any], Map[String, Any] => T)]]
+  object CandidateMatches:
+    def apply[M, T](): CandidateMatches[M, T] =
+      Map[(Int, List[Int]), List[(Map[String, Any], Map[String, Any] => T)]]()
 
-def printCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]): Unit =
-  candidateMatches.foreach { (k, v) =>
-    val kToStr = s"${k.mkString("[", ", ", "]")}"
-    val vToStr = v
-      .map((fields, _) =>
-        s"(${fields.map((k, v) => s"${k} -> ${v}").mkString("Map(", " , ", ")")}, RHS-closure)"
-      )
-      .mkString("{ ", ", ", " }")
-    val mToStr = s"${kToStr}\t -> ${vToStr}"
-    println(mToStr)
-  }
+  private def printCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]): Unit =
+    candidateMatches.foreach { (k, v) =>
+      val kToStr = s"(${k._1.toString()}, ${k._2.mkString("[", ", ", "]")})"
+      val vToStr = v
+        .map((fields, _) =>
+          s"(${fields.map((k, v) => s"${k} -> ${v}").mkString("Map(", " , ", ")")}, RHS-closure)"
+        )
+        .mkString("{ ", ", ", " }")
+      val mToStr = s"${kToStr}\t -> ${vToStr}"
+      println(mToStr)
+    }
 
-class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
-
-  def compareQIndices(i1: List[Int], i2: List[Int]): Boolean =
-    import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
-
-    (i1.sorted < i2.sorted) || ((i1.sorted == i2.sorted) && (i1 < i2))
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
   var patternsWithMatchingTrees = patternsWithIdxs
@@ -149,8 +139,9 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[
 
     while result.isEmpty do
       if messages.isEmpty then
+        println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
         messages.append(q.take())
-        // println("Msgs = " + messages.mkString("[", "; ", "]"))
+        println(s"Ms = ${messages.mkString("[", ", ", "]")}")
 
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithMatchingTrees.foldLeft(CandidateMatches[M, T]()) {
@@ -171,8 +162,8 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[
                 val enoughMsgsToMatch =
                   mTree.nodeMapping.view.filterKeys(node => node.size >= pattern.size).toMap
 
-                val whereGuardTrue = enoughMsgsToMatch
-                  .view.mapValues { candidateMatches =>
+                val whereGuardTrue = enoughMsgsToMatch.view
+                  .mapValues { candidateMatches =>
                     val trueGuardCandidates =
                       candidateMatches.filter((idxs, substs) => pattern.guard(substs))
                     trueGuardCandidates
@@ -182,9 +173,9 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[
 
                 val selectedMatch = whereGuardTrue.map { (msgIdxs, candidateMatches) =>
                   (
-                    msgIdxs,
+                    (patternIdx, msgIdxs),
                     candidateMatches.map { (_, substs) =>
-                      (substs, (subs: Map[String, Any]) => pattern.rhs(substs))
+                      (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
                     }.toList
                   )
                 }
@@ -196,49 +187,35 @@ class Matcher[M, T](val patterns: List[JoinPattern[M, T]]) { // extends Matcher[
         }
 
       patternsWithMatchingTrees = updatedPatternsWithMatchingTrees.toList
-      // if candidateMatches.nonEmpty then
-      //   println("*******************************************************")
-      //   println("Candidate Matches")
-      //   printCandidateMatches(candidateMatches)
-      //   println("*******************************************************")
-
       if candidateMatches.nonEmpty then
-        val candidateQidxs = candidateMatches.keys.toList.sortWith(compareQIndices)
+        println("*******************************************************")
+        println("Candidate Matches")
+        printCandidateMatches(candidateMatches)
+        println("*******************************************************")
 
-        val candidateRHS = candidateMatches.get(candidateQidxs.head).get
+        if candidateMatches.nonEmpty then
+          val candidateQidxs = candidateMatches.keys.toList.sortWith(compareIndices)
+          println(candidateQidxs.mkString("\n\n"))
+          val candidateRHS = candidateMatches.get(candidateQidxs.head).get
 
-        if candidateRHS.nonEmpty then
-          val (subst, rhsFn) = candidateRHS.head
-          result = Some(rhsFn(subst))
+          if candidateRHS.nonEmpty then
+            val (subst, rhsFn) = candidateRHS.head
+            result = Some(rhsFn(subst))
 
-          // Prune tree
-          patternsWithMatchingTrees = patternsWithMatchingTrees.map {
-            (joinPat, mTree) =>
-              (joinPat, mTree.pruneTree(candidateQidxs.head))
-          }
-
-          // patternsWithMatchingTrees.foreach {
-          //   (jp, mTree) =>
-          //     println("Pruned")
-          //     printMapping(mTree.nodeMapping)
-          // }
-
-          // println(s"Q = ${q.toList.mkString("[", "; ", "]")}")
-          // candidateQidxs.head.foreach {
-          //   i => messages.remove(i)
-          // }
-          // println(s"Q = ${q.toList.mkString("[", "; ", "]")}")
+            // Prune tree
+            patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>
+              (joinPat, mTree.pruneTree(candidateQidxs.head._2))
+            }
 
       if result.isEmpty then
-        // println("Result still empty")
+        println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
         messages.append(q.take())
-        // println("Msgs' = " + messages.mkString("[", "; ", "]"))
+        println(s"M = ${messages.mkString("[", ", ", "]")}")
 
 
     result.get
 
 }
-
 
 //        0      1      2             0      1     2
 // Q = [A(42), B(21), A(84)]       | A(x) & B(y) & A(z)
