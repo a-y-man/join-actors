@@ -80,7 +80,7 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
       // println(s"A = \n(Pattern, Substitutions)\t\t -> \t RHS Closure\n${activatedPatterns.mkString("\n")}")
 
       val candidateMatches = idxsI.filter((_, mIdxsQ) => !mIdxsQ.isEmpty).sortWith(compareIndices)
-      print(s"Candidate matches: \n${candidateMatches.mkString("; \n")}\n")
+      // print(s"Candidate matches: \n${candidateMatches.mkString("; \n")}\n")
       val candidateMatchesIdxs = candidateMatches // .map(_._2)
       if !candidateMatchesIdxs.isEmpty then
         val (patternIdx, msgIdxQ) = candidateMatchesIdxs.head
@@ -194,8 +194,10 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
         println("*******************************************************")
 
         if candidateMatches.nonEmpty then
-          val candidateQidxs = candidateMatches.keys.toList.sortWith(compareIndices)
-          println(candidateQidxs.mkString("\n\n"))
+          // NOTE: Sorting by pattern index because if the pattern cases are identical then we choose the first occurence.
+          // REMEMBER: Ask Alceste about this.
+          val candidateQidxs = candidateMatches.keys.toList.sortBy(_._1)
+          // println(candidateQidxs.mkString("\n\n"))
           val candidateRHS = candidateMatches.get(candidateQidxs.head).get
 
           if candidateRHS.nonEmpty then

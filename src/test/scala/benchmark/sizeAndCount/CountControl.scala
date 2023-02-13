@@ -16,7 +16,7 @@ def countControlBenchmark =
     10,
     100,
     BenchmarkPass(
-      s"Count1 using ${ALGORITHM.toString()}",
+      s"Count1 Control Pass",
       () => {
         val actor  = Size1Count1(maxHits)
         val result = actor.run_without_macro
@@ -28,7 +28,7 @@ def countControlBenchmark =
     ),
     List(
       BenchmarkPass(
-        s"Count2 using ${ALGORITHM.toString()}",
+        s"Count2 Control Pass",
         () => {
           val actor  = Count2(maxHits)
           val result = actor.run_without_macro
@@ -44,7 +44,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count3 using ${ALGORITHM.toString()}",
+        s"Count3 Control Pass",
         () => {
           val actor  = Count3(maxHits)
           val result = actor.run_without_macro
@@ -61,7 +61,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count4 using ${ALGORITHM.toString()}",
+        s"Count4 Control Pass",
         () => {
           val actor  = Count4(maxHits)
           val result = actor.run_without_macro
@@ -79,7 +79,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count5 using ${ALGORITHM.toString()}",
+        s"Count5 Control Pass",
         () => {
           val actor  = Count5(maxHits)
           val result = actor.run_without_macro
@@ -98,7 +98,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count6 using ${ALGORITHM.toString()}",
+        s"Count6 Control Pass",
         () => {
           val actor  = Count6(maxHits)
           val result = actor.run_without_macro
@@ -118,7 +118,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count7 using ${ALGORITHM.toString()}",
+        s"Count7 Control Pass",
         () => {
           val actor  = Count7(maxHits)
           val result = actor.run_without_macro
@@ -139,7 +139,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count8 using ${ALGORITHM.toString()}",
+        s"Count8 Control Pass",
         () => {
           val actor  = Count8(maxHits)
           val result = actor.run_without_macro
@@ -161,7 +161,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count9 using ${ALGORITHM.toString()}",
+        s"Count9 Control Pass",
         () => {
           val actor  = Count9(maxHits)
           val result = actor.run_without_macro
@@ -184,7 +184,7 @@ def countControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Count10 using ${ALGORITHM.toString()}",
+        s"Count10 Control Pass",
         () => {
           val actor  = Count10(maxHits)
           val result = actor.run_without_macro

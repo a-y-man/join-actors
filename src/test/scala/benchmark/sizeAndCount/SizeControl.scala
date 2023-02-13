@@ -16,7 +16,7 @@ def sizeControlBenchmark =
     10,
     100,
     BenchmarkPass(
-      s"Size1 using ${ALGORITHM.toString()}",
+      s"Size1 Control Pass",
       () => {
         val actor  = Size1Count1(maxHits)
         val result = actor.run_without_macro
@@ -28,7 +28,7 @@ def sizeControlBenchmark =
     ),
     List(
       BenchmarkPass(
-        s"Size2 using ${ALGORITHM.toString()}",
+        s"Size2 Control Pass",
         () => {
           val actor  = Size2(maxHits)
           val result = actor.run_without_macro
@@ -41,7 +41,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size3 using ${ALGORITHM.toString()}",
+        s"Size3 Control Pass",
         () => {
           val actor  = Size3(maxHits)
           val result = actor.run_without_macro
@@ -55,7 +55,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size4 using ${ALGORITHM.toString()}",
+        s"Size4 Control Pass",
         () => {
           val actor  = Size4(maxHits)
           val result = actor.run_without_macro
@@ -70,7 +70,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size5 using ${ALGORITHM.toString()}",
+        s"Size5 Control Pass",
         () => {
           val actor  = Size5(maxHits)
           val result = actor.run_without_macro
@@ -86,7 +86,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size6 using ${ALGORITHM.toString()}",
+        s"Size6 Control Pass",
         () => {
           val actor  = Size6(maxHits)
           val result = actor.run_without_macro
@@ -103,7 +103,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size7 using ${ALGORITHM.toString()}",
+        s"Size7 Control Pass",
         () => {
           val actor  = Size7(maxHits)
           val result = actor.run_without_macro
@@ -121,7 +121,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size8 using ${ALGORITHM.toString()}",
+        s"Size8 Control Pass",
         () => {
           val actor  = Size8(maxHits)
           val result = actor.run_without_macro
@@ -140,7 +140,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size9 using ${ALGORITHM.toString()}",
+        s"Size9 Control Pass",
         () => {
           val actor  = Size9(maxHits)
           val result = actor.run_without_macro
@@ -160,7 +160,7 @@ def sizeControlBenchmark =
         }
       ),
       BenchmarkPass(
-        s"Size10 using ${ALGORITHM.toString()}",
+        s"Size10 Control Pass",
         () => {
           val actor  = Size10(maxHits)
           val result = actor.run_without_macro

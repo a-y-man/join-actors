@@ -3,9 +3,13 @@ package join_patterns
 // Q = [A(42), B(21), A(84)]       | A(x) & B(y) & A(z)
 //                 Msgs from Q     | Pattern Idxs from Pattern case
 //                 [ Ø            -> {} ]
-//                 [ {0}          -> { ([0], Map(x -> 42)), ([2], Map(z -> 42)) }]
-//                 [ {0, 1}       -> { ([0, 1], Map(x -> 42, y -> 21)), ([2, 1], Map(z -> 42, y -> 21)) }]
-//                 [ {1}          -> { ([1], Map(y -> 21)) }]
+//                 [ {0}          -> { 0 }    // { ([0], Map(x -> 42)), ([2], Map(z -> 42)) }]
+//                 [ {0, 1}       -> { 0, 1 } // { ([0, 1], Map(x -> 42, y -> 21)), ([2, 1], Map(z -> 42, y -> 21)) }]
+//                 [ {1}          -> { 1 }    // { ([1], Map(y -> 21)) }]
+//                 [ {2}          -> { 0 }        ]
+//                 [ {0, 2}       -> { 2 }  ]
+//                 [ {0, 1, 2}    -> { 0, 1, 2 } ]
+
 type NodeMapping = Map[List[Int], Set[(List[Int], Map[String, Any])]]
 object NodeMapping:
   def apply(): Map[List[Int], Set[
