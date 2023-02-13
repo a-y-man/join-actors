@@ -75,7 +75,7 @@ def test02(algorithm: AlgorithmType): Unit =
 @main
 def main(): Unit =
   test01(AlgorithmType.BasicAlgorithm)
-  // test01(AlgorithmType.TreeBasedAlgorithm)
+  test01(AlgorithmType.TreeBasedAlgorithm)
   // test02(AlgorithmType.BasicAlgorithm)
   // test02(AlgorithmType.TreeBasedAlgorithm)
 // def test02(): Unit =
