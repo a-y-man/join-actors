@@ -12,10 +12,10 @@ import scala.util.matching.Regex.Match
 
 //                 [ {0, 1, 2}    -> { 0, 1, 2 } ]
 
-type NodeMapping = Map[List[Int], Set[Int]]
+type NodeMapping[M] = Map[List[Int], Set[(Int, M => Map[String, Any])]]
 object NodeMapping:
-  def apply(): Map[List[Int], Set[Int]] =
-    Map[List[Int], Set[Int]](List.empty -> Set.empty)
+  def apply[M](): Map[List[Int], Set[(Int, M => Map[String, Any])]] =
+    Map[List[Int], Set[(Int, M => Map[String, Any])]](List.empty -> Set.empty)
 
 // Edges
 //               { (Ø, {1}), ({1}, {1, 2}), ({1, 2}, Ø) }
@@ -24,14 +24,14 @@ object TreeEdges:
   def apply(): Set[(List[Int], List[Int])] =
     Set[(List[Int], List[Int])]()
 
-case class MatchingTree(
-    val nodeMapping: NodeMapping = NodeMapping(),
+case class MatchingTree[M](
+    val nodeMapping: NodeMapping[M] = NodeMapping(),
     val treeEdges: TreeEdges = TreeEdges()
 ) {
   def isEmpty: Boolean =
     nodeMapping.isEmpty && treeEdges.isEmpty
 
-  def pruneTree(idxsToRemove: List[Int]): MatchingTree =
+  def pruneTree(idxsToRemove: List[Int]): MatchingTree[M] =
     val updatedNodeMapping =
       nodeMapping.view.filterKeys(node => !node.exists(i => idxsToRemove.contains(i))).toMap
     val updatedTreeEdges = treeEdges.view
@@ -42,7 +42,7 @@ case class MatchingTree(
     MatchingTree(updatedNodeMapping, updatedTreeEdges)
 }
 
-def printMapping(mapping: NodeMapping): Unit =
+def printMapping[M](mapping: NodeMapping[M]): Unit =
   mapping.foreach { (nodes, candidates) =>
     val nodesToStr = s"${nodes.mkString("{ ", ", ", " }")}"
     val candidatesToStr = candidates.mkString("{ ", ", ", " }")
@@ -57,7 +57,7 @@ case class JoinPattern[M, T](
     guard: Map[String, Any] => Boolean,
     rhs: Map[String, Any] => T,
     size: Int,
-    partialExtract: (List[M], MatchingTree) => Option[MatchingTree]
+    partialExtract: (List[M], MatchingTree[M]) => Option[MatchingTree[M]]
 )
 
 enum AlgorithmType:
