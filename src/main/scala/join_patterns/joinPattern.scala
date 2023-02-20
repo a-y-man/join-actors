@@ -9,15 +9,13 @@ import scala.util.matching.Regex.Match
 //                 [ {0, 1}       -> { 0, 1 } // { ([0, 1], Map(x -> 42, y -> 21)), ([2, 1], Map(z -> 42, y -> 21)) }]
 //                 [ {1}          -> { 1 }    // { ([1], Map(y -> 21)) }]
 //                 [ {2}          -> { 0 }        ]
-//                 [ {0, 2}       -> { 2 }  ]
+
 //                 [ {0, 1, 2}    -> { 0, 1, 2 } ]
 
-type NodeMapping = Map[List[Int], Set[(List[Int], Map[String, Any])]]
+type NodeMapping = Map[List[Int], Set[Int]]
 object NodeMapping:
-  def apply(): Map[List[Int], Set[
-    (List[Int], Map[String, Any])
-  ]] = // TODO: Extend each nodemapping to maintain the substitutions of its current config.
-    Map[List[Int], Set[(List[Int], Map[String, Any])]](List.empty -> Set.empty)
+  def apply(): Map[List[Int], Set[Int]] =
+    Map[List[Int], Set[Int]](List.empty -> Set.empty)
 
 // Edges
 //               { (Ø, {1}), ({1}, {1, 2}), ({1, 2}, Ø) }
@@ -45,14 +43,10 @@ case class MatchingTree(
 }
 
 def printMapping(mapping: NodeMapping): Unit =
-  mapping.foreach { (k, v) =>
-    val kToStr = s"${k.mkString("[", ", ", "]")}"
-    val vToStr = v
-      .map((cd, fields) =>
-        s"(${cd.mkString("[", ", ", "]")}, ${fields.map((k, v) => s"${k} -> ${v}").mkString("Map(", " , ", ")")})"
-      )
-      .mkString("{ ", ", ", " }")
-    val mToStr = s"${kToStr}\t -> ${vToStr}"
+  mapping.foreach { (nodes, candidates) =>
+    val nodesToStr = s"${nodes.mkString("{ ", ", ", " }")}"
+    val candidatesToStr = candidates.mkString("{ ", ", ", " }")
+    val mToStr = s"[ ${nodesToStr}\t -> ${candidatesToStr} ]"
     println(mToStr)
   }
 

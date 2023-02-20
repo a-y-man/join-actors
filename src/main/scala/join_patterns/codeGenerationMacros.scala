@@ -220,7 +220,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         if mQ.isInstanceOf[ot] then
           Some(
             MatchingTree(
-              mTree.nodeMapping + (List(mQidx) -> Set((List(0), $extractor(mQ.asInstanceOf[ot])))),
+              mTree.nodeMapping + (List(mQidx) -> Set(0)),
               mTree.treeEdges.++(Set((List.empty, List(mQidx))))
             )
           )
@@ -313,41 +313,34 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
         (List.empty, List(mQidx))
       ) // Always add an edge for the new incoming msg regardless of it having candidate match
       val isMsgInPat = msgTypesInPattern.exists { msgPat =>
-        val ((msg, _), _) = msgPat
-        msg(mQ)
+        val ((isMsgMatch, _), _) = msgPat
+        isMsgMatch(mQ)
       }
 
       if isMsgInPat then
         val matches = msgTypesInPattern
           .filter { msgPat =>
-            val ((msg, field), _) = msgPat
+            val ((msg, fieldExtractor), _) = msgPat
             msg(mQ)
           }
-
-        val possibleFits = matches.map { msgPat =>
-          val ((msg, field), msgPosInPat) = msgPat
-          if msg(mQ) then
-            val fields = field(mQ)
-            (List(msgPosInPat), fields)
-          else (List(msgPosInPat), Map.empty)
-        }.toSet
+        // val possibleFits = matches.map { msgPat =>
+        //   val ((isMsgMatch, fieldExtractor), msgPosInPat) = msgPat
+        //   if isMsgMatch(mQ) then
+        //     Set(msgPosInPat)
+        //   else Set(msgPosInPat)
+        // }
 
         val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping()) { (acc, mapping) =>
-          val (node, fits) = mapping
-          val newMapping = possibleFits
-            .flatMap { possibleFit =>
-              val (cidx, fields) = possibleFit
-              fits.map { (fit, currentFields) =>
-                if !fit.contains(cidx.head) then
-                  val newField =
-                    fields.filterNot((k, v) => currentFields.contains(k)) ++ currentFields
-                  val newCIdx = cidx.concat(fit)
-                  (newCIdx, newField)
-                else (List.empty, Map.empty)
-              }
-            }
-            .filter(!_._1.isEmpty)
-          acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> possibleFits) + mapping
+          val (node, currentFits) = mapping
+
+          val newFits = matches.map(_._2).toSet.diff(currentFits)
+          if newFits.isEmpty then
+            acc + mapping
+          else
+            val newMapping = currentFits.`+`(newFits.head)
+            if node.nonEmpty && currentFits.isEmpty then
+              acc + ((node.appended(mQidx)) -> Set.empty) + mapping
+            else acc + ((node.appended(mQidx)) -> newMapping) + mapping
         }
 
         val newTreeEdges = mTree.nodeMapping

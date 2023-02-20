@@ -155,33 +155,33 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
             updatedMatchingTree match
               case Some(mTree) =>
-                // println("-------------------------------------------------------")
-                // println(s"Pattern Idx ${patternIdx}")
-                // printMapping(mTree.nodeMapping)
+                println("-------------------------------------------------------")
+                println(s"Pattern Idx ${patternIdx}")
+                printMapping(mTree.nodeMapping)
 
                 val enoughMsgsToMatch =
                   mTree.nodeMapping.view.filterKeys(node => node.size >= pattern.size).toMap
 
-                val whereGuardTrue = enoughMsgsToMatch.view
-                  .mapValues { candidateMatches =>
-                    val trueGuardCandidates =
-                      candidateMatches.filter((idxs, substs) => pattern.guard(substs))
-                    trueGuardCandidates
-                  }
-                  .toMap
-                  .filter((k, v) => v.nonEmpty)
+                // val whereGuardTrue = enoughMsgsToMatch.view
+                //   .mapValues { candidateMatches =>
+                //     val trueGuardCandidates =
+                //       candidateMatches.filter((idxs, substs) => pattern.guard(substs))
+                //     trueGuardCandidates
+                //   }
+                //   .toMap
+                //   .filter((k, v) => v.nonEmpty)
 
-                val selectedMatch = whereGuardTrue.map { (msgIdxs, candidateMatches) =>
-                  (
-                    (patternIdx, msgIdxs),
-                    candidateMatches.map { (_, substs) =>
-                      (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
-                    }.toList
-                  )
-                }
+                // val selectedMatch = whereGuardTrue.map { (msgIdxs, candidateMatches) =>
+                //   (
+                //     (patternIdx, msgIdxs),
+                //     candidateMatches.map { (_, substs) =>
+                //       (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
+                //     }.toList
+                //   )
+                // }
 
-                // println("-------------------------------------------------------")
-                matches ++ selectedMatch
+                println("-------------------------------------------------------")
+                matches // ++ selectedMatch
 
               case None => matches
         }

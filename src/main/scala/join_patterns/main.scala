@@ -20,22 +20,22 @@ def test01(algorithm: AlgorithmType): Unit =
 
   var rcv = receive { (y: Msg) =>
     y match
-      case (D(x: Int), E(y: Int), F(z: Int)) => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
-      case (D(x: Int), F(z: Int), E(y: Int)) => println(s"Case 01: x = ${x}, y = ${y}, z = ${z}")
-      case (E(y: Int), D(x: Int), F(z: Int)) => println(s"Case 02: x = ${x}, y = ${y}, z = ${z}")
-      case (E(y: Int), F(z: Int), D(x: Int)) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
-      case (F(z: Int), D(x: Int), E(y: Int)) => println(s"Case 04: x = ${x}, y = ${y}, z = ${z}")
-      case (F(z: Int), E(y: Int), D(x: Int)) => println(s"Case 05: x = ${x}, y = ${y}, z = ${z}")
+      case (D(x: Int), E(y: Int), D(z: Int)) => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
+      // case (D(x: Int), F(z: Int), E(y: Int)) => println(s"Case 01: x = ${x}, y = ${y}, z = ${z}")
+      // case (E(y: Int), D(x: Int), F(z: Int)) => println(s"Case 02: x = ${x}, y = ${y}, z = ${z}")
+      // case (E(y: Int), F(z: Int), D(x: Int)) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
+      // case (F(z: Int), D(x: Int), E(y: Int)) => println(s"Case 04: x = ${x}, y = ${y}, z = ${z}")
+      // case (F(z: Int), E(y: Int), D(x: Int)) => println(s"Case 05: x = ${x}, y = ${y}, z = ${z}")
   }
 
 
   val matcher = rcv(algorithm)
   q.add(A())
-  q.add(B())
-  q.add(C())
+  // q.add(B())
+  // q.add(C())
   q.add(D(3))
   q.add(E(1))
-  q.add(F(2))
+  q.add(D(2))
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
