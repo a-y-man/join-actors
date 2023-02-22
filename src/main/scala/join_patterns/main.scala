@@ -20,7 +20,8 @@ def test01(algorithm: AlgorithmType): Unit =
 
   var rcv = receive { (y: Msg) =>
     y match
-      case (D(x: Int), E(y: Int), D(z: Int)) => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
+      case A() => println("Singleton")
+      case (D(x: Int), E(y: Int), D(z: Int)) if x == 2 => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
       // case (D(x: Int), F(z: Int), E(y: Int)) => println(s"Case 01: x = ${x}, y = ${y}, z = ${z}")
       // case (E(y: Int), D(x: Int), F(z: Int)) => println(s"Case 02: x = ${x}, y = ${y}, z = ${z}")
       // case (E(y: Int), F(z: Int), D(x: Int)) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
@@ -31,8 +32,8 @@ def test01(algorithm: AlgorithmType): Unit =
 
   val matcher = rcv(algorithm)
   q.add(A())
-  // q.add(B())
-  // q.add(C())
+  q.add(B())
+  q.add(C())
   q.add(D(3))
   q.add(E(1))
   q.add(D(2))
@@ -74,7 +75,7 @@ def test02(algorithm: AlgorithmType): Unit =
 
 @main
 def main(): Unit =
-  test01(AlgorithmType.BasicAlgorithm)
+  // test01(AlgorithmType.BasicAlgorithm)
   test01(AlgorithmType.TreeBasedAlgorithm)
   // test02(AlgorithmType.BasicAlgorithm)
   // test02(AlgorithmType.TreeBasedAlgorithm)

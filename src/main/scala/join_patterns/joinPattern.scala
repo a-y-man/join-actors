@@ -12,10 +12,10 @@ import scala.util.matching.Regex.Match
 
 //                 [ {0, 1, 2}    -> { 0, 1, 2 } ]
 
-type NodeMapping[M] = Map[List[Int], Set[(Int, M => Map[String, Any])]]
+type NodeMapping[M] = Map[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]]
 object NodeMapping:
-  def apply[M](): Map[List[Int], Set[(Int, M => Map[String, Any])]] =
-    Map[List[Int], Set[(Int, M => Map[String, Any])]](List.empty -> Set.empty)
+  def apply[M](): Map[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]] =
+    Map[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]](List.empty -> Set.empty)
 
 // Edges
 //               { (Ø, {1}), ({1}, {1, 2}), ({1, 2}, Ø) }
@@ -45,7 +45,7 @@ case class MatchingTree[M](
 def printMapping[M](mapping: NodeMapping[M]): Unit =
   mapping.foreach { (nodes, candidates) =>
     val nodesToStr = s"${nodes.mkString("{ ", ", ", " }")}"
-    val candidatesToStr = candidates.mkString("{ ", ", ", " }")
+    val candidatesToStr = candidates.map(x => s"(${x._1}, MSG-CLOSURE, FIELDS-CLOSURE)").mkString("{ ", ", ", " }")
     val mToStr = s"[ ${nodesToStr}\t -> ${candidatesToStr} ]"
     println(mToStr)
   }
