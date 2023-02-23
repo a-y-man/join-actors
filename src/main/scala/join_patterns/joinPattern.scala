@@ -45,7 +45,8 @@ case class MatchingTree[M](
 def printMapping[M](mapping: NodeMapping[M]): Unit =
   mapping.foreach { (nodes, candidates) =>
     val nodesToStr = s"${nodes.mkString("{ ", ", ", " }")}"
-    val candidatesToStr = candidates.map(x => s"(${x._1}, MSG-CLOSURE, FIELDS-CLOSURE)").mkString("{ ", ", ", " }")
+    val candidatesToStr =
+      candidates.map(x => s"(${x._1}, MSG-CLOSURE, FIELDS-CLOSURE)").mkString("{ ", ", ", " }")
     val mToStr = s"[ ${nodesToStr}\t -> ${candidatesToStr} ]"
     println(mToStr)
   }

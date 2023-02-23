@@ -188,7 +188,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val typesData       = getTypesData(List(dataType))
+  val typesData = getTypesData(List(dataType))
   val extractors: List[(Expr[M => Boolean], Expr[M => Map[String, Any]])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
@@ -228,11 +228,11 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
       // val fieldExtractor = extractor.asExprOf[M => Map[String, Any]]
       val partialExtract = '{ (m: List[M], mTree: MatchingTree[M]) =>
-        val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+        val _extractors    = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
         val fieldExtractor = _extractors.head._2
-        val checkMsgType = _extractors.head._1
-        val messages = ListBuffer.from(m.zipWithIndex)
-        val (mQ, mQidx) = messages.last // Take the newest msg from the queue
+        val checkMsgType   = _extractors.head._1
+        val messages       = ListBuffer.from(m.zipWithIndex)
+        val (mQ, mQidx)    = messages.last // Take the newest msg from the queue
         if checkMsgType(mQ) then
           Some(
             MatchingTree(
@@ -343,25 +343,22 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
         val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping[M]()) { (acc, mapping) =>
           val (node, currentFits) = mapping
 
-          val _matches = matches.map {
-            msgPat =>
-              val ((msgTypeChecker, fieldExtractor), msgPosInPat) = msgPat
-              (msgPosInPat, msgTypeChecker, fieldExtractor)
+          val _matches = matches.map { msgPat =>
+            val ((msgTypeChecker, fieldExtractor), msgPosInPat) = msgPat
+            (msgPosInPat, msgTypeChecker, fieldExtractor)
           }.toSet
 
           val newFitsIdxs = _matches.map(_._1).diff(currentFits.map(_._1))
-          if newFitsIdxs.isEmpty then
-            acc + mapping
+          if newFitsIdxs.isEmpty then acc + mapping
           else
             val currentFitsIdxs = currentFits.map(_._1)
-            val newMappingIdxs = currentFitsIdxs.`+`(newFitsIdxs.head)
-            val newMapping = newMappingIdxs.map {
-              idx =>
-                val ((msgTypeChecker, fieldExtractor), _) = msgTypesInPattern(idx)
-                (idx, msgTypeChecker, fieldExtractor)
+            val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
+            val newMapping = newMappingIdxs.map { idx =>
+              val ((msgTypeChecker, fieldExtractor), _) = msgTypesInPattern(idx)
+              (idx, msgTypeChecker, fieldExtractor)
             }
             if node.nonEmpty && currentFits.isEmpty then
-              acc + ((node.appended(mQidx)) -> Set.empty) + mapping
+              acc + ((node.appended(mQidx))    -> Set.empty) + mapping
             else acc + ((node.appended(mQidx)) -> newMapping) + mapping
         }
 
