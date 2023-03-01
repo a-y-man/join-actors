@@ -20,14 +20,14 @@ class BenchmarkPass(
   def warmup(warmupIterations: Int): Unit =
     Await.ready(
       Future.sequence((1 to warmupIterations).map(_ => mainFn())),
-      Duration(1, TimeUnit.MINUTES)
+      Duration(5, TimeUnit.MINUTES)
     )
 
   def benchmark(iterations: Int): Seq[Long] =
     Await
       .result(
         Future.sequence((1 to iterations).map(_ => mainFn())),
-        Duration(1, TimeUnit.MINUTES)
+        Duration(5, TimeUnit.MINUTES)
       )
 
   def run(warmupIterations: Int, iterations: Int): Seq[Long] =
@@ -101,7 +101,7 @@ class Benchmark(
       (n, List(lw, q1, md, q3, hw))
     )
 
-  def toFile(results: List[(String, Seq[Double])]) =
+  def toFile(results: List[(String, Seq[Long])]) =
     import java.util.Date
     import java.io.{File, PrintWriter}
     import java.text.SimpleDateFormat
@@ -129,7 +129,7 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
-    // toFile(boxplot(results))
+    // toFile(results)
 
     results.map(_._2.sum).sum
 }

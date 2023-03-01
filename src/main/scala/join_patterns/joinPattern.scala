@@ -1,7 +1,7 @@
 package join_patterns
 
-import scala.util.matching.Regex.Match
-
+import scala.collection.immutable.TreeMap
+import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
 // Q = [A(42), B(21), A(84)]       | A(x) & B(y) & A(z)
 //                 Msgs from Q     | Pattern Idxs from Pattern case
 //                 [ Ø            -> {} ]
@@ -12,10 +12,10 @@ import scala.util.matching.Regex.Match
 
 //                 [ {0, 1, 2}    -> { 0, 1, 2 } ]
 
-type NodeMapping[M] = Map[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]]
+type NodeMapping[M] = TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]]
 object NodeMapping:
-  def apply[M](): Map[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]] =
-    Map[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]](List.empty -> Set.empty)
+  def apply[M](): TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]] =
+    TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]](List.empty -> Set.empty)(Ordering.by[List[Int], Int](-_.size))
 
 // Edges
 //               { (Ø, {1}), ({1}, {1, 2}), ({1, 2}, Ø) }
@@ -33,13 +33,13 @@ case class MatchingTree[M](
 
   def pruneTree(idxsToRemove: List[Int]): MatchingTree[M] =
     val updatedNodeMapping =
-      nodeMapping.view.filterKeys(node => !node.exists(i => idxsToRemove.contains(i))).toMap
+      nodeMapping.view.filterKeys(node => node.forall(i => !idxsToRemove.contains(i)))
     val updatedTreeEdges = treeEdges.view
       .filter((src, dest) =>
         !src.exists(i => idxsToRemove.contains(i)) && !dest.exists(i => idxsToRemove.contains(i))
       )
       .toSet
-    MatchingTree(updatedNodeMapping, updatedTreeEdges)
+    MatchingTree(TreeMap.from(updatedNodeMapping), updatedTreeEdges)
 }
 
 def printMapping[M](mapping: NodeMapping[M]): Unit =

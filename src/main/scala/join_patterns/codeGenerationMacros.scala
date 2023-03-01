@@ -358,7 +358,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
               (idx, msgTypeChecker, fieldExtractor)
             }
             if node.nonEmpty && currentFits.isEmpty then
-              acc + ((node.appended(mQidx))    -> Set.empty) + mapping
+              acc + ((node.appended(mQidx))    -> Set.empty)// + mapping
             else acc + ((node.appended(mQidx)) -> newMapping) + mapping
         }
 

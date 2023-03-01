@@ -16,7 +16,7 @@ def setup(maxHits: Int): (Pinger, Ponger) =
 
 @main
 def pingPongBenchmark =
-  val maxHits = 100
+  val maxHits = 100_000
   Benchmark(
     "Ping Pong",
     10,
@@ -25,8 +25,8 @@ def pingPongBenchmark =
       "Control",
       () => {
         val (ping, pong) = setup(maxHits)
-        pong.run_without_macro
-        ping.run_without_macro
+        pong.run_as_future
+        ping.run_as_future
       }
     ),
     List(

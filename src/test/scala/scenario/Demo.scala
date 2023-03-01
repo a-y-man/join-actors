@@ -9,12 +9,13 @@ import test.classes.Msg
 import test.benchmark.Benchmarkable
 import actor.Actor
 import join_patterns.AlgorithmType
+import test.ALGORITHM
 
 case class Motion(status: Boolean, room: String) extends Msg
 case class Light(status: Boolean, room: String)  extends Msg
 case class Contact(open: Boolean, room: String)  extends Msg
 
-class DemoSmartHouse(val algorithm: AlgorithmType) extends Actor[Msg, Unit] {
+class DemoSmartHouse() extends Actor[Msg, Unit] {
   private var lastMotionInBathroom = Date(0L)
   private var lastNotification     = Date(0L)
   private val between: (Date, Date) => Duration = (a, b) =>
@@ -44,7 +45,7 @@ class DemoSmartHouse(val algorithm: AlgorithmType) extends Actor[Msg, Unit] {
             Light(lStatus: Boolean, lRoom: String)
           ) if turnOff(List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
         lastMotionInBathroom = Date()
-        println("turn_off_light()")
+        // println("turn_off_light()")
       // E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene.
       case (
             Motion(mStatus0: Boolean, mRoom0: String),
@@ -58,9 +59,9 @@ class DemoSmartHouse(val algorithm: AlgorithmType) extends Actor[Msg, Unit] {
             cRoom
           ) =>
         lastNotification = Date()
-        println("activate_home_scene(l, i, t)")
+        // println("activate_home_scene(l, i, t)")
 
-  }(algorithm)
+  }(ALGORITHM)
 
   def run(): Unit =
     matcher(q)
@@ -68,9 +69,9 @@ class DemoSmartHouse(val algorithm: AlgorithmType) extends Actor[Msg, Unit] {
 }
 
 class SmartHouseTest extends AnyFunSuite {
-  val algorithm: AlgorithmType = AlgorithmType.BasicAlgorithm
+  // val algorithm: AlgorithmType = AlgorithmType.BasicAlgorithm
   test("E2. Turn off the lights in a room after two minutes without detecting any movement.") {
-    val house       = DemoSmartHouse(algorithm)
+    val house       = DemoSmartHouse()
     val houseThread = Thread(house)
 
     houseThread.start
@@ -84,7 +85,7 @@ class SmartHouseTest extends AnyFunSuite {
   test(
     "E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene."
   ) {
-    val house       = DemoSmartHouse(algorithm)
+    val house       = DemoSmartHouse()
     val houseThread = Thread(house)
 
     houseThread.start

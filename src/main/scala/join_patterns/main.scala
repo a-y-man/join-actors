@@ -21,22 +21,22 @@ def test01(algorithm: AlgorithmType): Unit =
   var rcv = receive { (y: Msg) =>
     y match
       // case A() => println("Singleton")
-      // case (D(x: Int), E(y: Int)) => println("Debug")
-      case (D(x: Int), E(y: Int), D(z: Int)) => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
-    // case (D(x: Int), F(z: Int), E(y: Int)) => println(s"Case 01: x = ${x}, y = ${y}, z = ${z}")
-    // case (E(y: Int), D(x: Int), F(z: Int)) => println(s"Case 02: x = ${x}, y = ${y}, z = ${z}")
-    // case (E(y: Int), F(z: Int), D(x: Int)) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
-    // case (F(z: Int), D(x: Int), E(y: Int)) => println(s"Case 04: x = ${x}, y = ${y}, z = ${z}")
-    // case (F(z: Int), E(y: Int), D(x: Int)) => println(s"Case 05: x = ${x}, y = ${y}, z = ${z}")
+      case (D(x: Int), E(y: Int)) => println("Debug")
+      case (D(x: Int), E(y: Int), F(z: Int)) if (x == 1) => println(s"Case 00: x = ${x}, y = ${y}, z = ${z}")
+      case (D(x: Int), F(z: Int), E(y: Int)) if (x == 2) => println(s"Case 01: x = ${x}, y = ${y}, z = ${z}")
+      case (E(y: Int), D(x: Int), F(z: Int)) if (x == 3) => println(s"Case 02: x = ${x}, y = ${y}, z = ${z}")
+      case (E(y: Int), F(z: Int), D(x: Int)) if (x == 1) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
+      case (F(z: Int), D(x: Int), E(y: Int)) if (x == 4) => println(s"Case 04: x = ${x}, y = ${y}, z = ${z}")
+      case (F(z: Int), E(y: Int), D(x: Int)) if (x == 3) => println(s"Case 05: x = ${x}, y = ${y}, z = ${z}")
   }
 
   val matcher = rcv(algorithm)
-  // q.add(A())
-  // q.add(B())
-  // q.add(C())
-  q.add(D(3))
+  q.add(B())
+  q.add(C())
+  q.add(A())
+  q.add(F(2))
   q.add(E(1))
-  q.add(D(2))
+  q.add(D(3))
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
@@ -72,38 +72,43 @@ def test02(algorithm: AlgorithmType): Unit =
   println(f"receive = ${matcher(q)}")
   println("\n======================================================\n\n")
 
+def test03(algorithm: AlgorithmType): Unit =
+  val i: Int                 = 0;
+  val m                      = 0
+  val isZero: Int => Boolean = (n: Int) => n == 0
+  val q                      = LinkedTransferQueue[Msg]
+
+  var rcv = receive { (y: Msg) =>
+    y match
+      case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
+      case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
+      case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
+  }
+  val matcher = rcv(algorithm)
+  // A E E B A B
+  // q.add(E(2))
+  q.add(B())
+  q.add(A())
+  q.add(A())
+  q.add(B())
+  q.add(E(2))
+
+  val initalQ = q.toArray.toList.zipWithIndex
+  println(s"Q =  ${initalQ}")
+  println(s"f returned: ${matcher(q)}")
+
+  println("\n======================================================\n\n")
+
+
+
 @main
 def main(): Unit =
-  // test01(AlgorithmType.BasicAlgorithm)
   test01(AlgorithmType.TreeBasedAlgorithm)
-  // test02(AlgorithmType.BasicAlgorithm)
-  // test02(AlgorithmType.TreeBasedAlgorithm)
-// def test02(): Unit =
-//   val i: Int                 = 0;
-//   val m                      = 0
-//   val isZero: Int => Boolean = (n: Int) => n == 0
-//   val q                      = LinkedTransferQueue[Msg]
-
-//   var f = receive { (y: Msg) =>
-//     y match
-//       case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
-//       case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
-//       case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
-//   }
-
-//   // A E E B A B
-//   q.add(A())
-//   q.add(E(2))
-//   q.add(E(2))
-//   q.add(B())
-//   q.add(A())
-//   q.add(B())
-
-//   val initalQ = q.toArray.toList.zipWithIndex
-//   println(s"Q =  ${initalQ}")
-//   println(s"f returned: ${f(q)}")
-
-//   println("\n======================================================\n\n")
+  test01(AlgorithmType.BasicAlgorithm)
+  test02(AlgorithmType.BasicAlgorithm)
+  test02(AlgorithmType.TreeBasedAlgorithm)
+  test03(AlgorithmType.TreeBasedAlgorithm)
+  test03(AlgorithmType.BasicAlgorithm)
 
 // def test04()=
 //   val result                 = Random.nextInt
