@@ -139,9 +139,9 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
     while result.isEmpty do
       if messages.isEmpty then
-        println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
+        // println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
         messages.append(q.take())
-        println(s"Ms = ${messages.mkString("[", ", ", "]")}")
+        // println(s"Ms = ${messages.mkString("[", ", ", "]")}")
 
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithMatchingTrees.foldLeft(CandidateMatches[M, T]()) {
@@ -188,21 +188,22 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
       patternsWithMatchingTrees = updatedPatternsWithMatchingTrees.toList
       if candidateMatches.nonEmpty then
-        println("*******************************************************")
-        println("Candidate Matches")
-        printCandidateMatches(candidateMatches)
-        println("*******************************************************")
+        // println("*******************************************************")
+        // println("Candidate Matches")
+        // printCandidateMatches(candidateMatches)
+        // println("*******************************************************")
 
         if candidateMatches.nonEmpty then
-          // NOTE: Sorting by pattern index because if the pattern cases are identical then we choose the first occurence.
-          // REMEMBER: Ask Alceste about this.
-          val candidateQidxs = candidateMatches.keys.toList.sortBy(_._1)
+          val candidateQidxs = candidateMatches.keys.toList.sortWith(compareIndices)
           // println(candidateQidxs.mkString("\n\n"))
           val candidateRHS = candidateMatches.get(candidateQidxs.head).get
 
           if candidateRHS.nonEmpty then
             val (subst, rhsFn) = candidateRHS.head
             result = Some(rhsFn(subst))
+            val consumedMsgsRemoved = messages.zipWithIndex.filterNot((_, idx) => candidateQidxs.head._2.contains(idx)).map(_._1)
+            messages.clear()
+            messages.addAll(consumedMsgsRemoved)
 
             // Prune tree
             patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>
@@ -210,9 +211,9 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
             }
 
       if result.isEmpty then
-        println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
+        // println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
         messages.append(q.take())
-        println(s"M = ${messages.mkString("[", ", ", "]")}")
+        // println(s"M = ${messages.mkString("[", ", ", "]")}")
 
 
     result.get
