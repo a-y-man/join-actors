@@ -126,7 +126,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
-  var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M](), treeEdges = TreeEdges())
+  var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
   var patternsWithMatchingTrees = patternsWithIdxs
     .map { patternsWithIdxs =>
       (patternsWithIdxs, initMatchingTree)
@@ -142,7 +142,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
     while result.isEmpty do
       if messages.isEmpty then
         // println(s"Q = ${q.zipWithIndex.mkString("[", ", ", "]")}")
-        messages.append(q.poll(2, TimeUnit.SECONDS))
+        messages.append(q.take())
         // println(s"M = ${messages.mkString("[", ", ", "]")}")
 
       val candidateMatches: CandidateMatches[M, T] =
@@ -244,7 +244,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
       if result.isEmpty then
         // println(s"Q' = ${q.zipWithIndex.mkString("[", ", ", "]")}")
-        messages.append(q.poll(2, TimeUnit.SECONDS))
+        messages.append(q.take())
         // println(s"M' = ${messages.mkString("[", ", ", "]")}")
 
     result.get

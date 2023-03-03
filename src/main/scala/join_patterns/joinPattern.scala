@@ -25,21 +25,16 @@ object TreeEdges:
     Set[(List[Int], List[Int])]()
 
 case class MatchingTree[M](
-    val nodeMapping: NodeMapping[M] = NodeMapping(),
-    val treeEdges: TreeEdges = TreeEdges()
+    val nodeMapping: NodeMapping[M] = NodeMapping()
 ) {
   def isEmpty: Boolean =
-    nodeMapping.isEmpty && treeEdges.isEmpty
+    nodeMapping.isEmpty
 
   def pruneTree(idxsToRemove: List[Int]): MatchingTree[M] =
     val updatedNodeMapping =
       nodeMapping.view.filterKeys(node => node.forall(i => !idxsToRemove.contains(i)))
-    val updatedTreeEdges = treeEdges.view
-      .filter((src, dest) =>
-        !src.exists(i => idxsToRemove.contains(i)) && !dest.exists(i => idxsToRemove.contains(i))
-      )
-      .toSet
-    MatchingTree(TreeMap.from(updatedNodeMapping), updatedTreeEdges)
+
+    MatchingTree(TreeMap.from(updatedNodeMapping))
 }
 
 def printMapping[M](mapping: NodeMapping[M]): Unit =

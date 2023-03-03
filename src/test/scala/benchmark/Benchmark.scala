@@ -129,7 +129,7 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
-    // toFile(results)
+    toFile(results)
 
     results.map(_._2.sum).sum
 }

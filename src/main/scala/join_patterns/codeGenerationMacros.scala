@@ -233,8 +233,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         if checkMsgType(mQ) then
           Some(
             MatchingTree(
-              mTree.nodeMapping + (List(mQidx) -> Set((0, checkMsgType, fieldExtractor))),
-              mTree.treeEdges.++(Set((List.empty, List(mQidx))))
+              mTree.nodeMapping + (List(mQidx) -> Set((0, checkMsgType, fieldExtractor)))
             )
           )
         else Some(mTree)
@@ -321,9 +320,6 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
       val (mQ, mQidx) = messages.last // Take the newest msg from the queue
 
-      val newEdge = Set(
-        (List.empty, List(mQidx))
-      ) // Always add an edge for the new incoming msg regardless of it having candidate match
       val isMsgInPat = msgTypesInPattern.exists { msgPat =>
         val ((isMsgMatch, _), _) = msgPat
         isMsgMatch(mQ)
@@ -354,27 +350,14 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
               (idx, msgTypeChecker, fieldExtractor)
             }
             if node.nonEmpty && currentFits.isEmpty then
-              acc + ((node.appended(mQidx))    -> Set.empty)// + mapping
+              acc + ((node.appended(mQidx))    -> Set.empty)
             else acc + ((node.appended(mQidx)) -> newMapping) + mapping
         }
-
-        val newTreeEdges = mTree.nodeMapping
-          .foldLeft(TreeEdges()) { (acc, mapping) =>
-            val (node, fits) = mapping
-
-            val updatedEdges = (node, node.appended(mQidx))
-
-            acc + updatedEdges
-          }
-          .++(mTree.treeEdges.++(newEdge))
-          .filter(!_._2.isEmpty)
-
-        Some(MatchingTree(newNodeMapping, newTreeEdges))
+        Some(MatchingTree(newNodeMapping))
       else
         Some(
           MatchingTree(
-            mTree.nodeMapping + (List(mQidx) -> Set.empty),
-            mTree.treeEdges.++(newEdge)
+            mTree.nodeMapping + (List(mQidx) -> Set.empty)
           )
         )
     }
@@ -488,50 +471,9 @@ private def receiveCodegen[M, T](
   * @param f
   *   the block to use as source of the pattern-matching code.
   * @return
-  *   a comptime function performing pattern-matching on a message queue at runtime.
+  *   a compile-time closure that takes a MatchingAlgorithm type
+  *   and returns a Matcher-object that performs pattern-matching
+  *   on a message queue at runtime.
   */
 inline def receive[M, T](inline f: M => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
-
-/** Generate the code returned by the receive macro. This generates join-patterns with partial
-  * matches
-  *
-  * @param expr
-  *   the match expression.
-  * @return
-  *   a matcher instance.
-  */
-// private def receivePartialCodegen[M, T](
-//     expr: Expr[M => T]
-// )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{
-
-//   ((name: String) => Matcher[M, T](name, ${ Expr.ofList(getCases(expr, true)) }))
-// }
-
-// private def receiveCodegenOrd[M, T](expr: Expr[M => T], strat: Expr[Ordering[JoinPattern[M, T]]])(
-//     using
-//     tm: Type[M],
-//     tt: Type[T],
-//     quotes: Quotes
-// ) = '{
-//   Matcher[M, T]((${ Expr.ofList(getCases(expr, false)) }).sorted($strat))
-// }
-
-// inline def receivePartial[M, T](inline f: M => T): Matcher[M, T] = ${
-//   receivePartialCodegen('f)
-// }
-
-// inline def receiveOrd[M, T](inline s: Ordering[JoinPattern[M, T]])(
-//     inline f: M => T
-// ): Matcher[M, T] = ${ receiveCodegenOrd('f, 's) }
-
-/*
-receive(e) {
-	(A, B, C) => println(""), // local copies, used data is marked for `this` but not consumed (so others can use it)
-	(A & B & C) => println(""), // all present at the same time in LinkedTransferQueue[M]
-	(B -> D) => println(""), // sequential
-	(A -> (D, B)) => println(""),
-	A | B => println(""), // disjunction
-	~Debug => println(""), // not
-}
- */
