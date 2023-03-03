@@ -5,7 +5,7 @@ import scala.util.Random
 import java.util.concurrent.LinkedTransferQueue
 
 import join_patterns.receive
-import join_patterns.AlgorithmType
+import join_patterns.MatchingAlgorithm
 
 abstract class UnitTests extends AnyFunSuite {
   sealed abstract class Msg

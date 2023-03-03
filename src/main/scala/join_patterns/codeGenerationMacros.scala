@@ -4,9 +4,6 @@ import java.util.concurrent.LinkedTransferQueue as Queue
 import scala.quoted.{Expr, Quotes, Type, Varargs}
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
-import scala.language.postfixOps
-import scala.annotation.meta.field
-import scala.annotation.newMain
 
 /** Extracts a type's name and representation from a `Tree`.
   *
@@ -290,18 +287,17 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val msgPattern: ListBuffer[M]     = ListBuffer()
 
       val msgPatterns = _extractors
-      if messages.size >= _extractors.size then
-        for
-          (msg, field) <- msgPatterns
-          if matched.size < _extractors.size
-        do
-          messages.find((_m, _) => msg(_m)) match
-            case Some((matchedMessage, idx)) =>
-              matched.addOne((idx, matchedMessage))
-              msgPattern.addOne(matchedMessage)
-              messages.subtractOne((matchedMessage, idx))
-              fields.addAll(field(matchedMessage))
-            case None => ()
+      for
+        (msg, field) <- msgPatterns
+        if matched.size < _extractors.size
+      do
+        messages.find((_m, _) => msg(_m)) match
+          case Some((matchedMessage, idx)) =>
+            matched.addOne((idx, matchedMessage))
+            msgPattern.addOne(matchedMessage)
+            messages.subtractOne((matchedMessage, idx))
+            fields.addAll(field(matchedMessage))
+          case None => ()
 
       if matched.size == _extractors.size then
         val patternVectorEntry = Some(msgPattern.toList)
@@ -483,8 +479,8 @@ private def getCases[M, T](
   */
 private def receiveCodegen[M, T](
     expr: Expr[M => T]
-)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{ (algorithm: AlgorithmType) =>
-  Matcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
+)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{ (algorithm: MatchingAlgorithm) =>
+  SelectMatcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
 }
 
 /** Entry point of the `receive` macro.
@@ -494,7 +490,7 @@ private def receiveCodegen[M, T](
   * @return
   *   a comptime function performing pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): AlgorithmType => Matcher[M, T] =
+inline def receive[M, T](inline f: M => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
 
 /** Generate the code returned by the receive macro. This generates join-patterns with partial

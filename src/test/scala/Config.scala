@@ -1,6 +1,6 @@
 package test
 
-import join_patterns.AlgorithmType
+import join_patterns.MatchingAlgorithm
 
 // This is used throughout the tests
-val ALGORITHM = AlgorithmType.TreeBasedAlgorithm
+val ALGORITHM = MatchingAlgorithm.BasicAlgorithm

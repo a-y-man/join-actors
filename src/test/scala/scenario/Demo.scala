@@ -8,7 +8,7 @@ import join_patterns.receive
 import test.classes.Msg
 import test.benchmark.Benchmarkable
 import actor.Actor
-import join_patterns.AlgorithmType
+import join_patterns.MatchingAlgorithm
 import test.ALGORITHM
 
 case class Motion(status: Boolean, room: String) extends Msg

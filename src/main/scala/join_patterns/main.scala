@@ -13,7 +13,7 @@ case class E(a: Int)                                extends Msg
 case class F(a: Int)                                extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
-def test01(algorithm: AlgorithmType): Unit =
+def test01(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
 
   val q = LinkedTransferQueue[Msg]
@@ -43,7 +43,7 @@ def test01(algorithm: AlgorithmType): Unit =
   println(f"f returned: ${matcher(q)}")
   println("\n======================================================\n\n")
 
-def test02(algorithm: AlgorithmType): Unit =
+def test02(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
   val q = LinkedTransferQueue[Msg]
 
@@ -72,7 +72,7 @@ def test02(algorithm: AlgorithmType): Unit =
   println(f"receive = ${matcher(q)}")
   println("\n======================================================\n\n")
 
-def test03(algorithm: AlgorithmType): Unit =
+def test03(algorithm: MatchingAlgorithm): Unit =
   val i: Int                 = 0;
   val m                      = 0
   val isZero: Int => Boolean = (n: Int) => n == 0
@@ -80,18 +80,20 @@ def test03(algorithm: AlgorithmType): Unit =
 
   var rcv = receive { (y: Msg) =>
     y match
-      case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
-      case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
-      case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
+      // case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
+      case (E(x:Int), D(y:Int), E(z:Int)) if x - z == 1 => 500 * z
+      // case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
   }
   val matcher = rcv(algorithm)
   // A E E B A B
   // q.add(E(2))
-  q.add(B())
-  q.add(A())
-  q.add(A())
-  q.add(B())
+  // q.add(B())
+  // q.add(A())
+  // q.add(A())
+  // q.add(B())
   q.add(E(2))
+  q.add(D(3))
+  q.add(E(3))
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
@@ -103,12 +105,12 @@ def test03(algorithm: AlgorithmType): Unit =
 
 @main
 def main(): Unit =
-  test01(AlgorithmType.TreeBasedAlgorithm)
-  test01(AlgorithmType.BasicAlgorithm)
-  test02(AlgorithmType.BasicAlgorithm)
-  test02(AlgorithmType.TreeBasedAlgorithm)
-  test03(AlgorithmType.TreeBasedAlgorithm)
-  test03(AlgorithmType.BasicAlgorithm)
+  // test01(MatchingAlgorithm.TreeBasedAlgorithm)
+  // test01(MatchingAlgorithm.BasicAlgorithm)
+  // test02(MatchingAlgorithm.BasicAlgorithm)
+  // test02(MatchingAlgorithm.TreeBasedAlgorithm)
+  test03(MatchingAlgorithm.TreeBasedAlgorithm)
+  // test03(MatchingAlgorithm.BasicAlgorithm)
 
 // def test04()=
 //   val result                 = Random.nextInt

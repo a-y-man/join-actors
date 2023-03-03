@@ -61,5 +61,5 @@ case class JoinPattern[M, T](
     partialExtract: (List[M], MatchingTree[M]) => Option[MatchingTree[M]]
 )
 
-enum AlgorithmType:
+enum MatchingAlgorithm:
   case BasicAlgorithm, TreeBasedAlgorithm
