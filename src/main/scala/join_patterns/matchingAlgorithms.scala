@@ -49,10 +49,7 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
     var result: Option[T] = None
 
     while result.isEmpty do
-      if messages.isEmpty then
-        messages.append(q.take())
-        // q.drainTo(messages)
-
+      if messages.isEmpty then messages.append(q.take())
       val index = Index[M]()
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithIdxs.foldLeft(CandidateMatches[M, T]()) {
@@ -88,10 +85,7 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
 
         messages.subtractAll(msgs)
 
-      if result.isEmpty then
-        messages.append(q.take())
-        // q.drainTo(messages)
-
+      if result.isEmpty then messages.append(q.take())
     result.get
 
 }
@@ -115,98 +109,90 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
       (patternsWithIdxs, initMatchingTree)
     }
 
-  // println(s"[Initial length] ${patternsWithMatchingTrees.length}")
-
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
 
     var result: Option[T] = None
 
-    val updatedPatternsWithMatchingTrees = ListBuffer[((JoinPattern[M, T], Int), MatchingTree[M])]()
-
     while result.isEmpty do
       if messages.isEmpty then messages.append(q.take())
 
-      val candidateMatches: CandidateMatches[M, T] =
-        patternsWithMatchingTrees.foldLeft(CandidateMatches[M, T]()) {
-          (matches, patternWithMatchingTree) =>
-            val ((pattern, patternIdx), mTree) = patternWithMatchingTree
-            val updatedMatchingTree            = pattern.partialExtract(messages.toList, mTree)
+      val (updatedMTs, candidateMatches) =
+        patternsWithMatchingTrees.foldLeft(
+          (Map[Int, ((JoinPattern[M, T], Int), MatchingTree[M])](), CandidateMatches[M, T]())
+        ) { (matchesWithAcc, patternWithMatchingTree) =>
+          val (updatedPatternsWithMatchingTrees, matches) =
+            matchesWithAcc
+          val ((pattern, patternIdx), mTree) = patternWithMatchingTree
+          val updatedMatchingTree            = pattern.partialExtract(messages.toList, mTree)
 
-            updatedPatternsWithMatchingTrees.addOne(
-              ((pattern, patternIdx), updatedMatchingTree.get)
-            )
-            // println(
-            //   s"[Updated length] ${patternsWithMatchingTrees.length}, ${updatedPatternsWithMatchingTrees.length}"
-            // )
+          updatedMatchingTree match
+            case Some(mTree) =>
+              val _updatedMTs = updatedPatternsWithMatchingTrees.updated(
+                patternIdx,
+                ((pattern, patternIdx), mTree)
+              )
 
-            // println(s"[DEBUG] ${patternIdx}")
-            // printMapping(updatedMatchingTree.get.nodeMapping)
+              val enoughMsgsToMatch =
+                mTree.nodeMapping.view.find((node, fits) =>
+                  node.size >= pattern.size && fits.nonEmpty
+                )
 
-            updatedMatchingTree match
-              case Some(mTree) =>
-                val enoughMsgsToMatch =
-                  mTree.nodeMapping.view.find((node, fits) =>
-                    node.size >= pattern.size && fits.nonEmpty
-                  )
-
-                if enoughMsgsToMatch.nonEmpty then
-                  val possibleFits = enoughMsgsToMatch.toMap.keySet.flatMap { msgIdxs =>
-                    msgIdxs.flatMap { i =>
-                      val res = enoughMsgsToMatch
-                        .to(TreeMap)(msgIdxs)
-                        .flatMap { (patIdx, isMsg, fieldExtractor) =>
-                          val m = messages(i)
-                          if isMsg(m) then Some(patIdx -> fieldExtractor(m))
-                          else None
-                        }
-                      if res.nonEmpty then Some((i, res.toMap))
-                      else None
-                    }
-                  }.toList
-
-                  val matchesWithSubsts = possibleFits.permutations
-                    .map { permutation =>
-                      permutation.foldLeft((List[Int](), Set[Int](), Map[String, Any]())) {
-                        (acc, mapping) =>
-                          val (msgIdx, possibleFitToSubsts) = mapping
-                          val (seenMsgs, seenPats, substs)  = acc
-                          val patIdx =
-                            possibleFitToSubsts.keySet.find(k => !seenPats.contains(k)).get
-                          (
-                            seenMsgs :+ msgIdx,
-                            seenPats + patIdx,
-                            substs ++ possibleFitToSubsts(patIdx)
-                          )
+              if enoughMsgsToMatch.nonEmpty then
+                val possibleFits = enoughMsgsToMatch.toMap.keySet.flatMap { msgIdxs =>
+                  msgIdxs.flatMap { i =>
+                    val res = enoughMsgsToMatch
+                      .to(TreeMap)(msgIdxs)
+                      .flatMap { (patIdx, isMsg, fieldExtractor) =>
+                        val m = messages(i)
+                        if isMsg(m) then Some(patIdx -> fieldExtractor(m))
+                        else None
                       }
+                    if res.nonEmpty then Some((i, res.toMap))
+                    else None
+                  }
+                }.toList
+
+                val matchesWithSubsts = possibleFits.permutations
+                  .map { permutation =>
+                    permutation.foldLeft((List[Int](), Set[Int](), Map[String, Any]())) {
+                      (acc, mapping) =>
+                        val (msgIdx, possibleFitToSubsts) = mapping
+                        val (seenMsgs, seenPats, substs)  = acc
+                        val patIdx =
+                          possibleFitToSubsts.keySet.find(k => !seenPats.contains(k)).get
+                        (
+                          seenMsgs :+ msgIdx,
+                          seenPats + patIdx,
+                          substs ++ possibleFitToSubsts(patIdx)
+                        )
                     }
-                    .map((msgIdxs, _, substs) => (msgIdxs, substs))
+                  }
+                  .map((msgIdxs, _, substs) => (msgIdxs, substs))
 
-                  val whereGuardTrue = matchesWithSubsts
-                    .filter((idxs, substs) => pattern.guard(substs))
+                val whereGuardTrue = matchesWithSubsts
+                  .filter((idxs, substs) => pattern.guard(substs))
 
-                  val selectedMatch = whereGuardTrue.map { (msgIdxs, substs) =>
-                    (
-                      (patternIdx, msgIdxs),
-                      (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
-                    )
-                  }.toList
+                val selectedMatch = whereGuardTrue.map { (msgIdxs, substs) =>
+                  (
+                    (patternIdx, msgIdxs),
+                    (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
+                  )
+                }.toList
 
+                (
+                  _updatedMTs,
                   matches ++ selectedMatch
-                else matches
+                )
+              else (_updatedMTs, matches)
 
-              case None => matches
+            case None => (updatedPatternsWithMatchingTrees, matches)
         }
-      // println(
-      //   s"[LENGTH BEFORE] ${patternsWithMatchingTrees.length}, ${updatedPatternsWithMatchingTrees.length}"
-      // )
 
-      patternsWithMatchingTrees = updatedPatternsWithMatchingTrees.toList
-
-      // println(s"[LENGTH AFTER] ${patternsWithMatchingTrees.length}")
+      patternsWithMatchingTrees = updatedMTs.values.toList
 
       // patternsWithMatchingTrees.foreach { (jp, mTree) =>
-      //   println(s"Mapping for JP ${jp._2}")
+      //   println(s"MT for JP ${jp._2}")
       //   printMapping(mTree.nodeMapping)
       // }
 
@@ -220,11 +206,11 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
             val (subst, rhsFn) = candidateRHS.head
             result = Some(rhsFn(subst))
 
-            val prunedMsgs = messages.zipWithIndex
+            val unprocessedMsgs = messages.zipWithIndex
               .filterNot((_, idx) => candidateQidxs.head._2.contains(idx))
               .map(_._1)
             messages.clear()
-            messages.addAll(prunedMsgs)
+            messages.addAll(unprocessedMsgs)
 
             // Prune tree
             patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>

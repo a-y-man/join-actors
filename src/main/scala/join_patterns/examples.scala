@@ -102,7 +102,7 @@ def test03(algorithm: MatchingAlgorithm): Unit =
 
   var rcv = receive { (y: Msg) =>
     y match
-      // case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
+      case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
       case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
       case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
   }
