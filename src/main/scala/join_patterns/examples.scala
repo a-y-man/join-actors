@@ -102,7 +102,7 @@ def test03(algorithm: MatchingAlgorithm): Unit =
 
   var rcv = receive { (y: Msg) =>
     y match
-      case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
+      // case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
       case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
       case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
   }
@@ -110,12 +110,12 @@ def test03(algorithm: MatchingAlgorithm): Unit =
   val matcher = rcv(algorithm)
 
   // A E E B A B
-  q.add(A())
-  q.add(E(2))
-  q.add(E(2))
-  q.add(B())
-  q.add(A())
-  q.add(B())
+  q.add(A())  // 0
+  q.add(E(2)) // 1
+  q.add(E(2)) // 2
+  q.add(B())  // 3
+  q.add(A())  // 4
+  q.add(B())  // 5
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")

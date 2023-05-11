@@ -1,9 +1,12 @@
 package join_patterns
 
 import java.util.concurrent.LinkedTransferQueue as Queue
-import scala.quoted.{Expr, Quotes, Type, Varargs}
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
+import scala.quoted.Expr
+import scala.quoted.Quotes
+import scala.quoted.Type
+import scala.quoted.Varargs
 
 /** Extracts a type's name and representation from a `Tree`.
   *
@@ -347,10 +350,10 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
             val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
             val newMapping = newMappingIdxs.map { idx =>
               val ((msgTypeChecker, fieldExtractor), _) = msgTypesInPattern(idx)
+              // println(s"[DEBUG] ${idx}, ${msgTypesInPattern(idx)}")
               (idx, msgTypeChecker, fieldExtractor)
             }
-            if node.nonEmpty && currentFits.isEmpty then
-              acc + ((node.appended(mQidx))    -> Set.empty)
+            if node.nonEmpty && currentFits.isEmpty then acc + ((node.appended(mQidx)) -> Set.empty)
             else acc + ((node.appended(mQidx)) -> newMapping) + mapping
         }
         Some(MatchingTree(newNodeMapping))
@@ -471,9 +474,8 @@ private def receiveCodegen[M, T](
   * @param f
   *   the block to use as source of the pattern-matching code.
   * @return
-  *   a compile-time closure that takes a MatchingAlgorithm type
-  *   and returns a Matcher-object that performs pattern-matching
-  *   on a message queue at runtime.
+  *   a compile-time closure that takes a MatchingAlgorithm type and returns a Matcher-object that
+  *   performs pattern-matching on a message queue at runtime.
   */
 inline def receive[M, T](inline f: M => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
