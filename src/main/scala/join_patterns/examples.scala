@@ -36,7 +36,7 @@ def demo(algorithm: MatchingAlgorithm): Unit =
 
   // queue.add(E(2))
 
-  println(s"f returned: ${matcher(queue)}")
+  println(s"Matcher returned: ${matcher(queue)}")
 
 def test01(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
@@ -63,7 +63,7 @@ def test01(algorithm: MatchingAlgorithm): Unit =
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
-  println(f"f returned: ${matcher(q)}")
+  println(f"Matcher returned: ${matcher(q)}")
   println("\n======================================================\n\n")
 
 def test02(algorithm: MatchingAlgorithm): Unit =
@@ -102,23 +102,48 @@ def test03(algorithm: MatchingAlgorithm): Unit =
 
   var rcv = receive { (y: Msg) =>
     y match
-      case E(n: Int) if n == 2                  => { { val z = "hi"; println(z) }; n + 1 }
-      case (A(), B(), A(), E(n: Int)) if n == 2 => 500 * n
-      case (B(), A(), B(), E(n: Int)) if n == 2 => 600 * n
+      case (E(m: Int), E(n: Int)) if n == 2 && m == 42 => { { val z = "hi"; println(z) }; n + 1 }
+      case (A(), B(), A(), E(n: Int)) if n == 2        => 500 * n
+      case (B(), A(), B(), E(n: Int)) if n == 2        => 600 * n
   }
 
   val matcher = rcv(algorithm)
 
   // A E E B A B
-  q.add(A())  // 0
-  q.add(E(2)) // 1
-  q.add(E(2)) // 2
-  q.add(B())  // 3
-  q.add(A())  // 4
-  q.add(B())  // 5
+  q.add(E(42)) // 2
+  q.add(E(2))  // 1
+  q.add(A())   // 0
+  q.add(B())   // 3
+  q.add(A())   // 4
+  q.add(B())   // 5
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
-  println(s"f returned: ${matcher(q)}")
+  println(s"Matcher returned: ${matcher(q)}")
+
+  println("\n======================================================\n\n")
+
+def test04(algorithm: MatchingAlgorithm): Unit =
+  val i: Int                 = 0;
+  val m                      = 0
+  val isZero: Int => Boolean = (n: Int) => n == 0
+  val q                      = LinkedTransferQueue[Msg]
+
+  var rcv = receive { (y: Msg) =>
+    y match
+      case (E(m: Int), F(n: Int), E(o: Int)) => {
+        { val z = "E(m: Int), F(n: Int), E(o: Int)"; println(z) }
+      }
+  }
+
+  val matcher = rcv(algorithm)
+
+  q.add(E(4))
+  q.add(F(2))
+  q.add(E(1))
+
+  val initalQ = q.toArray.toList.zipWithIndex
+  println(s"Q =  ${initalQ}")
+  println(s"Matcher returned: ${matcher(q)}")
 
   println("\n======================================================\n\n")

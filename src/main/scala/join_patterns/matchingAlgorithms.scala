@@ -16,6 +16,17 @@ object SelectMatcher:
       case MatchingAlgorithm.BasicAlgorithm     => BasicMatcher(patterns)
       case MatchingAlgorithm.TreeBasedAlgorithm => TreeMatcher(patterns)
 
+def _compareIndices(i1WithPatIdx: (List[Int], Int), i2WithPatIdx: (List[Int], Int)): Boolean =
+  import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
+
+  val (i1, _) = i1WithPatIdx
+  val (i2, _) = i2WithPatIdx
+
+  val i1sorted = i1.sorted
+  val i2sorted = i2.sorted
+
+  (i1sorted < i2sorted) || ((i1sorted == i2sorted) && (i1 < i2))
+
 def compareIndices(i1WithPatIdx: (Int, List[Int]), i2WithPatIdx: (Int, List[Int])): Boolean =
   import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
 
@@ -73,7 +84,7 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
         }
 
       val candidateIndexes = index.keys.toList.sortWith(compareIndices)
-      // println(s"Candidate idxs\n${candidateIndexes.mkString("\n")}")
+      println(s"Candidate idxs\n${candidateIndexes.mkString("\n")}")
       if !candidateIndexes.isEmpty then
         val (patternIdx, msgIdxQ) = candidateIndexes.head
         val (msgs, subs)          = index(candidateIndexes.head)
@@ -93,10 +104,12 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
 class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Type alias used only within this class
   type CandidateMatches[M, T] =
-    TreeMap[(Int, List[Int]), (Map[String, Any], Map[String, Any] => T)]
+    TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]
   object CandidateMatches:
     def apply[M, T](): CandidateMatches[M, T] =
-      TreeMap[(Int, List[Int]), (Map[String, Any], Map[String, Any] => T)]()
+      TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]()(
+        Ordering[(List[Int], Int)]
+      )
 
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
@@ -117,7 +130,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
     while result.isEmpty do
       if messages.isEmpty then messages.append(q.take())
 
-      val (updatedMTs, candidateMatches) =
+      lazy val (updatedMTs, candidateMatches) =
         patternsWithMatchingTrees.foldLeft(
           (Map[Int, ((JoinPattern[M, T], Int), MatchingTree[M])](), CandidateMatches[M, T]())
         ) { (matchesWithAcc, patternWithMatchingTree) =>
@@ -153,6 +166,8 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
                   }
                 }.toList
 
+                println(s"possibleFits\n${possibleFits.mkString("\n")}")
+
                 val matchesWithSubsts = possibleFits.permutations
                   .map { permutation =>
                     permutation.foldLeft((List[Int](), Set[Int](), Map[String, Any]())) {
@@ -175,10 +190,10 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
                 val selectedMatch = whereGuardTrue.map { (msgIdxs, substs) =>
                   (
-                    (patternIdx, msgIdxs),
+                    (msgIdxs, patternIdx),
                     (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
                   )
-                }.toList
+                }
 
                 (
                   _updatedMTs,
@@ -198,7 +213,8 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
       if candidateMatches.nonEmpty then
         if candidateMatches.nonEmpty then
-          val candidateQidxs = candidateMatches.keys.toList.sortWith(compareIndices)
+          println(s"[DEBUG]\n${candidateMatches.take(4).mkString("\n")}")
+          val candidateQidxs = candidateMatches.head // .keys.toList.sortWith(_compareIndices)
           // println(s"Candidate idxs\n${candidateQidxs.mkString("\n")}")
 
           val candidateRHS = candidateMatches.get(candidateQidxs.head)
@@ -207,14 +223,14 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
             result = Some(rhsFn(subst))
 
             val unprocessedMsgs = messages.zipWithIndex
-              .filterNot((_, idx) => candidateQidxs.head._2.contains(idx))
+              .filterNot((_, idx) => candidateQidxs.head._1.contains(idx))
               .map(_._1)
             messages.clear()
             messages.addAll(unprocessedMsgs)
 
             // Prune tree
             patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>
-              (joinPat, mTree.pruneTree(candidateQidxs.head._2))
+              (joinPat, mTree.pruneTree(candidateQidxs.head._1))
             }
 
       if result.isEmpty then messages.append(q.take())
