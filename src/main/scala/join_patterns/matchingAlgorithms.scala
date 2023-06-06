@@ -121,7 +121,20 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
     .map { patternsWithIdxs =>
       (patternsWithIdxs, initMatchingTree)
     }
+  def computeCombinations(lists: List[(Int, List[Int])]): LazyList[List[(Int, Int)]] = {
+    def generateCombinations(lists: List[(Int, List[Int])]): LazyList[List[(Int, Int)]] =
+      lists match {
+        case Nil => LazyList(List.empty[(Int, Int)])
+        case (msgIdx, head) :: tail =>
+          for {
+            elem        <- head.to(LazyList)
+            combination <- generateCombinations(tail)
+            if !combination.exists((_, patIdx) => elem == patIdx)
+          } yield (msgIdx, elem) :: combination
+      }
 
+    generateCombinations(lists)
+  }
   def apply(q: Queue[M]): T =
     import collection.convert.ImplicitConversions._
 
@@ -130,7 +143,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
     while result.isEmpty do
       if messages.isEmpty then messages.append(q.take())
 
-      lazy val (updatedMTs, candidateMatches) =
+      val (updatedMTs, candidateMatches) =
         patternsWithMatchingTrees.foldLeft(
           (Map[Int, ((JoinPattern[M, T], Int), MatchingTree[M])](), CandidateMatches[M, T]())
         ) { (matchesWithAcc, patternWithMatchingTree) =>
@@ -146,58 +159,74 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
                 ((pattern, patternIdx), mTree)
               )
 
-              val enoughMsgsToMatch =
+              val enoughMsgsToMatch
+                  : Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])] =
                 mTree.nodeMapping.view.find((node, fits) =>
                   node.size >= pattern.size && fits.nonEmpty
                 )
 
               if enoughMsgsToMatch.nonEmpty then
-                val possibleFits = enoughMsgsToMatch.toMap.keySet.flatMap { msgIdxs =>
-                  msgIdxs.flatMap { i =>
-                    val res = enoughMsgsToMatch
-                      .to(TreeMap)(msgIdxs)
-                      .flatMap { (patIdx, isMsg, fieldExtractor) =>
-                        val m = messages(i)
-                        if isMsg(m) then Some(patIdx -> fieldExtractor(m))
-                        else None
-                      }
-                    if res.nonEmpty then Some((i, res.toMap))
-                    else None
-                  }
+                val msgIdxsQ = enoughMsgsToMatch.get._1
+                val msgIdxsToFits =
+                  enoughMsgsToMatch.map { (msgIdxs, fits) =>
+                    msgIdxs.foldLeft(Map[Int, Set[(Int, M => Boolean, M => Map[String, Any])]]()) {
+                      (msgIdxsToFits, msgIdx) =>
+                        val m = messages(msgIdx)
+                        val msgIdxToFits = fits.filter { (patIdx, isMsg, fieldExtractor) =>
+                          isMsg(m)
+                        }
+                        msgIdxsToFits.updated(msgIdx, msgIdxToFits)
+                    }
+                  }.get
+
+                msgIdxsToFits.foreach { (k, v) =>
+                  val fits =
+                    v.map { (p, i, f) => s"(${p}, i-CLOSURE, f-CLOSURE)" }.mkString("[", "; ", "]")
+                  println(s"${k} -> ${fits}")
+                }
+
+                val simplifiedFits = msgIdxsToFits.map { (msgIdx, fits) =>
+                  val simpleFits = fits.map((p, i, f) => p)
+                  // println(s"Simplified fits\n${msgIdx} -> ${simpleFits}")
+                  (msgIdx, simpleFits.toList)
                 }.toList
 
-                println(s"possibleFits\n${possibleFits.mkString("\n")}")
+                val possibleFits = computeCombinations(simplifiedFits)
 
-                val matchesWithSubsts = possibleFits.permutations
-                  .map { permutation =>
-                    permutation.foldLeft((List[Int](), Set[Int](), Map[String, Any]())) {
-                      (acc, mapping) =>
-                        val (msgIdx, possibleFitToSubsts) = mapping
-                        val (seenMsgs, seenPats, substs)  = acc
-                        val patIdx =
-                          possibleFitToSubsts.keySet.find(k => !seenPats.contains(k)).get
-                        (
-                          seenMsgs :+ msgIdx,
-                          seenPats + patIdx,
-                          substs ++ possibleFitToSubsts(patIdx)
-                        )
+                println(s"Possible fits ${possibleFits.size}")
+
+                def computeSubsts =
+                  (possibleFit: List[(Int, Int)]) =>
+                    possibleFit.foldLeft(Map[String, Any]()) { (substs, idxs) =>
+                      val (msgIdx, patIdx) = idxs
+                      val subs = msgIdxsToFits(msgIdx)
+                        .find(_._1 == patIdx)
+                        .map((_, _, extractField) => extractField(messages(msgIdx)))
+                        .get
+                      substs ++ subs
                     }
-                  }
-                  .map((msgIdxs, _, substs) => (msgIdxs, substs))
 
-                val whereGuardTrue = matchesWithSubsts
-                  .filter((idxs, substs) => pattern.guard(substs))
+                val substsWhereGuardTrue =
+                  possibleFits
+                    .find { possibleFit =>
+                      println(s"[DEBUG] TRYING!! ${patternIdx}")
+                      val substs = computeSubsts(possibleFit)
+                      pattern.guard(substs)
+                    }
+                    .map(computeSubsts) // FIXME: Redundant computation
+                    .get
 
-                val selectedMatch = whereGuardTrue.map { (msgIdxs, substs) =>
+                println(s"subs ${substsWhereGuardTrue}")
+
+                val selectedMatch =
                   (
-                    (msgIdxs, patternIdx),
-                    (substs, (subs: Map[String, Any]) => pattern.rhs(subs))
+                    substsWhereGuardTrue,
+                    (subs: Map[String, Any]) => pattern.rhs(subs)
                   )
-                }
 
                 (
                   _updatedMTs,
-                  matches ++ selectedMatch
+                  matches.updated((msgIdxsQ, patternIdx), selectedMatch)
                 )
               else (_updatedMTs, matches)
 
@@ -213,8 +242,8 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
       if candidateMatches.nonEmpty then
         if candidateMatches.nonEmpty then
-          println(s"[DEBUG]\n${candidateMatches.take(4).mkString("\n")}")
-          val candidateQidxs = candidateMatches.head // .keys.toList.sortWith(_compareIndices)
+          // println(s"[DEBUG]\n${candidateMatches.mkString("\n")}")
+          val candidateQidxs = candidateMatches.head
           // println(s"Candidate idxs\n${candidateQidxs.mkString("\n")}")
 
           val candidateRHS = candidateMatches.get(candidateQidxs.head)
@@ -237,3 +266,16 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
     result.get
 
 }
+
+// for {
+//   possibleFit <- possibleFits
+//   substs = possibleFit.foldLeft(Map[String, Any]()) { (substs, idxs) =>
+//     val (msgIdx, patIdx) = idxs
+//     val sub = msgIdxsToFits(msgIdx)
+//       .find(elem => elem._1 == patIdx)
+//       .map(elem => elem._3(messages(msgIdx)))
+//       .get
+//     substs ++ sub
+//   }
+//   if pattern.guard(substs)
+// } yield substs

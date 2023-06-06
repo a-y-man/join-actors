@@ -73,7 +73,7 @@ def test02(algorithm: MatchingAlgorithm): Unit =
   var rcv =
     receive { (y: Msg) =>
       y match
-        case (A(), A(), A(), A(), A(), A(), A(), A(), A()) => println("Match!")
+        case (A(), A(), A(), A()) => println("Match!")
     }
 
   val matcher = rcv(algorithm)
@@ -82,11 +82,11 @@ def test02(algorithm: MatchingAlgorithm): Unit =
   q.add(A())
   q.add(A())
   q.add(A())
-  q.add(A())
-  q.add(A())
-  q.add(A())
-  q.add(A())
-  q.add(A())
+  // q.add(A())
+  // q.add(A())
+  // q.add(A())
+  // q.add(A())
+  // q.add(A())
 
   val initalQ = q.toArray.toList.zipWithIndex
 
@@ -138,6 +138,9 @@ def test04(algorithm: MatchingAlgorithm): Unit =
 
   val matcher = rcv(algorithm)
 
+  q.add(A())
+  q.add(B())
+  q.add(A())
   q.add(E(4))
   q.add(F(2))
   q.add(E(1))
