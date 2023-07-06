@@ -1,12 +1,15 @@
 package test.benchmark
 
-import scala.concurrent.ExecutionContext
-import ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.Duration
-import join_patterns.Matcher
 import actor.Actor
+import join_patterns.Matcher
+
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+
+import ExecutionContext.Implicits.global
 
 trait Benchmarkable[M, T] extends Actor[M, T] {
   def run_as_future: Future[Long]
@@ -129,7 +132,7 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
-    toFile(results)
+    // toFile(results)
 
     results.map(_._2.sum).sum
 }
