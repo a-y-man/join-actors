@@ -1,12 +1,15 @@
 package join_patterns
 
 import scala.collection.immutable.TreeMap
+
 import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
 
 type NodeMapping[M] = TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]]
 object NodeMapping:
   def apply[M](): TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]] =
-    TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]](List.empty -> Set.empty)(Ordering.by[List[Int], Int](-_.size))
+    TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]](List.empty -> Set.empty)(
+      Ordering.by[List[Int], Int](-_.size)
+    )
 
 case class MatchingTree[M](
     val nodeMapping: NodeMapping[M] = NodeMapping()
@@ -19,6 +22,9 @@ case class MatchingTree[M](
       nodeMapping.view.filterKeys(node => node.forall(i => !idxsToRemove.contains(i)))
 
     MatchingTree(TreeMap.from(updatedNodeMapping))
+
+  def removeNode(node: List[Int]): MatchingTree[M] =
+    MatchingTree(nodeMapping - node)
 }
 
 def printMapping[M](mapping: NodeMapping[M]): Unit =
@@ -33,7 +39,7 @@ def printMapping[M](mapping: NodeMapping[M]): Unit =
 /** An ADT defintion of a join pattern
   */
 case class JoinPattern[M, T](
-    extract: List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any]),
+    extract: List[M] => Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])],
     guard: Map[String, Any] => Boolean,
     rhs: Map[String, Any] => T,
     size: Int,

@@ -1,6 +1,7 @@
 package join_patterns
 
 import java.util.concurrent.LinkedTransferQueue as Queue
+import scala.collection.immutable.Map
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
 import scala.quoted.Expr
@@ -209,16 +210,17 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
     case '[ot] =>
       val extractor = generateExtractor(outer, inners.map(_._1))
         .asExprOf[ot => Map[String, Any]]
-      val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
+      val extract
+          : Expr[List[M] => Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])]] =
         '{ (m: List[M]) =>
-          m.find(_.isInstanceOf[ot]) match
-            case None => (None, List(), Map())
-            case Some(message) =>
-              (
-                Some(List(message)),
-                List((m.indexOf(message), message)),
-                $extractor(message.asInstanceOf[ot])
-              )
+          val _extractors    = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+          val fieldExtractor = _extractors.head._2
+          val checkMsgType   = _extractors.head._1
+          val messages       = ListBuffer.from(m.zipWithIndex)
+          val (mQ, mQidx)    = messages.last // Take the newest msg from the queue
+
+          if checkMsgType(mQ) then Some(List(mQidx) -> Set((0, checkMsgType, fieldExtractor)))
+          else None
         }
       val predicate: Expr[Map[String, Any] => Boolean] =
         generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
@@ -280,31 +282,28 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           )
     }.toList
 
-  val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] =
+  val extract
+      : Expr[List[M] => Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])]] =
     '{ (m: List[M]) =>
-      val messages                      = ListBuffer.from(m.zipWithIndex)
-      val matched: ListBuffer[(Int, M)] = ListBuffer()
-      val fields: MutMap[String, Any]   = MutMap()
-      val _extractors                   = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgPattern: ListBuffer[M]     = ListBuffer()
+      val messages                 = ListBuffer.from(m.zipWithIndex)
+      val matched: ListBuffer[Int] = ListBuffer()
+      val patternInfo: ListBuffer[(Int, M => Boolean, M => Map[String, Any])] = ListBuffer()
+      val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
 
-      val msgPatterns = _extractors
+      val msgPatterns = _extractors.zipWithIndex
       for
-        (msg, field) <- msgPatterns
+        ((checkMsgType, extractField), patIdx) <- msgPatterns
         if matched.size < _extractors.size
       do
-        messages.find((_m, _) => msg(_m)) match
+        messages.find((_m, _) => checkMsgType(_m)) match
           case Some((matchedMessage, idx)) =>
-            matched.addOne((idx, matchedMessage))
-            msgPattern.addOne(matchedMessage)
+            matched.addOne(idx)
+            patternInfo.addOne((patIdx, checkMsgType, extractField))
             messages.subtractOne((matchedMessage, idx))
-            fields.addAll(field(matchedMessage))
           case None => ()
 
-      if matched.size == _extractors.size then
-        val patternVectorEntry = Some(msgPattern.toList)
-        (patternVectorEntry, matched.toList, fields.toMap)
-      else (None, List(), Map())
+      if matched.size == _extractors.size then Some((matched.toList, patternInfo.toSet))
+      else None
     }
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
   val predicate: Expr[Map[String, Any] => Boolean] =
@@ -324,8 +323,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val (mQ, mQidx) = messages.last // Take the newest msg from the queue
 
       val isMsgInPat = msgTypesInPattern.exists { msgPat =>
-        val ((isMsgMatch, _), _) = msgPat
-        isMsgMatch(mQ)
+        val ((checkMsgType, _), _) = msgPat
+        checkMsgType(mQ)
       }
 
       if isMsgInPat then
@@ -339,8 +338,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           val (node, currentFits) = mapping
 
           val _matches = matches.map { msgPat =>
-            val ((msgTypeChecker, fieldExtractor), msgPosInPat) = msgPat
-            (msgPosInPat, msgTypeChecker, fieldExtractor)
+            val ((checkMsgType, extractField), msgPosInPat) = msgPat
+            (msgPosInPat, checkMsgType, extractField)
           }.toSet
 
           val newFitsIdxs = _matches.map(_._1).diff(currentFits.map(_._1))
@@ -350,7 +349,6 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
             val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
             val newMapping = newMappingIdxs.map { idx =>
               val ((msgTypeChecker, fieldExtractor), _) = msgTypesInPattern(idx)
-              // println(s"[DEBUG] ${idx}, ${msgTypesInPattern(idx)}")
               (idx, msgTypeChecker, fieldExtractor)
             }
             if node.nonEmpty && currentFits.isEmpty then acc + ((node.appended(mQidx)) -> Set.empty)
@@ -388,8 +386,9 @@ private def generateWildcardPattern[M, T](using
 )(guard: Option[quotes.reflect.Term], _rhs: quotes.reflect.Term): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val extract: Expr[List[M] => (Option[List[M]], List[(Int, M)], Map[String, Any])] = '{
-    (m: List[M]) => (None, List(), Map())
+  val extract
+      : Expr[List[M] => Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])]] = '{
+    (m: List[M]) => None
   }
   val predicate: Expr[Map[String, Any] => Boolean] =
     generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
