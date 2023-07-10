@@ -21,28 +21,29 @@ trait Matcher[M, T]:
 
   def mapIdxsToFits(
       msgIdxsQ: List[Int],
-      patternInfo: Set[(Int, M => Boolean, M => Map[String, Any])],
+      patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)],
       messages: ListBuffer[M]
   ) =
-    msgIdxsQ.foldLeft(Map[Int, Set[(Int, M => Boolean, M => Map[String, Any])]]()) {
+    msgIdxsQ.foldLeft(Map[Int, Set[((M => Boolean, M => Map[String, Any]), Int)]]()) {
       (msgIdxsToFits, msgIdx) =>
         val m = messages(msgIdx)
-        val msgIdxToFits = patternInfo.filter { (patIdx, isMsg, fieldExtractor) =>
-          isMsg(m)
+        val msgIdxToFits = patternInfo.filter { info =>
+          val ((checkMsgType, _), _) = info
+          checkMsgType(m)
         }
         msgIdxsToFits.updated(msgIdx, msgIdxToFits)
     }
 
   def computeValidPermutations(
       msgIdxs: List[Int],
-      msgIdxToFits: Map[Int, Set[(Int, M => Boolean, M => Map[String, Any])]]
+      msgIdxToFits: Map[Int, Set[((M => Boolean, M => Map[String, Any]), Int)]]
   ): Iterator[List[(Int, M => Map[String, Any])]] = {
     def isInPattern(msgIdx: Int, msgsInPat: Set[Int]): Boolean =
       msgsInPat.contains(msgIdx)
 
     def isValidPermutation(permutation: List[Int]): Boolean =
       permutation.forall { msgIdx =>
-        val patIdxs     = msgIdxToFits(msgIdx).map(_._1)
+        val patIdxs     = msgIdxToFits(msgIdx).map(_._2)
         val msgPosInPat = permutation.indexOf(msgIdx)
         isInPattern(msgPosInPat, patIdxs)
       }
@@ -52,8 +53,8 @@ trait Matcher[M, T]:
         case permutation if isValidPermutation(permutation) =>
           permutation.map { msgIdx =>
             val possibleFits = msgIdxToFits(msgIdx)
-            val msgToPat     = possibleFits.find(pat => pat._1 == permutation.indexOf(msgIdx)).get
-            (msgIdx, msgToPat._3)
+            val msgToPat     = possibleFits.find(pat => pat._2 == permutation.indexOf(msgIdx)).get
+            (msgIdx, msgToPat._1._2)
           }
       }
     validPermutations
@@ -164,9 +165,15 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
     import scala.jdk.CollectionConverters._
 
     var result: Option[T] = None
+    var mQ: Option[M]     = None
+    var mQidx             = -1
 
     while result.isEmpty do
-      if messages.isEmpty then messages.append(q.take())
+      if messages.isEmpty then
+        mQ = Some(q.take())
+        messages.append(mQ.get)
+        mQidx += 1
+        // println(s"mQidx: $mQidx")
 
       val (updatedMTs, candidateMatches) =
         patternsWithMatchingTrees.foldLeft(
@@ -175,17 +182,18 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
           val (updatedPatternsWithMatchingTrees, candidateMatchesAcc) =
             matchesWithAcc
           val ((pattern, patternIdx), mTree) = patternWithMatchingTree
-          val updatedMatchingTree            = pattern.partialExtract(messages.toList, mTree)
+          val updatedMatchingTree            = pattern.partialExtract((mQ.get, mQidx), mTree)
 
           updatedMatchingTree match
             case Some(mTree) =>
+              // printMapping(mTree.nodeMapping)
               val _updatedMTs = updatedPatternsWithMatchingTrees.updated(
                 patternIdx,
                 ((pattern, patternIdx), mTree)
               )
 
               val enoughMsgsToMatch
-                  : Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])] =
+                  : Option[(List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)])] =
                 mTree.nodeMapping.view.find((node, fits) =>
                   node.size >= pattern.size && fits.nonEmpty
                 )
@@ -238,6 +246,10 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
             (joinPat, mTree.pruneTree(candidateQidxs))
           }
 
-      if result.isEmpty then messages.append(q.take())
+      if result.isEmpty then
+        mQ = Some(q.take())
+        messages.append(mQ.get)
+        mQidx += 1
+        // println(s"mQidx: $mQidx")
     result.get
 }

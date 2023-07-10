@@ -54,9 +54,9 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   }
 
   val matcher = rcv(algorithm)
-  q.add(A())
-  q.add(B())
-  q.add(C())
+  // q.add(A())
+  // q.add(B())
+  // q.add(C())
   q.add(D(3))
   q.add(E(1))
   q.add(F(2))

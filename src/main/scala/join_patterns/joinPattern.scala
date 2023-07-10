@@ -4,10 +4,10 @@ import scala.collection.immutable.TreeMap
 
 import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
 
-type NodeMapping[M] = TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]]
+type NodeMapping[M] = TreeMap[List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)]]
 object NodeMapping:
-  def apply[M](): TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]] =
-    TreeMap[List[Int], Set[(Int, M => Boolean, M => Map[String, Any])]](List.empty -> Set.empty)(
+  def apply[M](): TreeMap[List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)]] =
+    TreeMap[List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)]](List.empty -> Set.empty)(
       Ordering.by[List[Int], Int](-_.size)
     )
 
@@ -31,7 +31,7 @@ def printMapping[M](mapping: NodeMapping[M]): Unit =
   mapping.foreach { (nodes, candidates) =>
     val nodesToStr = s"${nodes.mkString("{ ", ", ", " }")}"
     val candidatesToStr =
-      candidates.map(x => s"(${x._1}, MSG-CLOSURE, FIELDS-CLOSURE)").mkString("{ ", ", ", " }")
+      candidates.map(x => s"(${x._2}, MSG-CLOSURE, FIELDS-CLOSURE)").mkString("{ ", ", ", " }")
     val mToStr = s"[ ${nodesToStr}\t -> ${candidatesToStr} ]"
     println(mToStr)
   }
@@ -39,11 +39,11 @@ def printMapping[M](mapping: NodeMapping[M]): Unit =
 /** An ADT defintion of a join pattern
   */
 case class JoinPattern[M, T](
-    extract: List[M] => Option[(List[Int], Set[(Int, M => Boolean, M => Map[String, Any])])],
+    extract: List[M] => Option[(List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)])],
     guard: Map[String, Any] => Boolean,
     rhs: Map[String, Any] => T,
     size: Int,
-    partialExtract: (List[M], MatchingTree[M]) => Option[MatchingTree[M]]
+    partialExtract: (Tuple2[M, Int], MatchingTree[M]) => Option[MatchingTree[M]]
 )
 
 enum MatchingAlgorithm:
