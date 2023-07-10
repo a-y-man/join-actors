@@ -54,12 +54,12 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   }
 
   val matcher = rcv(algorithm)
-  // q.add(A())
-  // q.add(B())
-  // q.add(C())
-  q.add(D(3))
   q.add(E(1))
+  q.add(A())
   q.add(F(2))
+  q.add(B())
+  q.add(D(3))
+  q.add(C())
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")

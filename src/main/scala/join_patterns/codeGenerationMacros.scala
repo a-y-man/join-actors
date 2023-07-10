@@ -338,8 +338,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
             val currentFitsIdxs = currentFits.map(_._2)
             val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
             val newMapping = newMappingIdxs.map { idx =>
-              val ((msgTypeChecker, fieldExtractor), _) = msgTypesInPattern(idx)
-              ((msgTypeChecker, fieldExtractor), idx)
+              val ((checkMsgType, extractField), _) = msgTypesInPattern(idx)
+              ((checkMsgType, extractField), idx)
             }
             if node.nonEmpty && currentFits.isEmpty then acc + ((node.appended(mQidx)) -> Set.empty)
             else acc + ((node.appended(mQidx)) -> newMapping) + mapping
