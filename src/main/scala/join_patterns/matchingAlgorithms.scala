@@ -47,10 +47,15 @@ trait Matcher[M, T]:
       msgsInPat.contains(msgIdx)
 
     def isValidPermutation(permutation: List[Int]): Boolean =
-      permutation.forall { msgIdx =>
-        val patIdxs     = msgIdxToFits(msgIdx).map(_._2)
-        val msgPosInPat = permutation.indexOf(msgIdx)
-        isInPattern(msgPosInPat, patIdxs)
+      permutation.zipWithIndex.forall { (msgIdx, permIdx) =>
+        val patIdxs = msgIdxToFits(msgIdx).map(_._2)
+
+        // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
+
+        // P  [0, 1, 2]
+        // M  [3, 4, 5]
+        // val msgPosInPat = permutation.indexOf(msgIdx)
+        isInPattern(permIdx, patIdxs)
       }
 
     val validPermutations =
@@ -79,17 +84,15 @@ trait Matcher[M, T]:
   ) =
     var bestMatchSubsts: Map[String, Any] = null
     var bestMatchIdxs: List[Int]          = null
-    val findBestMatch = validPermutations.find { possibleFit =>
+    validPermutations.find { possibleFit =>
       bestMatchSubsts = computeSubsts(messages, possibleFit)
       if pattern.guard(bestMatchSubsts) then
         bestMatchIdxs = possibleFit.map(_._1)
         true
-      else
-        bestMatchSubsts = null
-        false
+      else false
     }
-
-    (bestMatchIdxs, bestMatchSubsts)
+    if bestMatchIdxs != null && bestMatchSubsts != null then Some((bestMatchIdxs, bestMatchSubsts))
+    else None
 
   // remove all messages from the queue that have been processed
   def removeProcessedMsgs(messages: ListBuffer[M], processedMsgs: List[Int]) =
@@ -130,15 +133,17 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
 
                   val validPermutations = computeValidPermutations(msgIdxsQ, msgIdxsToFits)
 
-                  val (bestMatchIdxs, bestMatchSubsts) =
+                  val bestMatch =
                     findBestMatch(validPermutations, messages, pattern)
 
-                  if bestMatchSubsts != null && bestMatchIdxs != null then
-                    val selectedMatch =
-                      (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
+                  bestMatch match {
+                    case Some((bestMatchIdxs, bestMatchSubsts)) =>
+                      val selectedMatch =
+                        (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
 
-                    candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
-                  else candidateMatchesAcc
+                      candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
+                    case None => candidateMatchesAcc
+                  }
                 case None => candidateMatchesAcc
             else candidateMatchesAcc
         }
@@ -211,27 +216,30 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
                   val validPermutations = computeValidPermutations(msgIdxsQ, msgIdxsToFits)
 
-                  val (bestMatchIdxs, bestMatchSubsts) =
+                  val bestMatch =
                     findBestMatch(validPermutations, messages, pattern)
 
-                  if bestMatchSubsts != null && bestMatchIdxs != null then
-                    val selectedMatch =
-                      (bestMatchSubsts, (subs: Map[String, Any]) => pattern.rhs(subs))
+                  bestMatch match {
+                    case Some((bestMatchIdxs, bestMatchSubsts)) =>
+                      val selectedMatch =
+                        (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
 
-                    (
-                      _updatedMTs,
-                      candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
-                    )
-                  else
-                    val removedNoneValidCandidate = mTree.removeNode(msgIdxsQ)
-                    // Prune tree
-                    (
-                      updatedPatternsWithMatchingTrees.updated(
-                        patternIdx,
-                        ((pattern, patternIdx), removedNoneValidCandidate)
-                      ),
-                      candidateMatchesAcc
-                    )
+                      (
+                        _updatedMTs,
+                        candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
+                      )
+
+                    case None =>
+                      val removedNoneValidCandidate = mTree.removeNode(msgIdxsQ)
+                      // Prune tree
+                      (
+                        updatedPatternsWithMatchingTrees.updated(
+                          patternIdx,
+                          ((pattern, patternIdx), removedNoneValidCandidate)
+                        ),
+                        candidateMatchesAcc
+                      )
+                  }
                 case None => (_updatedMTs, candidateMatchesAcc)
 
             case None => (updatedPatternsWithMatchingTrees, candidateMatchesAcc)
