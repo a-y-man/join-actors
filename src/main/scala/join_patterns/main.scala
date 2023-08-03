@@ -13,3 +13,5 @@ def main(): Unit =
   test03(MatchingAlgorithm.TreeBasedAlgorithm)
   test04(MatchingAlgorithm.BasicAlgorithm)
   test04(MatchingAlgorithm.TreeBasedAlgorithm)
+  test05(MatchingAlgorithm.BasicAlgorithm)
+  test05(MatchingAlgorithm.TreeBasedAlgorithm)

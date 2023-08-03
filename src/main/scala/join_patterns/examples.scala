@@ -54,11 +54,11 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   }
 
   val matcher = rcv(algorithm)
+  q.add(D(3))
+  q.add(F(2))
   q.add(E(1))
   q.add(A())
-  q.add(F(2))
   q.add(B())
-  q.add(D(3))
   q.add(C())
 
   val initalQ = q.toArray.toList.zipWithIndex
@@ -110,12 +110,12 @@ def test03(algorithm: MatchingAlgorithm): Unit =
   val matcher = rcv(algorithm)
 
   // A E E B A B
-  q.add(E(42)) // 2
-  q.add(E(2))  // 1
-  q.add(A())   // 0
   q.add(B())   // 3
-  q.add(A())   // 4
+  q.add(A())   // 0
+  q.add(E(2))  // 1
   q.add(B())   // 5
+  q.add(A())   // 4
+  q.add(E(42)) // 2
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
@@ -149,4 +149,57 @@ def test04(algorithm: MatchingAlgorithm): Unit =
   println(s"Q =  ${initalQ}")
   println(s"Matcher returned: ${matcher(q)}")
 
+  println("\n======================================================\n\n")
+
+def test05(algorithm: MatchingAlgorithm): Unit =
+  println(s"Using ${algorithm}\n\n")
+  val q = LinkedTransferQueue[Msg]
+
+  var rcv =
+    receive { (y: Msg) =>
+      y match
+        case (
+              E(a: Int),
+              E(b: Int),
+              E(c: Int),
+              E(d: Int),
+              E(e: Int),
+              E(f: Int),
+              E(g: Int),
+              E(h: Int),
+              E(i: Int),
+              E(j: Int)
+            )
+            if a == 10 && b == 9 && c == 8 && d == 7 && e == 6 && f == 5 && g == 4 && h == 3 && i == 2 && j == 1 =>
+          println("Match!")
+    }
+
+  val matcher = rcv(algorithm)
+
+  // q.add(E(10))
+  // q.add(E(9))
+  // q.add(E(8))
+  // q.add(E(7))
+  // q.add(E(6))
+  // q.add(E(5))
+  // q.add(E(4))
+  // q.add(E(3))
+  // q.add(E(2))
+  // q.add(E(1))
+
+  q.add(E(1))
+  q.add(E(2))
+  q.add(E(3))
+  q.add(E(4))
+  q.add(E(5))
+  q.add(E(6))
+  q.add(E(7))
+  q.add(E(8))
+  q.add(E(9))
+  q.add(E(10))
+
+  val initalQ = q.toArray.toList.zipWithIndex
+
+  println(s"Q =  ${initalQ}")
+  println(f"receive = ${matcher(q)}")
   println("\n======================================================\n\n")
