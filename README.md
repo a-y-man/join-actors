@@ -14,12 +14,12 @@ The initial development of this project was started by [Antoine Sébert](https:/
 ## Built With
 The Scala 3 programming language
 ```scala
-scalaVersion := "3.2.0"
+scalaVersion := "3.3.0"
 ```
 
 The [sbt](https://www.scala-sbt.org/) build tool
 ```scala
-sbt.version := "1.7.1"
+sbt.version := "1.9.1"
 ```
 
 
