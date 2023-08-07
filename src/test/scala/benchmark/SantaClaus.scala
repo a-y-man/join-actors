@@ -45,9 +45,9 @@ def santaClausBenchmark =
       () => {
         val (elves, reindeers, santa) =
           setup(reindeerNumber, reindeerActions, elvesNumber, elvesActions, santaActions)
-        elves.foreach(_.run_without_macro)
-        reindeers.foreach(_.run_without_macro)
-        santa.run_without_macro
+        elves.foreach(_.run_as_future)
+        reindeers.foreach(_.run_as_future)
+        santa.run_as_future
       }
     ),
     List(

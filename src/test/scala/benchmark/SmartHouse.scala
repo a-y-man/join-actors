@@ -123,8 +123,6 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
       System.nanoTime - start
     }
 
-  def run_without_macro: Future[Long] = ???
-
   def run(): Unit =
     while actions > 0 do
       matcher(q)

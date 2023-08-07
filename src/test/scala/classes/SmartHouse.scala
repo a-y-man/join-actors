@@ -1,16 +1,18 @@
 package test.classes.smartHouse
 
-import scala.concurrent.{Future, ExecutionContext}
-import java.util.Date
-import scala.collection.mutable.{Map => MutMap, ListBuffer}
-import java.time.Duration
-
-import join_patterns.receive
-import test.classes.Msg
-import test.benchmark.Benchmarkable
 import actor.Actor
 import actor.DynamicActor
+import join_patterns.receive
 import test.ALGORITHM
+import test.benchmark.Benchmarkable
+import test.classes.Msg
+
+import java.time.Duration
+import java.util.Date
+import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{Map => MutMap}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Msg
 case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Msg
@@ -187,144 +189,6 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
 
       while actions > 0 do
         matcher(q)
-        Thread.`yield`()
-
-      System.nanoTime - start
-    }
-
-  def run_without_macro: Future[Long] =
-    import collection.convert.ImplicitConversions._
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start                     = System.nanoTime
-      val messages: ListBuffer[Msg] = ListBuffer()
-
-      while actions > 0 do
-        val light        = messages.find(_.isInstanceOf[Light])
-        val motions      = messages.filter(_.isInstanceOf[Motion])
-        val ambientLight = messages.find(_.isInstanceOf[AmbientLight])
-
-        if light.isDefined && !motions.isEmpty && ambientLight.isDefined && bathroomOccupied(
-            List(
-              motions(0).asInstanceOf[Motion].timestamp,
-              ambientLight.get.asInstanceOf[AmbientLight].timestamp,
-              light.get.asInstanceOf[Light].timestamp
-            ),
-            List(
-              motions(0).asInstanceOf[Motion].room,
-              light.get.asInstanceOf[Light].room,
-              ambientLight.get.asInstanceOf[AmbientLight].room
-            ),
-            motions(0).asInstanceOf[Motion].status,
-            light.get.asInstanceOf[Light].status,
-            ambientLight.get.asInstanceOf[AmbientLight].value
-          )
-        then
-          lastNotification = Date()
-          lastMotionInBathroom = lastNotification
-          // println("turn_on_light(l, i, t)")
-          actions -= 1
-        else if light.isDefined && !motions.isEmpty && turnOff(
-            List(
-              motions(0).asInstanceOf[Motion].timestamp,
-              light.get.asInstanceOf[Light].timestamp
-            ),
-            List(motions(0).asInstanceOf[Motion].room, light.get.asInstanceOf[Light].room),
-            motions(0).asInstanceOf[Motion].status,
-            light.get.asInstanceOf[Light].status,
-            Duration.ofMinutes(2)
-          )
-        then
-          lastNotification = Date()
-          lastMotionInBathroom = lastNotification
-          // println("turn_off_light()")
-          actions -= 1
-        else
-          val contact = messages.find(_.isInstanceOf[Contact])
-
-          if contact.isDefined && sendAlert(
-              contact.get.asInstanceOf[Contact].open,
-              contact.get.asInstanceOf[Contact].timestamp,
-              Duration.ofHours(1)
-            )
-          then
-            lastNotification = Date()
-            // println("send_alert()")
-            actions -= 1
-          else if messages.find(_.isInstanceOf[DoorBell]).isDefined && doorBell(
-              Duration.ofSeconds(30)
-            )
-          then
-            lastNotification = Date()
-            // println("notify()")
-            actions -= 1
-          else if motions.size >= 2 && contact.isDefined then
-            if occupiedHome(
-                List(
-                  motions(0).asInstanceOf[Motion].timestamp,
-                  contact.get.asInstanceOf[Contact].timestamp,
-                  motions(1).asInstanceOf[Motion].timestamp
-                ),
-                List(
-                  motions(0).asInstanceOf[Motion].status,
-                  motions(1).asInstanceOf[Motion].status,
-                  contact.get.asInstanceOf[Contact].open
-                ),
-                motions(0).asInstanceOf[Motion].room,
-                motions(1).asInstanceOf[Motion].room,
-                contact.get.asInstanceOf[Contact].room
-              )
-            then lastNotification = Date()
-            // println("activate_home_scene(l, i, t)")
-            actions -= 1
-          else if motions.size >= 2 && emptyHome(
-              List(
-                motions(0).asInstanceOf[Motion].timestamp,
-                contact.get.asInstanceOf[Contact].timestamp,
-                motions(1).asInstanceOf[Motion].timestamp
-              ),
-              List(
-                motions(0).asInstanceOf[Motion].status,
-                motions(1).asInstanceOf[Motion].status,
-                contact.get.asInstanceOf[Contact].open
-              ),
-              motions(0).asInstanceOf[Motion].room,
-              motions(1).asInstanceOf[Motion].room,
-              contact.get.asInstanceOf[Contact].room
-            )
-          then
-            lastNotification = Date()
-            // println("activate_empty_scene(l, i, t)")
-            actions -= 1
-          else
-            val consumption = messages.find(_.isInstanceOf[Consumption])
-
-            if consumption.isDefined then
-              val _consumption = consumption.get.asInstanceOf[Consumption]
-
-              electricityConsumption.addOne((_consumption.timestamp, _consumption.value))
-              lastNotification = Date()
-
-              if electicityAlert(Duration.ofDays(21), 200) then
-                // println("send notification")
-                actions -= 1
-            else
-              val heatingF = messages.find(_.isInstanceOf[HeatingF])
-
-              if heatingF.isDefined then
-                val _heatingF = consumption.get.asInstanceOf[HeatingF]
-
-                failures.addOne((_heatingF.timestamp, _heatingF._type))
-                lastNotification = Date()
-
-                if heatingFailure(Duration.ofHours(1)) then
-                  // println("notify()")
-                  actions -= 1
-              else
-                messages.append(q.take())
-                q.drainTo(messages)
-
         Thread.`yield`()
 
       System.nanoTime - start

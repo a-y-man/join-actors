@@ -13,7 +13,6 @@ import ExecutionContext.Implicits.global
 
 trait Benchmarkable[M, T] extends Actor[M, T] {
   def run_as_future: Future[Long]
-  def run_without_macro: Future[Long]
 }
 
 class BenchmarkPass(

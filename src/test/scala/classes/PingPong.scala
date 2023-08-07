@@ -40,22 +40,6 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
       System.nanoTime - start
     }
 
-  def run_without_macro: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-      ping()
-      while !isDone do
-        q.take.asInstanceOf[Pong]
-        hits += 1
-        pongRef.get.send(Ping())
-        if hits >= maxHits then isDone = true
-        Thread.`yield`()
-
-      System.nanoTime - start
-    }
-
   override def run =
     ping()
     while !isDone do
@@ -89,23 +73,6 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
 
       while !isDone do
         matcher(q)
-        Thread.`yield`()
-
-      System.nanoTime - start
-    }
-
-  def run_without_macro: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-
-      while !isDone do
-        q.take.asInstanceOf[Ping]
-        hits += 1
-        pingRef.get.send(Pong())
-        if hits >= maxHits then isDone = true
-
         Thread.`yield`()
 
       System.nanoTime - start
