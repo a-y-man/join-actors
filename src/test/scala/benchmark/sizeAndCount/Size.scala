@@ -1,11 +1,21 @@
 package test.benchmark.sizeCount
 
+import test.ALGORITHM
+import test.benchmark.Benchmark
+import test.benchmark.BenchmarkPass
+import test.classes.Msg
+import test.classes.sizeCount.A
+import test.classes.sizeCount.B
+import test.classes.sizeCount.C
+import test.classes.sizeCount.D
+import test.classes.sizeCount.E
+import test.classes.sizeCount.F
+import test.classes.sizeCount.G
+import test.classes.sizeCount.H
+import test.classes.sizeCount.I
+import test.classes.sizeCount.J
 import test.classes.sizeCount.Size1Count1
 import test.classes.sizeCount.sizes._
-import test.classes.Msg
-import test.benchmark.{Benchmark, BenchmarkPass}
-import test.classes.sizeCount.{A, B, C, D, E, F, G, H, I, J}
-import test.ALGORITHM
 @main
 def sizeBenchmark =
   val maxHits = 2000

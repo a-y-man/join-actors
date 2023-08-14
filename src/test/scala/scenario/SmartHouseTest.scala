@@ -2,8 +2,9 @@ package test.scenario.smartHouse
 
 import org.scalatest.funsuite.AnyFunSuite
 import test.classes.smartHouse._
-import java.util.Date
+
 import java.time.Duration
+import java.util.Date
 
 class SmartHouseTest extends AnyFunSuite {
   test(
@@ -68,9 +69,9 @@ class SmartHouseTest extends AnyFunSuite {
     houseThread.start
 
     house.ref.send(Motion(0, true, "front_door"))
-    // Thread.sleep(100)
+    Thread.sleep(1000)
     house.ref.send(Contact(0, true, "front_door"))
-    // Thread.sleep(100)
+    Thread.sleep(1000)
     house.ref.send(Motion(0, true, "entrance_hall"))
 
     houseThread.join

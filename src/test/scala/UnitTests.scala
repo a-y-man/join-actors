@@ -1,11 +1,11 @@
 package test
 
-import org.scalatest.funsuite.AnyFunSuite
-import scala.util.Random
-import java.util.concurrent.LinkedTransferQueue
-
-import join_patterns.receive
 import join_patterns.MatchingAlgorithm
+import join_patterns.receive
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.util.concurrent.LinkedTransferQueue
+import scala.util.Random
 
 abstract class UnitTests extends AnyFunSuite {
   sealed abstract class Msg
@@ -216,8 +216,8 @@ class MultipleClasses extends UnitTests {
     val rcv = receive { (y: Msg) =>
       y match
         case (F(i0: Int, s: String), D(), B(i1: Int)) => s.repeat(i0 + i1)
-      // case D()                                      => result
-      // case B(i: Int)                                => rep.toString
+        case D()                                      => result
+        case B(i: Int)                                => rep.toString
     }
     val matcher = rcv(ALGORITHM)
     val q       = LinkedTransferQueue[Msg]
@@ -226,7 +226,7 @@ class MultipleClasses extends UnitTests {
     q.add(D())
     q.add(B(rep))
 
-    assert(matcher(q) == result.repeat(rep * 2))
+    assert(matcher(q) == result)
   }
 
   test("Multiple Messages, One Int and One String Members, Predicate") {
@@ -248,6 +248,65 @@ class MultipleClasses extends UnitTests {
     q.add(B(rep))
 
     assert(matcher(q) == result)
+  }
+
+  test("Multiple Messages with irrelevant message types for the join-patterns") {
+    val result = Random.nextInt
+    val rcv = receive { (y: Msg) =>
+      y match
+        case (D(), A(), E()) => result
+        case (A(), E())      => result + 1
+        case (D(), E())      => result + 2
+    }
+    val matcher = rcv(ALGORITHM)
+    val q       = LinkedTransferQueue[Msg]
+
+    q.add(B(1))
+    q.add(B(1))
+    q.add(A())
+    q.add(B(1))
+    q.add(B(1))
+    q.add(B(1))
+    q.add(C(""))
+    q.add(B(1))
+    q.add(D())
+    q.add(B(1))
+    q.add(E())
+    q.add(B(1))
+
+    assert(matcher(q) == result + 1)
+  }
+
+  test("Multiple Messages with irrelevant message types for the join-patterns, with guards") {
+    val result = Random.nextInt
+    val rcv = receive { (y: Msg) =>
+      y match
+        case (F(i0: Int, s: String), B(i1: Int)) if i0 == i1 => result
+        case (F(i0: Int, s1: String), G(i1: Int, s2: String, i2: Int, b: Boolean))
+            if i0 == i1 && s1 == s2 && b =>
+          result + 1
+    }
+    val matcher = rcv(ALGORITHM)
+    val q       = LinkedTransferQueue[Msg]
+
+    q.add(B(-1))
+    q.add(B(0))
+    q.add(A())
+    q.add(B(2))
+    q.add(B(3))
+    q.add(B(4))
+    q.add(C(""))
+    q.add(B(5))
+    q.add(F(1, "F"))
+    q.add(D())
+    q.add(G(1, "G", 1, false))
+    q.add(E())
+    q.add(B(10))
+    q.add(F(42, "G"))
+    q.add(G(42, "G", 1, true))
+    q.add(B(1))
+
+    assert(matcher(q) == result + 1)
   }
 }
 

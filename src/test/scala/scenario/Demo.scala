@@ -1,15 +1,15 @@
 package test.scenario.demo
 
-import java.util.Date
-import java.time.Duration
-import org.scalatest.funsuite.AnyFunSuite
-
-import join_patterns.receive
-import test.classes.Msg
-import test.benchmark.Benchmarkable
 import actor.Actor
 import join_patterns.MatchingAlgorithm
+import join_patterns.receive
+import org.scalatest.funsuite.AnyFunSuite
 import test.ALGORITHM
+import test.benchmark.Benchmarkable
+import test.classes.Msg
+
+import java.time.Duration
+import java.util.Date
 
 case class Motion(status: Boolean, room: String) extends Msg
 case class Light(status: Boolean, room: String)  extends Msg
@@ -45,7 +45,7 @@ class DemoSmartHouse() extends Actor[Msg, Unit] {
             Light(lStatus: Boolean, lRoom: String)
           ) if turnOff(List(mRoom, lRoom), mStatus, lStatus, Duration.ofMinutes(2)) =>
         lastMotionInBathroom = Date()
-        // println("turn_off_light()")
+      // println("turn_off_light()")
       // E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene.
       case (
             Motion(mStatus0: Boolean, mRoom0: String),
@@ -59,7 +59,7 @@ class DemoSmartHouse() extends Actor[Msg, Unit] {
             cRoom
           ) =>
         lastNotification = Date()
-        // println("activate_home_scene(l, i, t)")
+    // println("activate_home_scene(l, i, t)")
 
   }(ALGORITHM)
 
@@ -68,32 +68,32 @@ class DemoSmartHouse() extends Actor[Msg, Unit] {
     Thread.`yield`()
 }
 
-class SmartHouseTest extends AnyFunSuite {
-  // val algorithm: AlgorithmType = AlgorithmType.BasicAlgorithm
-  test("E2. Turn off the lights in a room after two minutes without detecting any movement.") {
-    val house       = DemoSmartHouse()
-    val houseThread = Thread(house)
+// class SmartHouseTest extends AnyFunSuite {
+//   // val algorithm: AlgorithmType = AlgorithmType.BasicAlgorithm
+//   test("E2. Turn off the lights in a room after two minutes without detecting any movement.") {
+//     val house       = DemoSmartHouse()
+//     val houseThread = Thread(house)
 
-    houseThread.start
+//     houseThread.start
 
-    house.ref.send(Motion(false, "bathroom"))
-    house.ref.send(Light(true, "bathroom"))
+//     house.ref.send(Motion(false, "bathroom"))
+//     house.ref.send(Light(true, "bathroom"))
 
-    houseThread.join
-  }
+//     houseThread.join
+//   }
 
-  test(
-    "E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene."
-  ) {
-    val house       = DemoSmartHouse()
-    val houseThread = Thread(house)
+//   test(
+//     "E5. Detect home arrival based on a particular sequence of messages, and activate the corresponding scene."
+//   ) {
+//     val house       = DemoSmartHouse()
+//     val houseThread = Thread(house)
 
-    houseThread.start
+//     houseThread.start
 
-    house.ref.send(Motion(true, "front_door"))
-    house.ref.send(Contact(true, "front_door"))
-    house.ref.send(Motion(true, "entrance_hall"))
+//     house.ref.send(Motion(true, "front_door"))
+//     house.ref.send(Contact(true, "front_door"))
+//     house.ref.send(Motion(true, "entrance_hall"))
 
-    houseThread.join
-  }
-}
+//     houseThread.join
+//   }
+// }

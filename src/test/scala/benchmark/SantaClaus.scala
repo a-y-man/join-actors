@@ -1,10 +1,14 @@
 package test.benchmark.santaClaus
 
-import test.classes.santaClaus.{Elf, Reindeer, SantaClaus}
-import test.classes.Msg
-import test.benchmark.{Benchmark, BenchmarkPass}
-import scala.concurrent.Await
 import test.ALGORITHM
+import test.benchmark.Benchmark
+import test.benchmark.BenchmarkPass
+import test.classes.Msg
+import test.classes.santaClaus.Elf
+import test.classes.santaClaus.Reindeer
+import test.classes.santaClaus.SantaClaus
+
+import scala.concurrent.Await
 
 def setup(
     reindeerNumber: Int,
@@ -39,7 +43,7 @@ def santaClausBenchmark =
   Benchmark(
     "Santa Claus",
     10,
-    20,
+    100,
     BenchmarkPass(
       "Control",
       () => {

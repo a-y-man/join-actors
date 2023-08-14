@@ -1,5 +1,6 @@
 package join_patterns
 import java.util.concurrent.LinkedTransferQueue
+import scala.util.Random
 
 sealed abstract class Msg
 case class A()                                      extends Msg
@@ -51,6 +52,7 @@ def test01(algorithm: MatchingAlgorithm): Unit =
       case (E(y: Int), F(z: Int), D(x: Int)) => println(s"Case 03: x = ${x}, y = ${y}, z = ${z}")
       case (F(z: Int), D(x: Int), E(y: Int)) => println(s"Case 04: x = ${x}, y = ${y}, z = ${z}")
       case (F(z: Int), E(y: Int), D(x: Int)) => println(s"Case 05: x = ${x}, y = ${y}, z = ${z}")
+    // case _                                 => println("No match")
   }
 
   val matcher = rcv(algorithm)
@@ -64,6 +66,7 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
   println(f"Matcher returned: ${matcher(q)}")
+  println(s"Q =  ${q.toArray.toList.zipWithIndex}")
   println("\n======================================================\n\n")
 
 def test02(algorithm: MatchingAlgorithm): Unit =
@@ -203,3 +206,49 @@ def test05(algorithm: MatchingAlgorithm): Unit =
   println(s"Q =  ${initalQ}")
   println(f"receive = ${matcher(q)}")
   println("\n======================================================\n\n")
+
+def test06(algorithm: MatchingAlgorithm): Unit =
+  val result = Random.nextInt
+  val rcv = receive { (y: Msg) =>
+    y match
+      case (F(i0: Int), E(i1: Int)) if i0 == i1 =>
+        result
+      case (F(i0: Int), G(i1: Int, s1: String, i2: Int, b: Boolean)) if i0 == i1 && s1 == s1 && b =>
+        result + 1
+  }
+  val matcher = rcv(algorithm)
+  val q       = LinkedTransferQueue[Msg]
+
+  q.add(B())
+  q.add(A())
+  q.add(F(4))
+  q.add(G(1, "G", 1, false))
+  q.add(B())
+  q.add(E(1))
+  q.add(E(2))
+  q.add(E(3))
+  q.add(E(4))
+  q.add(E(5))
+  q.add(E(42))
+  q.add(G(42, "G", 1, true))
+  q.add(F(42))
+
+  assert(matcher(q) == result)
+
+def test07(algorithm: MatchingAlgorithm): Unit =
+  val result = Random.nextInt
+  val rcv = receive { (y: Msg) =>
+    y match
+      case F(a: Int) => result * a
+      case (F(i0: Int), E(i1: Int), F(i2: Int)) if i0 == i1 && i1 == i2 =>
+        result
+  }
+
+  val matcher = rcv(algorithm)
+  val q       = LinkedTransferQueue[Msg]
+
+  q.add(F(4))
+  q.add(E(4))
+  q.add(F(4))
+
+  assert(matcher(q) == result * 4)

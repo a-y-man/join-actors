@@ -328,12 +328,21 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           val ((checkMsgType, _), _) = msgPat
           checkMsgType(mQ)
         }.toSet
-
+        // println(
+        //   s"matches: ${matches.size} -- mQ: $mQ -- mQidx: $mQidx "
+        // )
         val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping[M]()) { (acc, mapping) =>
           val (node, currentFits) = mapping
           val newFitsIdxs         = matches.map(_._2).diff(currentFits.map(_._2))
+          // println(
+          //   s"newFitsIdxs: $newFitsIdxs -- currentFits: ${currentFits.size} -- mQ: $mQ -- mQidx: $mQidx"
+          // )
 
-          if newFitsIdxs.isEmpty then acc + mapping
+          if newFitsIdxs.isEmpty then
+            // println(s"node ${node.mkString(",")} -- mQidx: ${mQidx}")
+            if node.size < msgTypesInPattern.size then
+              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches) // + mapping
+            else acc + (List(mQidx)       -> matches) // + mapping
           else
             val currentFitsIdxs = currentFits.map(_._2)
             val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
@@ -341,8 +350,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
               val ((checkMsgType, extractField), _) = msgTypesInPattern(idx)
               ((checkMsgType, extractField), idx)
             }
-            if node.nonEmpty && currentFits.isEmpty then acc + ((node.appended(mQidx)) -> Set.empty)
-            else acc + ((node.appended(mQidx)) -> newMapping) + mapping
+            acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> matches) // + mapping
         }
         Some(MatchingTree(newNodeMapping))
       else Some(mTree)
