@@ -209,7 +209,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
   outer.asType match
     case '[ot] =>
       val extract: Expr[
-        List[M] => Option[(List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)])]
+        List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
       ] =
         '{ (m: List[M]) =>
           val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
@@ -218,7 +218,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
           val messages     = ListBuffer.from(m.zipWithIndex)
           val (mQ, mQidx)  = messages.last // Take the newest msg from the queue
 
-          if checkMsgType(mQ) then Some(List(mQidx) -> Set(((checkMsgType, extractField), 0)))
+          if checkMsgType(mQ) then
+            Some(Iterator(List(mQidx)) -> Set(((checkMsgType, extractField), 0)))
           else None
         }
       val predicate: Expr[Map[String, Any] => Boolean] =
@@ -229,8 +230,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
       val partialExtract = '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) =>
         val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-        val extractField = _extractors.head._2
         val checkMsgType = _extractors.head._1
+        val extractField = _extractors.head._2
         val (mQ, mQidx)  = m // Take the newest msg from the queue
         if checkMsgType(mQ) then
           Some(
@@ -241,7 +242,16 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         else Some(mTree)
       }
 
-      '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
+      '{
+        JoinPattern(
+          ${ Expr(List[String]().empty) },
+          $extract,
+          $predicate,
+          $rhs,
+          ${ Expr(size) },
+          $partialExtract
+        )
+      }
 
 /** Generates a join-pattern for composite patterns e.g. (A(*), B(*), C(*), ...) the asterix
   * represents a potential payload.
@@ -265,13 +275,14 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
   import quotes.reflect.*
 
   val typesData = getTypesData(dataType)
-  val extractors: List[(Expr[M => Boolean], Expr[M => Map[String, Any]])] =
+  val extractors: List[(Expr[String], Expr[M => Boolean], Expr[M => Map[String, Any]])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
       outer.asType match
         case '[ot] =>
           (
+            Expr(outer.simplified.show),
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
               ${ extractor.asExprOf[ot => Map[String, Any]] }(m.asInstanceOf[ot])
@@ -279,30 +290,64 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           )
     }.toList
 
-  val extract
-      : Expr[List[M] => Option[(List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)])]] =
-    '{ (m: List[M]) =>
-      val messages                 = ListBuffer.from(m.zipWithIndex)
-      val matched: ListBuffer[Int] = ListBuffer()
-      val patternInfo: ListBuffer[((M => Boolean, M => Map[String, Any]), Int)] = ListBuffer()
-      val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-
-      val msgPatterns = _extractors.zipWithIndex
-      for
-        ((checkMsgType, extractField), patIdx) <- msgPatterns
-        if matched.size < _extractors.size
-      do
-        messages.find((_m, _) => checkMsgType(_m)) match
-          case Some((matchedMessage, idx)) =>
-            matched.addOne(idx)
-            patternInfo.addOne(((checkMsgType, extractField), patIdx))
-            messages.subtractOne((matchedMessage, idx))
-          case None => ()
-
-      if matched.size == _extractors.size then Some((matched.toList, patternInfo.toSet))
-      else None
-    }
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
+
+  val msgTypes = outers.map { outer =>
+    outer.simplified.show
+  }
+
+  // println("Pattern")
+  // msgTypes.foreach(mtp => println(s"Msg types: ${mtp}"))
+
+  val extract: Expr[
+    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
+  ] =
+    '{ (m: List[M]) =>
+      val messages = m.zipWithIndex
+      // val matched: ListBuffer[Int] = ListBuffer()
+      val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+      val msgPatterns = _extractors.zipWithIndex
+      val patternSize = msgPatterns.size
+      // ((String, M => Boolean, M => Map[String, Any]), Int) --> String
+      val msgPatternsTypeNames = msgPatterns.map(msgPat => msgPat._1._1.split("[$.]").last)
+
+      val typeNamesInMsgs =
+        messages.map(msg => (msg._1.getClass().getName().split("[$.]").last, msg._2))
+
+      val patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)] =
+        msgPatterns.map(msgPattern => ((msgPattern._1._2, msgPattern._1._3), msgPattern._2)).toSet
+
+      def countOccurences(typeNames: List[String]) =
+        typeNames
+          .map(typeName =>
+            (typeName, typeNames.count(otherTypeName => typeName equals otherTypeName))
+          )
+          .toMap
+
+      val msgPatternOccurences = countOccurences(msgPatternsTypeNames)
+      // println(s"Msg Pattern occ ${msgPatternOccurences}")
+
+      def generateValidMsgCombs(messagesInQ: List[(String, Int)]): Iterator[List[Int]] =
+        if messagesInQ.isEmpty then Iterator.empty[List[Int]]
+        else
+          val validCombs = messagesInQ
+            .combinations(patternSize)
+            .filter(comb =>
+              val combOc = countOccurences(comb.map(_._1))
+              // println(
+              //   s"Q ${combOc} -- P ${msgPatternOccurences} -- ${combOc == msgPatternOccurences}"
+              // )
+              combOc == msgPatternOccurences
+            )
+            .map(_.map(_._2))
+          validCombs
+
+      val candidateMatches = generateValidMsgCombs(typeNamesInMsgs)
+
+      if candidateMatches.isEmpty then None
+      else Some((candidateMatches, patternInfo))
+    }
+
   val predicate: Expr[Map[String, Any] => Boolean] =
     generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
   val rhs: Expr[Map[String, Any] => T] =
@@ -314,7 +359,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
   ] =
     '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) =>
       val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgTypesInPattern = _extractors.zipWithIndex
+      val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
 
       val (mQ, mQidx) = m // Take the newest msg from the queue
 
@@ -356,7 +401,16 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       else Some(mTree)
     }
 
-  '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
+  '{
+    JoinPattern(
+      ${ Expr(msgTypes) },
+      $extract,
+      $predicate,
+      $rhs,
+      ${ Expr(size) },
+      $partialExtract
+    )
+  }
 
 /** Generates a join-pattern for a pattern written as a wildcard e.g. (_)
   *
@@ -379,9 +433,10 @@ private def generateWildcardPattern[M, T](using
 )(guard: Option[quotes.reflect.Term], _rhs: quotes.reflect.Term): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val extract
-      : Expr[List[M] => Option[(List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)])]] = '{
-    (m: List[M]) => None
+  val extract: Expr[
+    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
+  ] = '{ (m: List[M]) =>
+    None
   }
   val predicate: Expr[Map[String, Any] => Boolean] =
     generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
@@ -390,7 +445,16 @@ private def generateWildcardPattern[M, T](using
 
   val partialExtract = '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) => None }
 
-  '{ JoinPattern($extract, $predicate, $rhs, ${ Expr(size) }, $partialExtract) }
+  '{
+    JoinPattern(
+      ${ Expr(List[String]().empty) },
+      $extract,
+      $predicate,
+      $rhs,
+      ${ Expr(size) },
+      $partialExtract
+    )
+  }
 
 /** Creates a join-pattern from a `CaseDef`.
   *

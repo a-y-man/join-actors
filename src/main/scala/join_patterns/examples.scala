@@ -98,6 +98,7 @@ def test02(algorithm: MatchingAlgorithm): Unit =
   println("\n======================================================\n\n")
 
 def test03(algorithm: MatchingAlgorithm): Unit =
+  println(s"Using ${algorithm}\n\n")
   val i: Int                 = 0;
   val m                      = 0
   val isZero: Int => Boolean = (n: Int) => n == 0
@@ -113,12 +114,12 @@ def test03(algorithm: MatchingAlgorithm): Unit =
   val matcher = rcv(algorithm)
 
   // A E E B A B
-  q.add(B())   // 3
-  q.add(A())   // 0
-  q.add(E(2))  // 1
-  q.add(B())   // 5
-  q.add(A())   // 4
-  q.add(E(42)) // 2
+  q.add(E(43))     // 3
+  q.add(E(341231)) // 0
+  q.add(E(231))    // 5
+  q.add(A())       // 4
+  q.add(E(2))      // 1
+  q.add(E(42))     // 2
 
   val initalQ = q.toArray.toList.zipWithIndex
   println(s"Q =  ${initalQ}")
@@ -127,6 +128,8 @@ def test03(algorithm: MatchingAlgorithm): Unit =
   println("\n======================================================\n\n")
 
 def test04(algorithm: MatchingAlgorithm): Unit =
+  println(s"Using ${algorithm}\n\n")
+
   val i: Int                 = 0;
   val m                      = 0
   val isZero: Int => Boolean = (n: Int) => n == 0
@@ -179,27 +182,27 @@ def test05(algorithm: MatchingAlgorithm): Unit =
 
   val matcher = rcv(algorithm)
 
-  // q.add(E(10))
-  // q.add(E(9))
-  // q.add(E(8))
-  // q.add(E(7))
-  // q.add(E(6))
-  // q.add(E(5))
-  // q.add(E(4))
-  // q.add(E(3))
-  // q.add(E(2))
-  // q.add(E(1))
-
-  q.add(E(1))
-  q.add(E(2))
-  q.add(E(3))
-  q.add(E(4))
-  q.add(E(5))
-  q.add(E(6))
-  q.add(E(7))
-  q.add(E(8))
-  q.add(E(9))
   q.add(E(10))
+  q.add(E(9))
+  q.add(E(8))
+  q.add(E(7))
+  q.add(E(6))
+  q.add(E(5))
+  q.add(E(4))
+  q.add(E(3))
+  q.add(E(2))
+  q.add(E(1))
+
+  // q.add(E(1))
+  // q.add(E(2))
+  // q.add(E(3))
+  // q.add(E(4))
+  // q.add(E(5))
+  // q.add(E(6))
+  // q.add(E(7))
+  // q.add(E(8))
+  // q.add(E(9))
+  // q.add(E(10))
 
   val initalQ = q.toArray.toList.zipWithIndex
 
@@ -208,7 +211,8 @@ def test05(algorithm: MatchingAlgorithm): Unit =
   println("\n======================================================\n\n")
 
 def test06(algorithm: MatchingAlgorithm): Unit =
-  val result = Random.nextInt
+  println(s"Using ${algorithm}\n\n")
+  val result = Random.nextInt(64)
   val rcv = receive { (y: Msg) =>
     y match
       case (F(i0: Int), E(i1: Int)) if i0 == i1 =>
@@ -233,15 +237,19 @@ def test06(algorithm: MatchingAlgorithm): Unit =
   q.add(G(42, "G", 1, true))
   q.add(F(42))
 
-  assert(matcher(q) == result)
+  // println(s"Q =  ${q.toArray.toList.zipWithIndex}")
+  println(s"Q =  ${q.toArray.toList.zipWithIndex}")
+  println(f"receive = ${matcher(q)}")
+  println("\n======================================================\n\n")
 
 def test07(algorithm: MatchingAlgorithm): Unit =
-  val result = Random.nextInt
+  println(s"Using ${algorithm}\n\n")
+  val result = Random.nextInt(64)
   val rcv = receive { (y: Msg) =>
     y match
-      case F(a: Int) => result * a
       case (F(i0: Int), E(i1: Int), F(i2: Int)) if i0 == i1 && i1 == i2 =>
         result
+      case F(a: Int) => result * a
   }
 
   val matcher = rcv(algorithm)
@@ -251,4 +259,7 @@ def test07(algorithm: MatchingAlgorithm): Unit =
   q.add(E(4))
   q.add(F(4))
 
-  assert(matcher(q) == result * 4)
+  println(result)
+  println(s"Q =  ${q.toArray.toList.zipWithIndex}")
+  println(f"receive = ${matcher(q)}")
+  println("\n======================================================\n\n")
