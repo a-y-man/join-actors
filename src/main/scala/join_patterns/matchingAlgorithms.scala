@@ -49,7 +49,6 @@ trait Matcher[M, T]:
     def isValidPermutation(permutation: List[Int]): Boolean =
       permutation.zipWithIndex.forall { (msgIdx, permIdx) =>
         val patIdxs = msgIdxToFits(msgIdx).map(_._2)
-
         // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
 
         // P  [0, 1, 2]
@@ -58,19 +57,24 @@ trait Matcher[M, T]:
         isInPattern(permIdx, patIdxs)
       }
 
+    def allPermutations = msgIdxs.permutations
     val validPermutations =
-      msgIdxs.permutations.collect {
+      allPermutations.collect {
         case permutation if isValidPermutation(permutation) =>
           permutation.map { msgIdx =>
             val possibleFits = msgIdxToFits(msgIdx)
-            val msgToPat     = possibleFits.find(pat => pat._2 == permutation.indexOf(msgIdx)).get
-            (msgIdx, msgToPat._1._2)
+            val ((_, extractField), _) =
+              possibleFits.find(pat => pat._2 == permutation.indexOf(msgIdx)).get
+            (msgIdx, extractField)
           }
       }
     validPermutations
   }
 
-  def computeSubsts(messages: ListBuffer[M], possibleFit: List[(Int, M => Map[String, Any])]) =
+  def computeSubsts(
+      messages: ListBuffer[M],
+      possibleFit: List[(Int, M => Map[String, Any])]
+  ) =
     possibleFit.foldLeft(Map[String, Any]()) { (substsAcc, msgData) =>
       val (msgIdx, extractField) = msgData
       val subs                   = extractField(messages(msgIdx))
@@ -95,10 +99,8 @@ trait Matcher[M, T]:
     else None
 
   // remove all messages from the queue that have been processed
-  def removeProcessedMsgs(messages: ListBuffer[M], processedMsgs: List[Int]) =
-    messages.zipWithIndex
-      .filterNot((_, idx) => processedMsgs.contains(idx))
-      .map(_._1)
+  def removeProcessedMsgs(messages: ListBuffer[(M, Int)], processedMsgs: List[Int]) =
+    messages.filterNot((_, idx) => processedMsgs.contains(idx))
 
 object SelectMatcher:
   def apply[M, T](algorithm: MatchingAlgorithm, patterns: List[JoinPattern[M, T]]): Matcher[M, T] =
@@ -120,24 +122,21 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
       if messages.isEmpty then messages.append(q.take())
       // println(s"Queue: ${messages.mkString(", ")}")
 
+      val indexedMessages = messages.zipWithIndex
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithIdxs.foldLeft(CandidateMatches[M, T]()) {
           (candidateMatchesAcc, patternWithIdx) =>
             val (pattern, patternIdx) = patternWithIdx
             if messages.size >= pattern.size then
-              // println(s"candidateMatchesAcc: $candidateMatchesAcc")
               val possibleMatches = pattern.extract(messages.toList)
               possibleMatches match
                 case Some((candidateIdxsQ, patternInfo)) =>
-                  // val cop = candidateIdxsQ.toList
-                  // println(s"candidateIdxsQ: $cop")
                   val bestMatch = candidateIdxsQ
                     .map { candidateI =>
-                      val msgIdxsToFits = mapIdxsToFits(candidateI, patternInfo, messages)
+                      val msgIdxsToFits =
+                        mapIdxsToFits(candidateI, patternInfo, messages)
 
                       val validPermutations = computeValidPermutations(candidateI, msgIdxsToFits)
-
-                      // println(s"candidateI: $candidateI")
                       findBestMatch(validPermutations, messages, pattern)
                     }
                     .collectFirst({ case Some(_bestMatch) => _bestMatch })
@@ -155,16 +154,16 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
                 case None => candidateMatchesAcc
             else candidateMatchesAcc
         }
-      // printCandidateMatches(candidateMatches)
       if candidateMatches.nonEmpty then
         // printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
 
         result = Some(rhsFn(substs))
 
-        val unprocessedMsgs = removeProcessedMsgs(messages, candidateQidxs)
+        val unprocessedMsgs = removeProcessedMsgs(indexedMessages, candidateQidxs)
         messages.clear()
-        messages.addAll(unprocessedMsgs)
+        messages.addAll(unprocessedMsgs.map(_._1))
+        // println(s"remaining messages ${messages.mkString("[", ", ", "]")}")
 
       if result.isEmpty then
         messages.append(q.take())
@@ -176,7 +175,7 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
 
 class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private val messages         = ListBuffer[M]()
+  private val messages         = ListBuffer[(M, Int)]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
@@ -198,8 +197,8 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
       // println(s"mQ: $mQ")
       if messages.isEmpty then
         mQ = Some(q.take())
-        messages.append(mQ.get)
         mQidx += 1
+        messages.append((mQ.get, mQidx))
 
       val (updatedMTs, candidateMatches) =
         patternsWithMatchingTrees.foldLeft(
@@ -228,15 +227,17 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
               // println(s"enoughMsgsToMatch: $enoughMsgsToMatch")
               enoughMsgsToMatch match
                 case Some((msgIdxsQ, patternInfo)) =>
-                  val msgIdxsToFits = mapIdxsToFits(msgIdxsQ, patternInfo, messages)
+                  val msgIdxsToFits = mapIdxsToFits(msgIdxsQ, patternInfo, messages.map(_._1))
 
                   val validPermutations = computeValidPermutations(msgIdxsQ, msgIdxsToFits)
 
                   val bestMatch =
-                    findBestMatch(validPermutations, messages, pattern)
+                    findBestMatch(validPermutations, messages.map(_._1), pattern)
 
                   bestMatch match {
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
+                      // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
+
                       val selectedMatch =
                         (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
                       // println(s"bestMatchIdxs: $bestMatchIdxs")
@@ -258,7 +259,6 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
                         ),
                         candidateMatchesAcc
                       )
-                    // (_updatedMTs, candidateMatchesAcc)
                   }
                 case None => (_updatedMTs, candidateMatchesAcc)
 
@@ -274,14 +274,14 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
 
       if candidateMatches.nonEmpty then
         // printCandidateMatches(candidateMatches)
-        // println(s"!!MATCH!! candidateMatches: $candidateMatches")
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
         result = Some(rhsFn(substs))
 
         val unprocessedMsgs = removeProcessedMsgs(messages, candidateQidxs)
         messages.clear()
         messages.addAll(unprocessedMsgs)
-        mQidx = -1
+        // mQidx = -1
+        // println(s"remaining messages ${messages.mkString("[", ", ", "]")}")
 
         // Prune tree
         patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>
@@ -297,7 +297,7 @@ class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M
         // println(s"mQidx': $mQidx")
         // println(s"mQ': $mQ")
         mQ = Some(q.take())
-        messages.append(mQ.get)
         mQidx += 1
+        messages.append((mQ.get, mQidx))
     result.get
 }

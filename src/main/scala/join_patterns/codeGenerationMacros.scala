@@ -331,15 +331,19 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
         if messagesInQ.isEmpty then Iterator.empty[List[Int]]
         else
           val validCombs = messagesInQ
-            .combinations(patternSize)
+            .combinations(
+              patternSize
+            ) // Create all combinations of pattern size from the current messages in the mailbox
             .filter(comb =>
-              val combOc = countOccurences(comb.map(_._1))
+              val combOc = countOccurences(
+                comb.map(_._1)
+              ) // Filter the combinations that have the same pattern type composition as the composite pattern definition
               // println(
               //   s"Q ${combOc} -- P ${msgPatternOccurences} -- ${combOc == msgPatternOccurences}"
               // )
               combOc == msgPatternOccurences
             )
-            .map(_.map(_._2))
+            .map(_.map(_._2)) // Keep only the indicies. _._1 is the string name of a msg type
           validCombs
 
       val candidateMatches = generateValidMsgCombs(typeNamesInMsgs)
@@ -386,8 +390,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           if newFitsIdxs.isEmpty then
             // println(s"node ${node.mkString(",")} -- mQidx: ${mQidx}")
             if node.size < msgTypesInPattern.size then
-              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches) // + mapping
-            else acc + (List(mQidx)       -> matches) // + mapping
+              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches)
+            else acc + (List(mQidx)       -> matches)
           else
             val currentFitsIdxs = currentFits.map(_._2)
             val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
@@ -395,7 +399,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
               val ((checkMsgType, extractField), _) = msgTypesInPattern(idx)
               ((checkMsgType, extractField), idx)
             }
-            acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> matches) // + mapping
+            acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> matches)
         }
         Some(MatchingTree(newNodeMapping))
       else Some(mTree)
