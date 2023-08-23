@@ -498,20 +498,25 @@ private def getCases[M, T](
     expr: Expr[M => T]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
-
+  // report.info(
+  //   f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
+  // )
   expr.asTerm match
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
           cases.flatMap { generateJoinPattern[M, T](_) }
-
-        // report.info(
-        //   f"Generated code: ${Expr.ofList(code).asTerm.show(using Printer.TreeAnsiCode)}"
-        // )
         // code
         case default =>
           errorTree("Unsupported code", default)
           List()
+    // case Inlined(_, _, Block(stmts, _)) =>
+    //   stmts.head match
+    //     case DefDef(_, _, _, Some(Match(_, cases))) =>
+    //       report.info(
+    //         f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
+    //       )
+    //       cases.flatMap { generateJoinPattern[M, T](_) }
     case default =>
       errorTree("Unsupported expression", default)
       List()
@@ -539,3 +544,6 @@ private def receiveCodegen[M, T](
   */
 inline def receive[M, T](inline f: M => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
+
+// Inlined(None, Nil, Block(Nil, Block(List(DefDef("$anonfun", List(TermParamClause(List(ValDef("y", TypeIdent("Msg"), None)))), Inferred(), Some(Block(Nil, Match(Ident("y"), List(CaseDef(TypedOrTest(Unapply(TypeApply(Select(Ident("Tuple3"), "unapply"), List(Inferred(), Inferred(), Inferred())), Nil, List(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i0", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("E"), "unapply"), Nil, List(Bind("i1", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i2", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()))), Inferred()), Some(Apply(Select(Apply(Select(Ident("i0"), "=="), List(Ident("i1"))), "&&"), List(Apply(Select(Ident("i1"), "=="), List(Ident("i2")))))), Block(Nil, Ident("result"))), CaseDef(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("a", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), None, Block(Nil, Apply(Select(Ident("result"), "*"), List(Ident("a"))))))))))), Closure(Ident("$anonfun"), None))))
+// Inlined(None, Nil, Block(List(DefDef("$anonfun", List(TermParamClause(List(ValDef("x$1", Inferred(), None)))), Inferred(), Some(Match(Typed(Ident("x$1"), Inferred()), List(CaseDef(TypedOrTest(Unapply(TypeApply(Select(Ident("Tuple3"), "unapply"), List(Inferred(), Inferred(), Inferred())), Nil, List(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i0", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("E"), "unapply"), Nil, List(Bind("i1", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i2", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()))), Inferred()), Some(Apply(Select(Apply(Select(Ident("i0"), "=="), List(Ident("i1"))), "&&"), List(Apply(Select(Ident("i1"), "=="), List(Ident("i2")))))), Block(Nil, Ident("result"))), CaseDef(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("a", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), None, Block(Nil, Apply(Select(Ident("result"), "*"), List(Ident("a")))))))))), Closure(Ident("$anonfun"), Some(AppliedType(TypeRef(TermRef(ThisType(TypeRef(NoPrefix(), "<root>")), "scala"), "PartialFunction"), List(TypeRef(TermRef(ThisType(TypeRef(NoPrefix(), "<root>")), "scala"), "Any"), TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Int")))))))
