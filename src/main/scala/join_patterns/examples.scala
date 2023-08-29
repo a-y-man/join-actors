@@ -243,15 +243,15 @@ def test07(algorithm: MatchingAlgorithm): Unit =
 def test08(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
 
-  val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg) =>
-    y match
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Stop(a * b * c)
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 4 && b == 5 && c == 6    => Stop(a * b * c)
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 7 && b == 8 && c == 9    => Stop(a * b * c)
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 16 && b == 32 && c == 64 => Stop(a * b * c)
+  val matcher: Matcher[Msg, Result[Int]] = receive { (msg: Msg) =>
+    msg match
+      case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Next()
+      case (E(a: Int), E(b: Int), E(c: Int)) if a == 6 && b == 5 && c == 4    => Next()
+      case (E(a: Int), E(b: Int), E(c: Int)) if a == 9 && b == 8 && c == 7    => Next()
+      case (E(a: Int), E(b: Int), E(c: Int)) if a == 12 && b == 11 && c == 10 => Stop(a * b * c)
   }(algorithm)
 
-  val q = List[Msg](E(0), E(0), E(0), E(0), E(0), E(0), E(64), E(32), E(16))
+  val q = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10), E(11), E(12))
 
   val actor                    = Actor_[Msg, Int] { matcher }
   val (futureResult, actorRef) = actor.start()
@@ -259,5 +259,6 @@ def test08(algorithm: MatchingAlgorithm): Unit =
   q.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
+
   futureResult.onComplete(printResult)
   println("\n======================================================\n\n")

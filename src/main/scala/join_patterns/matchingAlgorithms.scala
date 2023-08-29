@@ -1,28 +1,28 @@
 package join_patterns
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.LinkedTransferQueue as Queue
+import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
 
 import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
-trait Matcher[M, T]:
 
-  type CandidateMatches[M, T] =
-    TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]
-  object CandidateMatches:
-    def apply[M, T](): CandidateMatches[M, T] =
-      TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]()(
-        Ordering[(List[Int], Int)]
-      )
+type CandidateMatches[M, T] =
+  TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]
 
-  def apply(q: Queue[M]): T
-
+object CandidateMatches:
+  def apply[M, T](): CandidateMatches[M, T] =
+    TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]()(
+      Ordering[(List[Int], Int)]
+    )
   def printCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]) =
     candidateMatches.foreach { case ((msgIdxs, patIdx), (substs, _)) =>
       println(s"I: ${msgIdxs}, Pattern Index: ${patIdx}, Substs: ${substs}")
     }
+
+trait Matcher[M, T]:
+  def apply(q: Mailbox[M]): T
 
   def mapIdxsToFits(
       msgIdxsQ: List[Int],
@@ -108,12 +108,12 @@ object SelectMatcher:
       case MatchingAlgorithm.BasicAlgorithm     => BasicMatcher(patterns)
       case MatchingAlgorithm.TreeBasedAlgorithm => TreeMatcher(patterns)
 
-class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
+class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
-  def apply(q: Queue[M]): T =
+  def apply(q: Mailbox[M]): T =
     import scala.jdk.CollectionConverters._
 
     var result: Option[T] = None
@@ -173,19 +173,19 @@ class BasicMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[
 
 }
 
-class TreeMatcher[M, T](val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
+class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[(M, Int)]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
-  var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
-  var patternsWithMatchingTrees = patternsWithIdxs
+  private var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
+  private var patternsWithMatchingTrees = patternsWithIdxs
     .map { patternsWithIdxs =>
       (patternsWithIdxs, initMatchingTree)
     }
 
-  def apply(q: Queue[M]): T =
+  def apply(q: Mailbox[M]): T =
     import scala.jdk.CollectionConverters._
 
     var result: Option[T] = None
