@@ -39,7 +39,6 @@ def printMapping[M](mapping: NodeMapping[M]): Unit =
 /** An ADT defintion of a join pattern
   */
 case class JoinPattern[M, T](
-    msgTypes: List[String],
     extract: List[M] => Option[
       (Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])
     ],
