@@ -120,7 +120,6 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
 
     while result.isEmpty do
       if messages.isEmpty then messages.append(q.take())
-      // println(s"Queue: ${messages.mkString(", ")}")
 
       val indexedMessages = messages.zipWithIndex
       val candidateMatches: CandidateMatches[M, T] =
@@ -163,11 +162,8 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
         val unprocessedMsgs = removeProcessedMsgs(indexedMessages, candidateQidxs)
         messages.clear()
         messages.addAll(unprocessedMsgs.map(_._1))
-        // println(s"remaining messages ${messages.mkString("[", ", ", "]")}")
 
-      if result.isEmpty then
-        messages.append(q.take())
-        // println(s"Queue: ${messages.mkString(", ")}")
+      if result.isEmpty then messages.append(q.take())
 
     result.get
 
@@ -175,31 +171,25 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
 
 class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private val messages         = ListBuffer[(M, Int)]()
+  val messages                 = ListBuffer[(M, Int)]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
-  private var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
-  private var patternsWithMatchingTrees = patternsWithIdxs
+  @volatile var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
+  @volatile var patternsWithMatchingTrees = patternsWithIdxs
     .map { patternsWithIdxs =>
       (patternsWithIdxs, initMatchingTree)
     }
 
+  @volatile var mQidx = -1
   def apply(q: Mailbox[M]): T =
     import scala.jdk.CollectionConverters._
 
     var result: Option[T] = None
-    var mQ: Option[M]     = None
-    var mQidx             = -1
-
+    var mQ                = q.take()
+    mQidx += 1
+    messages.append((mQ, mQidx))
     while result.isEmpty do
-      // println(s"mQidx: $mQidx")
-      // println(s"mQ: $mQ")
-      if messages.isEmpty then
-        mQ = Some(q.take())
-        mQidx += 1
-        messages.append((mQ.get, mQidx))
-
       val (updatedMTs, candidateMatches) =
         patternsWithMatchingTrees.foldLeft(
           (Map[Int, ((JoinPattern[M, T], Int), MatchingTree[M])](), CandidateMatches[M, T]())
@@ -207,11 +197,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
           val (updatedPatternsWithMatchingTrees, candidateMatchesAcc) =
             matchesWithAcc
           val ((pattern, patternIdx), mTree) = patternWithMatchingTree
-          val updatedMatchingTree            = pattern.partialExtract((mQ.get, mQidx), mTree)
-          // println("===========================================================")
-          // println(s"patternIdx: $patternIdx --- mQidx: $mQidx -- mQ: $mQ")
-          // printMapping(updatedMatchingTree.get.nodeMapping)
-          // println("-----------------------------------------------------------")
+          val updatedMatchingTree            = pattern.partialExtract((mQ, mQidx), mTree)
 
           updatedMatchingTree match
             case Some(mTree) =>
@@ -224,7 +210,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
                 mTree.nodeMapping.view.find((node, fits) =>
                   node.size == pattern.size && fits.nonEmpty && fits.size == pattern.size
                 )
-              // println(s"enoughMsgsToMatch: $enoughMsgsToMatch")
+
               enoughMsgsToMatch match
                 case Some((msgIdxsQ, patternInfo)) =>
                   val msgIdxsToFits = mapIdxsToFits(msgIdxsQ, patternInfo, messages.map(_._1))
@@ -236,12 +222,8 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
 
                   bestMatch match {
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
-                      // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
-
                       val selectedMatch =
                         (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
-                      // println(s"bestMatchIdxs: $bestMatchIdxs")
-
                       (
                         _updatedMTs,
                         candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
@@ -249,9 +231,6 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
 
                     case None =>
                       val removedNoneValidCandidate = mTree.removeNode(msgIdxsQ)
-                      // println(s"removedNoneValidCandidate: $msgIdxsQ")
-                      // printMapping(removedNoneValidCandidate.nodeMapping)
-                      // Prune tree
                       (
                         updatedPatternsWithMatchingTrees.updated(
                           patternIdx,
@@ -267,37 +246,18 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
 
       patternsWithMatchingTrees = updatedMTs.values.toList
 
-      // patternsWithMatchingTrees.foreach { case ((pattern, patternIdx), mTree) =>
-      //   println(s"patternIdx: $patternIdx")
-      //   printMapping(mTree.nodeMapping)
-      // }
-
       if candidateMatches.nonEmpty then
-        // printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
         result = Some(rhsFn(substs))
-
-        val unprocessedMsgs = removeProcessedMsgs(messages, candidateQidxs)
-        messages.clear()
-        messages.addAll(unprocessedMsgs)
-        // mQidx = -1
-        // println(s"remaining messages ${messages.mkString("[", ", ", "]")}")
 
         // Prune tree
         patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>
           (joinPat, mTree.pruneTree(candidateQidxs))
         }
 
-        // patternsWithMatchingTrees.foreach { case ((pattern, patternIdx), mTree) =>
-        //   println(s"patternIdx: $patternIdx")
-        //   printMapping(mTree.nodeMapping)
-        // }
-
       if result.isEmpty then
-        // println(s"mQidx': $mQidx")
-        // println(s"mQ': $mQ")
-        mQ = Some(q.take())
+        mQ = q.take()
         mQidx += 1
-        messages.append((mQ.get, mQidx))
+        messages.append((mQ, mQidx))
     result.get
 }
