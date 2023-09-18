@@ -2,6 +2,7 @@ package test.benchmark
 
 import actor.Actor
 import join_patterns.Matcher
+import test.ALGORITHM
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -29,7 +30,7 @@ class BenchmarkPass(
     Await
       .result(
         Future.sequence((1 to iterations).map(_ => mainFn())),
-        Duration(5, TimeUnit.MINUTES)
+        Duration(20, TimeUnit.MINUTES)
       )
 
   def run(warmupIterations: Int, iterations: Int): Seq[Long] =
@@ -111,7 +112,7 @@ class Benchmark(
     val folder    = "data"
     val sep       = ';'
     val timestamp = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Date())
-    val file      = PrintWriter(File(f"$folder/${name}_$timestamp.csv"))
+    val file = PrintWriter(File(f"$folder/${name}_boxplot_${ALGORITHM}_withNoise_$timestamp.csv"))
 
     file.write(
       results.map((name, times) => name + sep + times.mkString(sep.toString)).mkString("\n")
@@ -131,6 +132,7 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
+    // toFile(boxplot(results))
     // toFile(results)
 
     results.map(_._2.sum).sum
