@@ -29,187 +29,152 @@ object GenerateTestMsgs {
     Gen.containerOfN[List, Msg](n, pickMsg).sample.get
 }
 
+val N                = 10
+val warmupIterations = 5
+val iterations       = 10
+
 @main
 def sizeWithNoiseBenchmark =
-  val maxHits = 2000
+  val maxHits = 1000
 
   Benchmark(
-    "Size",
-    10,
-    10,
+    "Pattern Size",
+    warmupIterations,
+    iterations,
     BenchmarkPass(
-      s"Size1 using ${ALGORITHM.toString()}",
+      s"Pattern of size 1 using ${ALGORITHM.toString()} with $N random messages",
       () => {
         val actor  = Size1Noise(maxHits)
         val result = actor.run_as_future
 
         for _ <- 0 to maxHits do
-          Random.nextInt(2) match
-            case 0 => actor.ref.send(A())
-            case 1 =>
-              val msgs = GenerateTestMsgs.genMsgsOfSizeN(1).appended(A())
-              msgs.foreach(actor.ref.send(_))
+          val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appended(A())
+          msgs.foreach(actor.ref.send(_))
         result
       }
     ),
     List(
       BenchmarkPass(
-        s"Size2 using ${ALGORITHM.toString()}",
+        s"Pattern of size 2 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size2Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs = GenerateTestMsgs.genMsgsOfSizeN(2).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
+
           result
         }
       ),
       BenchmarkPass(
-        s"Size3 using ${ALGORITHM.toString()}",
+        s"Pattern of size 3 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size3Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-
-              case 1 =>
-                val msgs = GenerateTestMsgs.genMsgsOfSizeN(3).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
           result
         }
       ),
       BenchmarkPass(
-        s"Size4 using ${ALGORITHM.toString()}",
+        s"Pattern of size 4 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size4Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs = GenerateTestMsgs.genMsgsOfSizeN(4).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
 
           result
         }
       ),
       BenchmarkPass(
-        s"Size5 using ${ALGORITHM.toString()}",
+        s"Pattern of size 5 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size5Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D(), E())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs =
-                  GenerateTestMsgs.genMsgsOfSizeN(5).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs =
+              GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
 
           result
         }
       ),
       BenchmarkPass(
-        s"Size6 using ${ALGORITHM.toString()}",
+        s"Pattern of size 6 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size6Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D(), E(), F())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs =
-                  GenerateTestMsgs.genMsgsOfSizeN(6).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs =
+              GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
 
           result
         }
       ),
       BenchmarkPass(
-        s"Size7 using ${ALGORITHM.toString()}",
+        s"Pattern of size 7 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size7Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D(), E(), F(), G())
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs = GenerateTestMsgs
-                  .genMsgsOfSizeN(7)
-                  .appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs
+              .genMsgsOfSizeN(N)
+              .appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
 
           result
         }
       ),
       BenchmarkPass(
-        s"Size8 using ${ALGORITHM.toString()}",
+        s"Pattern of size 8 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size8Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D(), E(), F(), G(), H())
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs = GenerateTestMsgs.genMsgsOfSizeN(8).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
           result
         }
       ),
       BenchmarkPass(
-        s"Size9 using ${ALGORITHM.toString()}",
+        s"Pattern of size 9 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size9Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D(), E(), F(), G(), H(), I())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs = GenerateTestMsgs.genMsgsOfSizeN(9).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
           result
         }
       ),
       BenchmarkPass(
-        s"Size10 using ${ALGORITHM.toString()}",
+        s"Pattern of size 10 using ${ALGORITHM.toString()} with $N random messages",
         () => {
           val actor       = Size10Noise(maxHits)
           val result      = actor.run_as_future
           val correctMsgs = List(A(), B(), C(), D(), E(), F(), G(), H(), I(), J())
 
           for _ <- 0 to maxHits do
-            Random.nextInt(2) match
-              case 0 =>
-                correctMsgs.foreach(actor.ref.send(_))
-              case 1 =>
-                val msgs = GenerateTestMsgs.genMsgsOfSizeN(10).appendedAll(correctMsgs)
-                msgs.foreach(actor.ref.send(_))
+            val msgs = GenerateTestMsgs.genMsgsOfSizeN(N).appendedAll(correctMsgs)
+            msgs.foreach(actor.ref.send(_))
 
           result
         }
