@@ -3,6 +3,8 @@ import actor._
 import join_patterns._
 import org.scalacheck._
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.*
 
 import concurrent.ExecutionContext.Implicits.global
@@ -72,7 +74,9 @@ def demo(algorithm: MatchingAlgorithm): Unit =
   q.foreach(actorRef ! _)
 
   println(s"Q = ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test01(algorithm: MatchingAlgorithm): Unit =
@@ -101,7 +105,9 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   q.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test02(algorithm: MatchingAlgorithm): Unit =
@@ -121,7 +127,9 @@ def test02(algorithm: MatchingAlgorithm): Unit =
   q.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test03(algorithm: MatchingAlgorithm): Unit =
@@ -148,7 +156,9 @@ def test03(algorithm: MatchingAlgorithm): Unit =
   q.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test04(algorithm: MatchingAlgorithm): Unit =
@@ -175,7 +185,9 @@ def test04(algorithm: MatchingAlgorithm): Unit =
   // q_.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test05(algorithm: MatchingAlgorithm): Unit =
@@ -206,22 +218,24 @@ def test05(algorithm: MatchingAlgorithm): Unit =
   val actor                    = Actor_[Msg, String] { matcher }
   val (futureResult, actorRef) = actor.start()
 
-  q.foreach(actorRef ! _)
-  // revQ.foreach(actorRef ! _)
+  // q.foreach(actorRef ! _)
+  revQ.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+
+  val result = Await.result(futureResult, Duration(5, "minutes"))
+  println(result)
   println("\n======================================================\n\n")
 
 def test06(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
-  val result = 42
+  val expected = 42
   val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg) =>
     y match
       case (F(i0: Int), E(i1: Int)) if i0 == i1 =>
-        Stop(result)
+        Stop(expected)
       case (F(i0: Int), G(i1: Int, s1: String, i2: Int, b: Boolean)) if i0 == i1 && s1 == s1 && b =>
-        Stop(result + 1)
+        Stop(expected + 1)
   }(algorithm)
   val q = List[Msg](
     B(),
@@ -245,17 +259,20 @@ def test06(algorithm: MatchingAlgorithm): Unit =
 
   q.foreach(actorRef ! _)
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test07(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
-  val result = 42
+  val expected = 42
   val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg) =>
     y match
       case (F(i0: Int), E(i1: Int), F(i2: Int)) if i0 == i1 && i1 == i2 =>
-        Stop(result)
-      case F(a: Int) => Stop(result * a)
+        Stop(expected)
+      case F(a: Int) => Stop(expected * a)
   }(algorithm)
 
   val q = List[Msg](F(4), E(4), F(4))
@@ -266,19 +283,13 @@ def test07(algorithm: MatchingAlgorithm): Unit =
   q.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def test08(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
-
-  // val matcher: Matcher[Msg, Result[Int]] = receive { (msg: Msg) =>
-  //   msg match
-  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Next()
-  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 6 && b == 5 && c == 4    => Next()
-  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 9 && b == 8 && c == 7    => Next()
-  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 12 && b == 11 && c == 10 => Stop(a * b * c)
-  // }(algorithm)
 
   val q = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10), E(11), E(12))
 
@@ -297,7 +308,9 @@ def test08(algorithm: MatchingAlgorithm): Unit =
 
   println(s"Q =  ${q.zipWithIndex}")
 
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
 
 def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
@@ -330,5 +343,7 @@ def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
 
   // println(s"Q =  ${q.zipWithIndex}")
 
-  futureResult.onComplete(printResult)
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
   println("\n======================================================\n\n")
