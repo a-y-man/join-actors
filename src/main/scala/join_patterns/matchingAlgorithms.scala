@@ -175,13 +175,13 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
-  @volatile var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
-  @volatile var patternsWithMatchingTrees = patternsWithIdxs
+  var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
+  var patternsWithMatchingTrees = patternsWithIdxs
     .map { patternsWithIdxs =>
       (patternsWithIdxs, initMatchingTree)
     }
 
-  @volatile var mQidx = -1
+  var mQidx = -1
   def apply(q: Mailbox[M]): T =
     import scala.jdk.CollectionConverters._
 
