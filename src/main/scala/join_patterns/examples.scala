@@ -1,6 +1,7 @@
 package join_patterns
 import actor._
 import join_patterns._
+import org.scalacheck._
 
 import scala.util.*
 
@@ -17,6 +18,34 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 def printResult[A](result: Try[A]): Unit = result match {
   case Failure(exception) => println("Failed with: " + exception.getMessage)
   case Success(number)    => println("Succeed with: " + number)
+}
+
+object GenerateRandomMsgs {
+  // Set seed for the random generator
+  // Random.setSeed(1234567890)
+
+  private val genA: Gen[A] = Gen.const(A())
+  private val genB: Gen[B] = Gen.const(B())
+  private val genC: Gen[C] = Gen.const(C())
+  private val genD: Gen[D] = Gen.choose(0, 100).map(D(_))
+  private val genE: Gen[E] = Gen.choose(0, 100).map(E(_))
+  private val genF: Gen[F] = Gen.choose(0, 100).map(F(_))
+  private val genG: Gen[G] =
+    for
+      b <- Gen.choose(0, 100)
+      a <- Gen.alphaStr
+      c <- Gen.choose(0, 100)
+      d <- Gen.oneOf(true, false)
+    yield G(b, a, c, d)
+
+  private val genMsg: Gen[Msg] = Gen.oneOf(genA, genB, genC, genD, genE, genF, genG)
+
+  def genRandomMsgs(n: Int): List[Msg] =
+    Gen.containerOfN[List, Msg](n, genMsg).sample.get
+
+  def genWeightedRandomMsgs(n: Int, weights: List[Tuple2[Int, Gen[Msg]]]): List[Msg] =
+    val genMsg = Gen.frequency(weights: _*)
+    Gen.containerOfN[List, Msg](n, genMsg).sample.get
 }
 
 def demo(algorithm: MatchingAlgorithm): Unit =
@@ -243,22 +272,63 @@ def test07(algorithm: MatchingAlgorithm): Unit =
 def test08(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
 
-  val matcher: Matcher[Msg, Result[Int]] = receive { (msg: Msg) =>
-    msg match
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Next()
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 6 && b == 5 && c == 4    => Next()
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 9 && b == 8 && c == 7    => Next()
-      case (E(a: Int), E(b: Int), E(c: Int)) if a == 12 && b == 11 && c == 10 => Stop(a * b * c)
-  }(algorithm)
+  // val matcher: Matcher[Msg, Result[Int]] = receive { (msg: Msg) =>
+  //   msg match
+  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Next()
+  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 6 && b == 5 && c == 4    => Next()
+  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 9 && b == 8 && c == 7    => Next()
+  //     case (E(a: Int), E(b: Int), E(c: Int)) if a == 12 && b == 11 && c == 10 => Stop(a * b * c)
+  // }(algorithm)
 
   val q = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10), E(11), E(12))
 
-  val actor                    = Actor_[Msg, Int] { matcher }
+  val actor = Actor_[Msg, Int] {
+    receive { (msg: Msg) =>
+      msg match
+        case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Next()
+        case (E(a: Int), E(b: Int), E(c: Int)) if a == 6 && b == 5 && c == 4    => Next()
+        case (E(a: Int), E(b: Int), E(c: Int)) if a == 9 && b == 8 && c == 7    => Next()
+        case (E(a: Int), E(b: Int), E(c: Int)) if a == 12 && b == 11 && c == 10 => Stop(a * b * c)
+    }(algorithm)
+  }
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
 
   println(s"Q =  ${q.zipWithIndex}")
+
+  futureResult.onComplete(printResult)
+  println("\n======================================================\n\n")
+
+def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
+  println(s"Using ${algorithm}\n\n")
+
+  val matcher: Matcher[Msg, Result[Unit]] = receive { (msg: Msg) =>
+    msg match
+      case (A(), B(), C()) => Stop(println(s"I've received 3 messages: A, B and C :)"))
+      case (D(n: Int), E(m: Int), F(o: Int)) if n < m && m < o =>
+        Stop(println(s"I've received 3 messages: D, E and F :)"))
+      case (E(x: Int), F(a: Int), G(b: Int, c: String, d: Int, e: Boolean))
+          if x >= a && a <= b && d <= c.length =>
+        Stop(println(s"I've received 3 messages: E, F and G :)"))
+  }(algorithm)
+
+  val msgsForCase1 = List[Msg](A(), B(), C())
+  val msgsForCase2 = List[Msg](D(1), E(2), F(3))
+  val msgsForCase3 = List[Msg](E(3), F(2), G(3, "G", 1, true))
+
+  val q = GenerateRandomMsgs.genRandomMsgs(10000)
+
+  val actor                    = Actor_[Msg, Unit] { matcher }
+  val (futureResult, actorRef) = actor.start()
+
+  q.foreach(actorRef ! _)
+  Random.nextInt(3) match
+    case 0 => msgsForCase1.foreach(actorRef ! _)
+    case 1 => msgsForCase2.foreach(actorRef ! _)
+    case 2 => msgsForCase3.foreach(actorRef ! _)
+
+  // println(s"Q =  ${q.zipWithIndex}")
 
   futureResult.onComplete(printResult)
   println("\n======================================================\n\n")
