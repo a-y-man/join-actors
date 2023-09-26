@@ -23,5 +23,7 @@ def main(): Unit =
   // test08(MatchingAlgorithm.TreeBasedAlgorithm)
   // randomMsgTesting(MatchingAlgorithm.TreeBasedAlgorithm)
   // randomMsgTesting(MatchingAlgorithm.BasicAlgorithm)
-  smartHouseExample(MatchingAlgorithm.TreeBasedAlgorithm, 1000)
+  // smartHouseExample(MatchingAlgorithm.TreeBasedAlgorithm, 1000)
   // smartHouseExample(MatchingAlgorithm.BasicAlgorithm, 1000)
+  nwptExample(MatchingAlgorithm.TreeBasedAlgorithm)
+  nwptExample(MatchingAlgorithm.BasicAlgorithm)

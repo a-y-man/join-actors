@@ -347,3 +347,63 @@ def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
   result.onComplete(printResult)
 
   println("\n======================================================\n\n")
+
+def nwptExample(algorithm: MatchingAlgorithm): Unit =
+  sealed trait Action
+  case class Bid(bidName: String, bidPrice: Int, bidVal: Int, bidder: String)         extends Action
+  case class Offer(offerName: String, offerPrice: Int, offerVal: Int, seller: String) extends Action
+  case class Close(bidName: String)                                                   extends Action
+
+  def isAccepted(bid: Bid, offer: Offer): Boolean =
+    (bid.bidName equals offer.offerName) &&
+      (bid.bidPrice >= offer.offerPrice) &&
+      bid.bidder != offer.seller
+
+  def isClosed(bid: Bid, close: Close): Boolean = bid.bidName equals close.bidName
+
+  val actor = Actor_[Action, Unit] {
+    receive { (a: Action) =>
+      a match
+        case (
+              Bid(bidName: String, bidPrice: Int, bidVal: Int, bidder: String),
+              Offer(offerName: String, offerPrice: Int, offerVal: Int, seller: String)
+            ) =>
+          Stop(println(s"Accepted bid: ${bidName}"))
+
+        case (
+              Bid(bidName: String, bidPrice: Int, bidVal: Int, bidder: String),
+              Close(closeName: String)
+            ) =>
+          Stop(println(s"Closed bid: ${bidName}"))
+
+    }(algorithm)
+  }
+
+  val (futureResult, actorRef) = actor.start()
+
+  val bids = List[Action](
+    Bid("bid1", 50, 100, "bidder1"),
+    Bid("bid2", 60, 200, "bidder2")
+  )
+
+  val offers = List[Action](
+    Offer("bid1", 10, 100, "seller1"),
+    Offer("bid2", 20, 200, "seller2")
+  )
+
+  val closes = List[Action](
+    Close("bid1"),
+    Close("bid2")
+  )
+
+  val msgs = bids ++ offers ++ closes
+
+  msgs.foreach(actorRef ! _)
+
+  println(s"Q =  ${msgs.zipWithIndex}")
+
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+
+  result.onComplete(printResult)
+
+  println("\n======================================================\n\n")

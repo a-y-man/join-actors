@@ -76,9 +76,9 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
 
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
-  val isSorted: Seq[Date] => Boolean = times =>
+  def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
-  val bathroomOccupied =
+  def bathroomOccupied =
     (
         times: Seq[Date],
         rooms: Seq[String],
@@ -87,7 +87,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
         value: Int
     ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
-  val occupiedHome = (
+  def occupiedHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
       mRoom0: String,
@@ -98,7 +98,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
       _ == true
     ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
-  val emptyHome = (
+  def emptyHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
       mRoom0: String,

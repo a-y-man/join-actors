@@ -23,14 +23,14 @@ class BenchmarkPass(
   def warmup(warmupIterations: Int): Unit =
     Await.ready(
       Future.sequence((1 to warmupIterations).map(_ => mainFn())),
-      Duration(5, TimeUnit.MINUTES)
+      Duration(20, TimeUnit.MINUTES)
     )
 
   def benchmark(iterations: Int): Seq[Long] =
     Await
       .result(
         Future.sequence((1 to iterations).map(_ => mainFn())),
-        Duration(20, TimeUnit.MINUTES)
+        Duration(90, TimeUnit.MINUTES)
       )
 
   def run(warmupIterations: Int, iterations: Int): Seq[Long] =
@@ -112,7 +112,7 @@ class Benchmark(
     val folder    = "data"
     val sep       = ';'
     val timestamp = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Date())
-    val file = PrintWriter(File(f"$folder/${name}_boxplot_${ALGORITHM}_withNoise_$timestamp.csv"))
+    val file      = PrintWriter(File(f"$folder/${timestamp}_${name}_${ALGORITHM}.csv"))
 
     file.write(
       results.map((name, times) => name + sep + times.mkString(sep.toString)).mkString("\n")
@@ -133,7 +133,7 @@ class Benchmark(
 
     displayResults(results)
     // toFile(boxplot(results))
-    // toFile(results)
+    toFile(results)
 
     results.map(_._2.sum).sum
 }

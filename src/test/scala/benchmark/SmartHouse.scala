@@ -26,9 +26,9 @@ import scala.util.Random
 class SmartHouse(@volatile private var actions: Int) extends Benchmarkable[Msg, Unit] {
   private var lastNotification     = Date(0L)
   private var lastMotionInBathroom = Date(0L)
-  private val isSorted: Seq[Date] => Boolean = times =>
+  private def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
-  val bathroomOccupied =
+  private def bathroomOccupied =
     (
         times: Seq[Date],
         rooms: Seq[String],
@@ -37,7 +37,7 @@ class SmartHouse(@volatile private var actions: Int) extends Benchmarkable[Msg, 
         value: Int
     ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
-  val occupiedHome = (
+  private def occupiedHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
       mRoom0: String,
@@ -48,7 +48,7 @@ class SmartHouse(@volatile private var actions: Int) extends Benchmarkable[Msg, 
       _ == true
     ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
-  val emptyHome = (
+  private def emptyHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
       mRoom0: String,
@@ -174,8 +174,6 @@ object GenerateTestMsgs {
     Gen.containerOfN[List, Msg](n, pickMsg).sample
 }
 
-val N = 10
-
 def sendE1(actorRef: ActorRef[Msg]) =
   actorRef ! Motion(0, true, "bathroom")
   actorRef ! AmbientLight(0, 30, "bathroom")
@@ -246,9 +244,9 @@ def smartHouseBenchmark =
   ).run
 
 def smartHouseBenchmarkWithNoise =
-  val smartHouseActions = 10
+  val smartHouseActions = 15
 
-  val numberOfRndMsgs = Range(1, 16)
+  val numberOfRndMsgs = Range(0, 22, 2)
 
   val benchmarkPasses = numberOfRndMsgs.map { n =>
     BenchmarkPass(
@@ -269,7 +267,7 @@ def smartHouseBenchmarkWithNoise =
 
   Benchmark(
     "Smart House benchmark with noise (random messages)",
-    10,
+    5,
     20,
     BenchmarkPass(
       "Control",
