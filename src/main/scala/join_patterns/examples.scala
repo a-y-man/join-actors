@@ -147,7 +147,7 @@ def test03(algorithm: MatchingAlgorithm): Unit =
       case (B(), A(), B(), E(n: Int)) if n == 2 => Stop(600 * n)
   }(algorithm)
 
-  val q = List[Msg](E(4), F(2), E(1))
+  val q = List[Msg](E(2), F(2), E(42))
 
   val actor = Actor_[Msg, Int] { matcher }
 
@@ -349,54 +349,36 @@ def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
   println("\n======================================================\n\n")
 
 def nwptExample(algorithm: MatchingAlgorithm): Unit =
-  sealed trait Action
-  case class Bid(bidName: String, bidPrice: Int, bidVal: Int, bidder: String)         extends Action
-  case class Offer(offerName: String, offerPrice: Int, offerVal: Int, seller: String) extends Action
-  case class Close(bidName: String)                                                   extends Action
 
-  def isAccepted(bid: Bid, offer: Offer): Boolean =
-    (bid.bidName equals offer.offerName) &&
-      (bid.bidPrice >= offer.offerPrice) &&
-      bid.bidder != offer.seller
+  sealed trait Message // The types of the messages used in the system defined as an ADT
+  case class Buy(bN: String, bID: String, bA: Int)  extends Message
+  case class Sell(sN: String, sID: String, sA: Int) extends Message
 
-  def isClosed(bid: Bid, close: Close): Boolean = bid.bidName equals close.bidName
+  // def isAccepted(bN: String, bID: String, bA: Int, sN: String, sID: String, sA: Int): Boolean =
+  //     (sA >= bA) && (sN == bN) && (sID != bID)
 
-  val actor = Actor_[Action, Unit] {
-    receive { (a: Action) =>
-      a match
+  // def isAcceptedSum(sN1: String, sID1: String, sA1: Int, sN2: String, sID2: String, sA2: Int, bN: String, bID: String, bA: Int): Boolean =
+  //   (sA1 + sA2) >= bA && (sN1 == sN2) && (sID1 != sID2)
+  //     (sA1 + sA2) >= bA && (sN1 == sN2) && (sID1 != sID2) &&
+
+  val tradingSystemActor = Actor_[Message, Unit] {
+    receive { (msg: Message) =>
+      msg match
+        case (Buy(bN: String, bID: String, bA: Int), Sell(sN: String, sID: String, sA: Int))
+            if (sA >= bA) =>
+          Stop(println("Buy and Sell"))
         case (
-              Bid(bidName: String, bidPrice: Int, bidVal: Int, bidder: String),
-              Offer(offerName: String, offerPrice: Int, offerVal: Int, seller: String)
-            ) =>
-          Stop(println(s"Accepted bid: ${bidName}"))
-
-        case (
-              Bid(bidName: String, bidPrice: Int, bidVal: Int, bidder: String),
-              Close(closeName: String)
-            ) =>
-          Stop(println(s"Closed bid: ${bidName}"))
-
+              Sell(sN1: String, sID1: String, sA1: Int),
+              Sell(sN2: String, sID2: String, sA2: Int),
+              Buy(bN: String, bID: String, bA: Int)
+            ) if ((sA1 + sA2) >= bA) =>
+          Stop(println("Sell and Sell and Buy"))
     }(algorithm)
   }
 
-  val (futureResult, actorRef) = actor.start()
+  val (futureResult, actorRef) = tradingSystemActor.start()
 
-  val bids = List[Action](
-    Bid("bid1", 50, 100, "bidder1"),
-    Bid("bid2", 60, 200, "bidder2")
-  )
-
-  val offers = List[Action](
-    Offer("bid1", 10, 100, "seller1"),
-    Offer("bid2", 20, 200, "seller2")
-  )
-
-  val closes = List[Action](
-    Close("bid1"),
-    Close("bid2")
-  )
-
-  val msgs = bids ++ offers ++ closes
+  val msgs = List(Sell("A", "1", 10), Sell("A", "1", 10), Sell("A", "1", 20), Buy("A", "1", 20))
 
   msgs.foreach(actorRef ! _)
 

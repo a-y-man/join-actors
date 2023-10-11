@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Random
 
-class SmartHouse(@volatile private var actions: Int) extends Benchmarkable[Msg, Unit] {
+class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
   private var lastNotification     = Date(0L)
   private var lastMotionInBathroom = Date(0L)
   private def isSorted: Seq[Date] => Boolean = times =>
@@ -289,6 +289,6 @@ def smartHouseBenchmarkWithNoise =
 @main
 def runBenchmark =
   // println("Running benchmark")
-  // smartHouseBenchmark
+  smartHouseBenchmark
   // println("Running benchmark with noise")
-  smartHouseBenchmarkWithNoise
+  // smartHouseBenchmarkWithNoise

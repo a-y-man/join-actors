@@ -153,7 +153,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
             else candidateMatchesAcc
         }
       if candidateMatches.nonEmpty then
-        CandidateMatches.printCandidateMatches(candidateMatches)
+        // CandidateMatches.printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
 
         result = Some(rhsFn(substs))

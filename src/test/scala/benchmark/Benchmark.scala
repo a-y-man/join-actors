@@ -104,7 +104,7 @@ class Benchmark(
       (n, List(lw, q1, md, q3, hw))
     )
 
-  def toFile(results: List[(String, Seq[Long])]) =
+  def toFile(results: List[(String, Seq[Double])]) =
     import java.util.Date
     import java.io.{File, PrintWriter}
     import java.text.SimpleDateFormat
@@ -132,8 +132,8 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
-    // toFile(boxplot(results))
-    toFile(results)
+    toFile(boxplot(results))
+    // toFile(results)
 
     results.map(_._2.sum).sum
 }
