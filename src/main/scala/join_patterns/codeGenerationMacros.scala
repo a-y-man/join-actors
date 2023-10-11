@@ -9,6 +9,13 @@ import scala.quoted.Quotes
 import scala.quoted.Type
 import scala.quoted.Varargs
 
+// Bind("b",
+//   TypedOrTest(Unapply(Select(Ident("Bid"), "unapply"), Nil,
+//   List(Bind("bidName", Typed(Wildcard(), TypeIdent("String"))),
+//        Bind("bidPrice", Typed(Wildcard(), TypeIdent("Int"))),
+//        Bind("bidVal", Typed(Wildcard(), TypeIdent("Int"))),
+//        Bind("bidder", Typed(Wildcard(), TypeIdent("String"))))), Inferred()))
+
 /** Extracts a type's name and representation from a `Tree`.
   *
   * @param t
@@ -24,6 +31,9 @@ private def extractInner(using quotes: Quotes)(
   t match
     case Bind(n, typed @ Typed(_, TypeIdent(_))) => (n, typed.tpt.tpe.dealias.simplified)
     case typed @ Typed(Wildcard(), TypeIdent(_)) => ("_", typed.tpt.tpe.dealias.simplified)
+    // case b @ Bind(n, Wildcard())                 => (n, )
+    // add support for binding patterns clauses using @
+    // case Bind(binderName, )
     case _ =>
       errorTree("Unsupported bottom-level pattern", t)
       ("", TypeRepr.of[Nothing])
@@ -311,7 +321,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val msgPatternsTypeNames = msgPatterns.map(msgPat => msgPat._1._1.split("[$.]").last)
 
       val typeNamesInMsgs =
-        messages.map(msg => (msg._1.getClass().getName().split("[$.]").last, msg._2))
+        messages.map((msg, idx) => (msg.getClass().getSimpleName(), idx))
 
       val patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)] =
         msgPatterns.map(msgPattern => ((msgPattern._1._2, msgPattern._1._3), msgPattern._2)).toSet
@@ -324,7 +334,6 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           .toMap
 
       val msgPatternOccurences = countOccurences(msgPatternsTypeNames)
-      // println(s"Msg Pattern occ ${msgPatternOccurences}")
 
       def generateValidMsgCombs(messagesInQ: List[(String, Int)]): Iterator[List[Int]] =
         if messagesInQ.isEmpty then Iterator.empty[List[Int]]
@@ -389,8 +398,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           if newFitsIdxs.isEmpty then
             // println(s"node ${node.mkString(",")} -- mQidx: ${mQidx}")
             if node.size < msgTypesInPattern.size then
-              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches)
-            else acc + (List(mQidx)       -> matches)
+              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches) + mapping
+            else acc + (List(mQidx)       -> matches) + mapping
           else
             val currentFitsIdxs = currentFits.map(_._2)
             val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
