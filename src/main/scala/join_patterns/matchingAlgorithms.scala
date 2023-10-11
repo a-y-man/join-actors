@@ -118,9 +118,8 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
 
     var result: Option[T] = None
 
+    if messages.isEmpty then messages.append(q.take())
     while result.isEmpty do
-      if messages.isEmpty then messages.append(q.take())
-
       val indexedMessages = messages.zipWithIndex
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithIdxs.foldLeft(CandidateMatches[M, T]()) {
@@ -154,7 +153,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
             else candidateMatchesAcc
         }
       if candidateMatches.nonEmpty then
-        // printCandidateMatches(candidateMatches)
+        CandidateMatches.printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
 
         result = Some(rhsFn(substs))
@@ -194,20 +193,19 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
         patternsWithMatchingTrees.foldLeft(
           (Map[Int, ((JoinPattern[M, T], Int), MatchingTree[M])](), CandidateMatches[M, T]())
         ) { (matchesWithAcc, patternWithMatchingTree) =>
-          val (updatedPatternsWithMatchingTrees, candidateMatchesAcc) =
-            matchesWithAcc
-          val ((pattern, patternIdx), mTree) = patternWithMatchingTree
-          val updatedMatchingTree            = pattern.partialExtract((mQ, mQidx), mTree)
+          val (updatedPatternsWithMatchingTrees, candidateMatchesAcc) = matchesWithAcc
+          val ((pattern, patternIdx), mTree)                          = patternWithMatchingTree
+          val updatedMatchingTree = pattern.partialExtract((mQ, mQidx), mTree)
 
           updatedMatchingTree match
-            case Some(mTree) =>
+            case Some(currentMTree) =>
               val _updatedMTs = updatedPatternsWithMatchingTrees.updated(
                 patternIdx,
-                ((pattern, patternIdx), mTree)
+                ((pattern, patternIdx), currentMTree)
               )
               val enoughMsgsToMatch
                   : Option[(List[Int], Set[((M => Boolean, M => Map[String, Any]), Int)])] =
-                mTree.nodeMapping.view.find((node, fits) =>
+                currentMTree.nodeMapping.view.find((node, fits) =>
                   node.size == pattern.size && fits.nonEmpty && fits.size == pattern.size
                 )
 
@@ -222,6 +220,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
 
                   bestMatch match {
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
+                      // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
                       val selectedMatch =
                         (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
                       (
@@ -230,7 +229,8 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
                       )
 
                     case None =>
-                      val removedNoneValidCandidate = mTree.removeNode(msgIdxsQ)
+                      // println(s"Removing node: $msgIdxsQ")
+                      val removedNoneValidCandidate = currentMTree.removeNode(msgIdxsQ)
                       (
                         updatedPatternsWithMatchingTrees.updated(
                           patternIdx,
@@ -247,12 +247,13 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
       patternsWithMatchingTrees = updatedMTs.values.toList
 
       if candidateMatches.nonEmpty then
+        // CandidateMatches.printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
         result = Some(rhsFn(substs))
 
         // Prune tree
-        patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, mTree) =>
-          (joinPat, mTree.pruneTree(candidateQidxs))
+        patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, currentMTree) =>
+          (joinPat, currentMTree.pruneTree(candidateQidxs))
         }
 
       if result.isEmpty then
