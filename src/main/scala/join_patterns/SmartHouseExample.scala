@@ -1,17 +1,17 @@
 package join_patterns
 
-import actor._
+import actor.*
 import join_patterns.receive
-import org.scalacheck._
+import org.scalacheck.*
 
 import java.util.Date
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map => MutMap}
+import scala.collection.mutable.{Map as MutMap}
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
-import scala.util._
+import scala.util.*
 
 sealed trait Action
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Action
@@ -23,53 +23,52 @@ case class HeatingF(id: Int, _type: String, timestamp: Date = Date())           
 case class DoorBell(id: Int, timestamp: Date = Date())                               extends Action
 case class ShutOff()                                                                 extends Action
 
-object GenerateActions {
+object GenerateActions:
   // Set seed for the random generator
   Random.setSeed(42)
 
-  private val genMotion: Gen[Action] = for {
+  private val genMotion: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield Motion(i, b, s).asInstanceOf[Action]
+  yield Motion(i, b, s).asInstanceOf[Action]
 
-  private val genAmbientLight: Gen[Action] = for {
+  private val genAmbientLight: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.choose(0, 100)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield AmbientLight(i, b, s).asInstanceOf[Action]
+  yield AmbientLight(i, b, s).asInstanceOf[Action]
 
-  private val genLight: Gen[Action] = for {
+  private val genLight: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield Light(i, b, s).asInstanceOf[Action]
+  yield Light(i, b, s).asInstanceOf[Action]
 
-  private val genContact: Gen[Action] = for {
+  private val genContact: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield Contact(i, b, s).asInstanceOf[Action]
+  yield Contact(i, b, s).asInstanceOf[Action]
 
-  private val genConsumption: Gen[Action] = for {
+  private val genConsumption: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.choose(0, 100)
-  } yield Consumption(i, b).asInstanceOf[Action]
+  yield Consumption(i, b).asInstanceOf[Action]
 
-  private val genHeatingF: Gen[Action] = for {
+  private val genHeatingF: Gen[Action] = for
     i <- Gen.choose(0, 100)
     s <- Gen.oneOf("internal", "floor")
-  } yield HeatingF(i, s).asInstanceOf[Action]
+  yield HeatingF(i, s).asInstanceOf[Action]
 
-  private val genDoorBell: Gen[Action] = for {
-    i <- Gen.choose(0, 100)
-  } yield DoorBell(i).asInstanceOf[Action]
+  private val genDoorBell: Gen[Action] =
+    for i <- Gen.choose(0, 100)
+    yield DoorBell(i).asInstanceOf[Action]
 
   def genActionsOfSizeN(n: Int): Option[List[Action]] =
     val pickAction =
       Gen.oneOf(genMotion, genAmbientLight, genLight, genContact, genConsumption, genHeatingF)
     Gen.containerOfN[List, Action](n, pickAction).sample
-}
 
 def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global

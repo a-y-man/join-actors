@@ -42,7 +42,7 @@ trait Matcher[M, T]:
   def computeValidPermutations(
       msgIdxs: List[Int],
       msgIdxToFits: Map[Int, Set[((M => Boolean, M => Map[String, Any]), Int)]]
-  ): Iterator[List[(Int, M => Map[String, Any])]] = {
+  ): Iterator[List[(Int, M => Map[String, Any])]] =
     def isInPattern(msgIdx: Int, msgsInPat: Set[Int]): Boolean =
       msgsInPat.contains(msgIdx)
 
@@ -69,7 +69,6 @@ trait Matcher[M, T]:
           }
       }
     validPermutations
-  }
 
   def computeSubsts(
       messages: ListBuffer[M],
@@ -108,13 +107,13 @@ object SelectMatcher:
       case MatchingAlgorithm.BasicAlgorithm     => BasicMatcher(patterns)
       case MatchingAlgorithm.TreeBasedAlgorithm => TreeMatcher(patterns)
 
-class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
+class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   def apply(q: Mailbox[M]): T =
-    import scala.jdk.CollectionConverters._
+    import scala.jdk.CollectionConverters.*
 
     var result: Option[T] = None
 
@@ -139,7 +138,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
                     }
                     .collectFirst({ case Some(_bestMatch) => _bestMatch })
 
-                  bestMatch match {
+                  bestMatch match
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
                       // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
                       val selectedMatch =
@@ -147,7 +146,6 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
                       // println(s"Selected match: $selectedMatch")
                       candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
                     case None => candidateMatchesAcc
-                  }
 
                 case None => candidateMatchesAcc
             else candidateMatchesAcc
@@ -166,9 +164,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
 
     result.get
 
-}
-
-class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T] {
+class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
   val messages                 = ListBuffer[(M, Int)]()
   private val patternsWithIdxs = patterns.zipWithIndex
@@ -182,7 +178,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
 
   var mQidx = -1
   def apply(q: Mailbox[M]): T =
-    import scala.jdk.CollectionConverters._
+    import scala.jdk.CollectionConverters.*
 
     var result: Option[T] = None
     var mQ                = q.take()
@@ -218,7 +214,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
                   val bestMatch =
                     findBestMatch(validPermutations, messages.map(_._1), pattern)
 
-                  bestMatch match {
+                  bestMatch match
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
                       // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
                       val selectedMatch =
@@ -238,7 +234,6 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
                         ),
                         candidateMatchesAcc
                       )
-                  }
                 case None => (_updatedMTs, candidateMatchesAcc)
 
             case None => (updatedPatternsWithMatchingTrees, candidateMatchesAcc)
@@ -261,4 +256,3 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
         mQidx += 1
         messages.append((mQ, mQidx))
     result.get
-}

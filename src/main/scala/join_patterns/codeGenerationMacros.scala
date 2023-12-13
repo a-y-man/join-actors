@@ -88,7 +88,7 @@ private def generateExtractor(using
       val args = varNames.zipWithIndex.map { (name, i) =>
         Expr.ofTuple(Expr(name), Select(p0, memberSymbols(i)).asExprOf[Any])
       }
-      ('{ Map[String, Any](${ Varargs[(String, Any)](args) }: _*) }).asTerm
+      ('{ Map[String, Any](${ Varargs[(String, Any)](args) }*) }).asTerm
   )
 
 /** Creates a guard function.
@@ -106,9 +106,8 @@ private def generateGuard(using quotes: Quotes)(
 ): quotes.reflect.Block =
   import quotes.reflect.*
 
-  val _transform = new TreeMap {
+  val _transform = new TreeMap:
     override def transformTerm(term: Term)(owner: Symbol): Term = super.transformTerm(term)(owner)
-  }
 
   var _rhsFn = (sym: Symbol, _: List[Tree]) =>
     _transform.transformTerm('{ true }.asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
@@ -123,7 +122,7 @@ private def generateGuard(using quotes: Quotes)(
           val p0 = params.head.asInstanceOf[Ident]
           // report.info(s"generateGuard:transformTerm ---> ${p0.asExpr.show}")
 
-          val transform = new TreeMap {
+          val transform = new TreeMap:
             override def transformTerm(term: Term)(owner: Symbol): Term =
               term match
                 case Ident(n) if inners.exists(_._1 == n) =>
@@ -132,7 +131,6 @@ private def generateGuard(using quotes: Quotes)(
                     case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
                 case x =>
                   super.transformTerm(x)(owner)
-          }
 
           transform.transformTerm(apply.changeOwner(sym))(sym)
 
@@ -166,14 +164,13 @@ private def generateRhs[T](using
     tpe = MethodType(List("_"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
     rhsFn = (sym: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
-      val transform = new TreeMap {
+      val transform = new TreeMap:
         override def transformTerm(term: Term)(owner: Symbol): Term = term match
           case Ident(n) if inners.exists(_._1 == n) =>
             val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
             inners.find(_._1 == n).get._2.asType match
               case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
           case x => super.transformTerm(x)(owner)
-      }
 
       transform.transformTerm(rhs.changeOwner(sym))(sym)
   )

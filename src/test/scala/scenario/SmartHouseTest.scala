@@ -1,12 +1,12 @@
 package test.scenario.smartHouse
 
 import org.scalatest.funsuite.AnyFunSuite
-import test.classes.smartHouse._
+import test.classes.smartHouse.*
 
 import java.time.Duration
 import java.util.Date
 
-class SmartHouseTest extends AnyFunSuite {
+class SmartHouseTest extends AnyFunSuite:
   test(
     "E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux."
   ) {
@@ -126,4 +126,3 @@ class SmartHouseTest extends AnyFunSuite {
 
     houseThread.join
   }
-}

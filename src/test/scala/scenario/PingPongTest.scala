@@ -3,10 +3,10 @@ package test.scenario.pingPong
 import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Random
 
-import test.classes.pingPong._
+import test.classes.pingPong.*
 import join_patterns.MatchingAlgorithm
 
-class PingPongTest extends AnyFunSuite {
+class PingPongTest extends AnyFunSuite:
   test("Fixed number of iterations") {
     val maxHits    = 100_000
     val ping       = Pinger(maxHits)
@@ -48,4 +48,3 @@ class PingPongTest extends AnyFunSuite {
     assert(ping.hits == maxHits)
     assert(pong.hits == maxHits)
   }
-}

@@ -13,7 +13,7 @@ object NodeMapping:
 
 case class MatchingTree[M](
     val nodeMapping: NodeMapping[M] = NodeMapping()
-) {
+):
   def isEmpty: Boolean =
     nodeMapping.isEmpty
 
@@ -25,7 +25,6 @@ case class MatchingTree[M](
 
   def removeNode(node: List[Int]): MatchingTree[M] =
     MatchingTree(nodeMapping - node)
-}
 
 def printMapping[M](mapping: NodeMapping[M]): Unit =
   mapping.foreach { (nodes, candidates) =>

@@ -15,7 +15,7 @@ case class Motion(status: Boolean, room: String) extends Msg
 case class Light(status: Boolean, room: String)  extends Msg
 case class Contact(open: Boolean, room: String)  extends Msg
 
-class DemoSmartHouse() extends Actor[Msg, Unit] {
+class DemoSmartHouse() extends Actor[Msg, Unit]:
   private var lastMotionInBathroom = Date(0L)
   private var lastNotification     = Date(0L)
   private val between: (Date, Date) => Duration = (a, b) =>
@@ -59,14 +59,13 @@ class DemoSmartHouse() extends Actor[Msg, Unit] {
             cRoom
           ) =>
         lastNotification = Date()
-    // println("activate_home_scene(l, i, t)")
+      // println("activate_home_scene(l, i, t)")
 
   }(ALGORITHM)
 
   def run(): Unit =
     matcher(q)
     Thread.`yield`()
-}
 
 // class SmartHouseTest extends AnyFunSuite {
 //   // val algorithm: AlgorithmType = AlgorithmType.BasicAlgorithm

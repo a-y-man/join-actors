@@ -13,13 +13,12 @@ def showExpr[T](expr: Expr[T])(using Quotes): Expr[String] =
   val code: String = expr.show
   Expr(code)
 
-def _println[T](x: Expr[T])(using Quotes): Unit = {
+def _println[T](x: Expr[T])(using Quotes): Unit =
   import quotes.reflect.*
 
   val tree: Tree = x.asTerm
   // println(tree.show(using Printer.TreeStructure))
   println(prettyPrint(tree))
-}
 
 def infoTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Unit =
   import quotes.reflect.*

@@ -19,7 +19,7 @@ val N_REINDEERS = 9
 class SantaClaus(
     val elvesNumber: Int,
     var actions: Int
-) extends Benchmarkable[Msg, Unit] {
+) extends Benchmarkable[Msg, Unit]:
   val reinDeerRefs                  = Array.fill[Option[ActorRef[CanLeave]]](N_REINDEERS)(None)
   val elvesRefs                     = Array.fill[Option[ActorRef[Helped]]](elvesNumber)(None)
   private val _println: Any => Unit = (x: Any) => println(f"${this.getClass.getSimpleName}: $x")
@@ -71,9 +71,8 @@ class SantaClaus(
     while actions > 0 do
       matcher(q)
       Thread.`yield`()
-}
 
-class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave, Unit] {
+class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave, Unit]:
   var santaRef: Option[ActorRef[Msg]] = None
   private var onHoliday               = true
   val isBack                          = () => !onHoliday
@@ -111,9 +110,8 @@ class Reindeer(val number: Int, var actions: Int) extends Benchmarkable[CanLeave
       comesBack()
       matcher(q)
       Thread.`yield`()
-}
 
-class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit] {
+class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]:
   var santaRef: Option[ActorRef[Msg]] = None
   private var needHelp                = false
   var _needHelp                       = () => needHelp
@@ -152,4 +150,3 @@ class Elf(val number: Int, var actions: Int) extends Benchmarkable[Helped, Unit]
       askForHelp()
       matcher(q)
       Thread.`yield`()
-}

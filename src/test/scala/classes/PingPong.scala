@@ -11,7 +11,7 @@ import test.ALGORITHM
 case class Ping() extends Msg
 case class Pong() extends Msg
 
-class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
+class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit]:
   var hits                            = 0
   var pongRef: Option[ActorRef[Ping]] = None
   var isDone                          = false
@@ -48,9 +48,8 @@ class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit] {
 
   def ping() =
     pongRef.get.send(Ping())
-}
 
-class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
+class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit]:
   var hits                            = 0
   var pingRef: Option[ActorRef[Pong]] = None
   var isDone                          = false
@@ -82,4 +81,3 @@ class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit] {
     while !isDone do
       matcher(q)
       Thread.`yield`()
-}

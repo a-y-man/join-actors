@@ -23,20 +23,18 @@ def pingPongBenchmark =
     200,
     BenchmarkPass(
       "Control",
-      () => {
+      () =>
         val (ping, pong) = setup(maxHits)
         pong.run_as_future
         ping.run_as_future
-      }
     ),
     List(
       BenchmarkPass(
         s"Macro using ${ALGORITHM.toString()}",
-        () => {
+        () =>
           val (ping, pong) = setup(maxHits)
           pong.run_as_future
           ping.run_as_future
-        }
       )
     )
   ).run

@@ -20,7 +20,7 @@ case class H() extends Msg
 case class I() extends Msg
 case class J() extends Msg
 
-abstract class SizeCount(private val maxHits: Int) extends Benchmarkable[Msg, Unit] {
+abstract class SizeCount(private val maxHits: Int) extends Benchmarkable[Msg, Unit]:
   @volatile var hits   = 0
   @volatile var isDone = false
   // var messages: ListBuffer[Msg] = ListBuffer()
@@ -42,9 +42,8 @@ abstract class SizeCount(private val maxHits: Int) extends Benchmarkable[Msg, Un
     while !isDone do
       matcher(q)
       Thread.`yield`()
-}
 
-class Size1Count1(private val maxHits: Int) extends SizeCount(maxHits) {
+class Size1Count1(private val maxHits: Int) extends SizeCount(maxHits):
   protected val matcher = receive { (y: Msg) =>
     y match
       case A() =>
@@ -52,186 +51,163 @@ class Size1Count1(private val maxHits: Int) extends SizeCount(maxHits) {
         if hits >= maxHits then isDone = true
   }(ALGORITHM)
 
-}
-
-package object sizes {
-  class Size2(private val maxHits: Int) extends SizeCount(maxHits) {
+package object sizes:
+  class Size2(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size3(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size3(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size4(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size4(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size5(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size5(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size6(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size6(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size7(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size7(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size8(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size8(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size9(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size9(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H(), I()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size10(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size10(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H(), I(), J()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
-}
 
-package object sizesWithNoise {
+package object sizesWithNoise:
 
-  class Size1Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size1Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size2Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size2Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size3Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size3Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size4Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size4Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size5Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size5Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size6Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size6Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size7Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size7Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size8Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size8Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size9Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size9Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H(), I()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Size10Noise(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Size10Noise(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case (A(), B(), C(), D(), E(), F(), G(), H(), I(), J()) =>
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
-}
 
-package object counts {
-  class Count2(private val maxHits: Int) extends SizeCount(maxHits) {
+package object counts:
+  class Count2(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -241,9 +217,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count3(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count3(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -256,9 +231,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count4(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count4(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -274,9 +248,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count5(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count5(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -295,9 +268,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count6(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count6(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -319,9 +291,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count7(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count7(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -346,9 +317,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count8(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count8(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -376,9 +346,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count9(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count9(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -409,9 +378,8 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
 
-  class Count10(private val maxHits: Int) extends SizeCount(maxHits) {
+  class Count10(private val maxHits: Int) extends SizeCount(maxHits):
     protected val matcher = receive { (y: Msg) =>
       y match
         case A() =>
@@ -445,5 +413,3 @@ package object counts {
           hits += 1
           if hits >= maxHits then isDone = true
     }(ALGORITHM)
-  }
-}

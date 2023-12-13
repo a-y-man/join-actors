@@ -1,7 +1,7 @@
 package join_patterns
-import actor._
-import join_patterns._
-import org.scalacheck._
+import actor.*
+import join_patterns.*
+import org.scalacheck.*
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -17,12 +17,11 @@ case class E(a: Int)                                extends Msg
 case class F(a: Int)                                extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
-def printResult[A](result: Try[A]): Unit = result match {
+def printResult[A](result: Try[A]): Unit = result match
   case Failure(exception) => println("Failed with: " + exception.getMessage)
   case Success(number)    => println("Succeed with: " + number)
-}
 
-object GenerateRandomMsgs {
+object GenerateRandomMsgs:
   // Set seed for the random generator
   // Random.setSeed(1234567890)
 
@@ -46,9 +45,8 @@ object GenerateRandomMsgs {
     Gen.containerOfN[List, Msg](n, genMsg).sample.get
 
   def genWeightedRandomMsgs(n: Int, weights: List[Tuple2[Int, Gen[Msg]]]): List[Msg] =
-    val genMsg = Gen.frequency(weights: _*)
+    val genMsg = Gen.frequency(weights*)
     Gen.containerOfN[List, Msg](n, genMsg).sample.get
-}
 
 def demo(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
@@ -68,7 +66,7 @@ def demo(algorithm: MatchingAlgorithm): Unit =
   // val q = List[Msg](D(42))
   // val q = List[Msg](E(2))
 
-  val actor                    = Actor_[Msg, Unit] { matcher }
+  val actor                    = Actor_[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -99,7 +97,7 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   }(algorithm)
 
   val q                        = List[Msg](D(3), F(2), E(1), A(), B(), C())
-  val actor                    = Actor_[Msg, Unit] { matcher }
+  val actor                    = Actor_[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -121,7 +119,7 @@ def test02(algorithm: MatchingAlgorithm): Unit =
 
   val q = List.fill(9)(A())
 
-  val actor                    = Actor_[Msg, Unit] { matcher }
+  val actor                    = Actor_[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -140,16 +138,15 @@ def test03(algorithm: MatchingAlgorithm): Unit =
 
   val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg) =>
     y match
-      case (E(m: Int), E(n: Int)) if n == 2 && m == 42 => {
+      case (E(m: Int), E(n: Int)) if n == 2 && m == 42 =>
         { val z = "hi"; println(z) }; Stop(n + 1)
-      }
       case (A(), B(), A(), E(n: Int)) if n == 2 => Stop(500 * n)
       case (B(), A(), B(), E(n: Int)) if n == 2 => Stop(600 * n)
   }(algorithm)
 
   val q = List[Msg](E(2), F(2), E(42))
 
-  val actor = Actor_[Msg, Int] { matcher }
+  val actor = Actor_[Msg, Int](matcher)
 
   val (futureResult, actorRef) = actor.start()
 
@@ -170,15 +167,14 @@ def test04(algorithm: MatchingAlgorithm): Unit =
 
   val matcher: Matcher[Msg, Result[Unit]] = receive { (y: Msg) =>
     y match
-      case (E(m: Int), F(n: Int), E(o: Int)) => {
-        { val z = "E(m: Int), F(n: Int), E(o: Int)"; Stop(println(z)) }
-      }
+      case (E(m: Int), F(n: Int), E(o: Int)) =>
+        val z = "E(m: Int), F(n: Int), E(o: Int)"; Stop(println(z))
   }(algorithm)
 
   val q  = List[Msg](E(4), F(2), E(1))
   val q_ = List[Msg](A(), B(), A())
 
-  val actor                    = Actor_[Msg, Unit] { matcher }
+  val actor                    = Actor_[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -215,7 +211,7 @@ def test05(algorithm: MatchingAlgorithm): Unit =
   val q    = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10))
   val revQ = q.reverse
 
-  val actor                    = Actor_[Msg, String] { matcher }
+  val actor                    = Actor_[Msg, String](matcher)
   val (futureResult, actorRef) = actor.start()
 
   // q.foreach(actorRef ! _)
@@ -253,7 +249,7 @@ def test06(algorithm: MatchingAlgorithm): Unit =
     F(42)
   )
 
-  val actor = Actor_[Msg, Int] { matcher }
+  val actor = Actor_[Msg, Int](matcher)
 
   val (futureResult, actorRef) = actor.start()
 
@@ -277,7 +273,7 @@ def test07(algorithm: MatchingAlgorithm): Unit =
 
   val q = List[Msg](F(4), E(4), F(4))
 
-  val actor                    = Actor_[Msg, Int] { matcher }
+  val actor                    = Actor_[Msg, Int](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -332,7 +328,7 @@ def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
 
   val q = GenerateRandomMsgs.genRandomMsgs(10000)
 
-  val actor                    = Actor_[Msg, Unit] { matcher }
+  val actor                    = Actor_[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)

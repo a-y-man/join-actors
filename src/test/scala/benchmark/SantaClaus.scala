@@ -46,24 +46,22 @@ def santaClausBenchmark =
     100,
     BenchmarkPass(
       "Control",
-      () => {
+      () =>
         val (elves, reindeers, santa) =
           setup(reindeerNumber, reindeerActions, elvesNumber, elvesActions, santaActions)
         elves.foreach(_.run_as_future)
         reindeers.foreach(_.run_as_future)
         santa.run_as_future
-      }
     ),
     List(
       BenchmarkPass(
         s"Macro using ${ALGORITHM.toString()}",
-        () => {
+        () =>
           val (elves, reindeers, santa) =
             setup(reindeerNumber, reindeerActions, elvesNumber, elvesActions, santaActions)
           elves.foreach(_.run_as_future)
           reindeers.foreach(_.run_as_future)
           santa.run_as_future
-        }
       )
     )
   ).run

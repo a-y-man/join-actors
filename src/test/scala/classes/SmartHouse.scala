@@ -10,7 +10,7 @@ import test.classes.Msg
 import java.time.Duration
 import java.util.Date
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map => MutMap}
+import scala.collection.mutable.{Map as MutMap}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
@@ -22,7 +22,7 @@ case class DoorBell(id: Int, timestamp: Date = Date())                          
 case class Consumption(meter_id: Int, value: Int, timestamp: Date = Date())          extends Msg
 case class HeatingF(id: Int, _type: String, timestamp: Date = Date())                extends Msg
 
-class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
+class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit]:
   private var lastNotification                          = Date(0L)
   private var lastMotionInBathroom                      = Date(0L)
   private var electricityConsumption: MutMap[Date, Int] = MutMap()
@@ -198,14 +198,13 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
     while actions > 0 do
       matcher(q)
       Thread.`yield`()
-}
 
 package smallSmartHouse {
   case class Motion(status: Boolean, room: String) extends Msg
   case class Light(status: Boolean, room: String)  extends Msg
   case class Contact(open: Boolean, room: String)  extends Msg
 
-  class SmallSmartHouse(private var actions: Int) extends Actor[Msg, Unit] {
+  class SmallSmartHouse(private var actions: Int) extends Actor[Msg, Unit]:
     private var lastMotionInBathroom = Date(0L)
 
     def turnOff(rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) = ???
@@ -242,9 +241,8 @@ package smallSmartHouse {
     }(ALGORITHM)
 
     def run(): Unit = ???
-  }
 
-  class DynSmallSmartHouse(private var actions: Int) extends DynamicActor[Msg, Unit] {
+  class DynSmallSmartHouse(private var actions: Int) extends DynamicActor[Msg, Unit]:
     private var lastMotionInBathroom                      = Date(0L)
     private var electricityConsumption: MutMap[Date, Int] = MutMap()
     private var failures: MutMap[Date, String]            = MutMap()
@@ -308,5 +306,4 @@ package smallSmartHouse {
       }(ALGORITHM)
 
     def run(): Unit = ???
-  }
 }

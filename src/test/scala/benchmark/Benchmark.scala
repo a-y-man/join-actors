@@ -12,14 +12,13 @@ import scala.concurrent.duration.Duration
 
 import ExecutionContext.Implicits.global
 
-trait Benchmarkable[M, T] extends Actor[M, T] {
+trait Benchmarkable[M, T] extends Actor[M, T]:
   def run_as_future: Future[Long]
-}
 
 class BenchmarkPass(
     val name: String,
     private val mainFn: () => Future[Long]
-) {
+):
   def warmup(warmupIterations: Int): Unit =
     Await.ready(
       Future.sequence((1 to warmupIterations).map(_ => mainFn())),
@@ -47,7 +46,6 @@ class BenchmarkPass(
     println(f"-- Pass $name end")
 
     elapsed
-}
 
 class Benchmark(
     private val name: String,
@@ -55,7 +53,7 @@ class Benchmark(
     val iterations: Int,
     private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
-) {
+):
   def displayResults(results: List[(String, Seq[Long])]) =
     import Console.{GREEN, RED, RESET}
 
@@ -136,4 +134,3 @@ class Benchmark(
     // toFile(results)
 
     results.map(_._2.sum).sum
-}

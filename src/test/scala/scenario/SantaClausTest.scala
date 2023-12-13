@@ -3,10 +3,10 @@ package test.scenario.santaClaus
 import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Random
 
-import test.classes.santaClaus._
+import test.classes.santaClaus.*
 import test.ALGORITHM
 
-class SantaClausTest extends AnyFunSuite {
+class SantaClausTest extends AnyFunSuite:
   test("Elves are helped") {
     val elvesNumber = 3
 
@@ -108,4 +108,3 @@ class SantaClausTest extends AnyFunSuite {
 
     assert(elves.forall(!_._needHelp()))
   }
-}

@@ -18,12 +18,12 @@ import test.classes.smartHouse.SmartHouse
 import java.time.Duration
 import java.util.Date
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map => MutMap}
+import scala.collection.mutable.{Map as MutMap}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Random
 
-class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
+class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit]:
   private var lastNotification     = Date(0L)
   private var lastMotionInBathroom = Date(0L)
   private def isSorted: Seq[Date] => Boolean = times =>
@@ -128,51 +128,49 @@ class SmartHouse(private var actions: Int) extends Benchmarkable[Msg, Unit] {
     while actions > 0 do
       matcher(q)
       Thread.`yield`()
-}
 
-object GenerateTestMsgs {
+object GenerateTestMsgs:
   // Set seed for the random generator
   Random.setSeed(42)
 
-  private val genMotion: Gen[Msg] = for {
+  private val genMotion: Gen[Msg] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield Motion(i, b, s).asInstanceOf[Msg]
+  yield Motion(i, b, s).asInstanceOf[Msg]
 
-  private val genAmbientLight: Gen[Msg] = for {
+  private val genAmbientLight: Gen[Msg] = for
     i <- Gen.choose(0, 100)
     b <- Gen.choose(0, 100)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield AmbientLight(i, b, s).asInstanceOf[Msg]
+  yield AmbientLight(i, b, s).asInstanceOf[Msg]
 
-  private val genLight: Gen[Msg] = for {
+  private val genLight: Gen[Msg] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield Light(i, b, s).asInstanceOf[Msg]
+  yield Light(i, b, s).asInstanceOf[Msg]
 
-  private val genContact: Gen[Msg] = for {
+  private val genContact: Gen[Msg] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
     s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
-  } yield Contact(i, b, s).asInstanceOf[Msg]
+  yield Contact(i, b, s).asInstanceOf[Msg]
 
-  private val genConsumption: Gen[Msg] = for {
+  private val genConsumption: Gen[Msg] = for
     i <- Gen.choose(0, 100)
     b <- Gen.choose(0, 100)
-  } yield Consumption(i, b).asInstanceOf[Msg]
+  yield Consumption(i, b).asInstanceOf[Msg]
 
-  private val genHeatingF: Gen[Msg] = for {
+  private val genHeatingF: Gen[Msg] = for
     i <- Gen.choose(0, 100)
     s <- Gen.oneOf("internal", "floor")
-  } yield HeatingF(i, s).asInstanceOf[Msg]
+  yield HeatingF(i, s).asInstanceOf[Msg]
 
   def genMsgsOfSizeN(n: Int): Option[List[Msg]] =
     val pickMsg =
       Gen.oneOf(genMotion, genAmbientLight, genLight, genContact, genConsumption, genHeatingF)
     Gen.containerOfN[List, Msg](n, pickMsg).sample
-}
 
 def sendE1(actorRef: ActorRef[Msg]) =
   actorRef ! Motion(0, true, "bathroom")
@@ -213,7 +211,7 @@ def smartHouseBenchmark =
     100,
     BenchmarkPass(
       "Control",
-      () => {
+      () =>
         val smartHouse = SmartHouse(smartHouseActions)
         val future     = smartHouse.run_as_future
 
@@ -223,12 +221,11 @@ def smartHouseBenchmark =
             case 1 => sendE5(smartHouse.ref)
 
         future
-      }
     ),
     List(
       BenchmarkPass(
         s"Using ${ALGORITHM.toString}",
-        () => {
+        () =>
           val smartHouse = SmartHouse(smartHouseActions)
           val future     = smartHouse.run_as_future
 
@@ -238,7 +235,6 @@ def smartHouseBenchmark =
               case 1 => sendE5(smartHouse.ref)
 
           future
-        }
       )
     )
   ).run
@@ -251,7 +247,7 @@ def smartHouseBenchmarkWithNoise =
   val benchmarkPasses = numberOfRndMsgs.map { n =>
     BenchmarkPass(
       s"Using ${ALGORITHM.toString} with $n random messages",
-      () => {
+      () =>
         val smartHouse = SmartHouse(smartHouseActions)
         val future     = smartHouse.run_as_future
 
@@ -261,7 +257,6 @@ def smartHouseBenchmarkWithNoise =
             case 1 => sendE5WithNoise(smartHouse.ref, n)
 
         future
-      }
     )
   }
 
@@ -271,7 +266,7 @@ def smartHouseBenchmarkWithNoise =
     20,
     BenchmarkPass(
       "Control",
-      () => {
+      () =>
         val smartHouse = SmartHouse(smartHouseActions)
         val future     = smartHouse.run_as_future
 
@@ -281,7 +276,6 @@ def smartHouseBenchmarkWithNoise =
             case 1 => sendE5WithNoise(smartHouse.ref, 0)
 
         future
-      }
     ),
     benchmarkPasses
   ).run

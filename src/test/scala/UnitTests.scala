@@ -1,7 +1,7 @@
 package test
 
-import actor._
-import join_patterns._
+import actor.*
+import join_patterns.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.concurrent.LinkedTransferQueue
@@ -9,7 +9,7 @@ import scala.collection.immutable.List
 import scala.concurrent.Await
 import scala.util.Random
 
-abstract class UnitTests extends AnyFunSuite {
+abstract class UnitTests extends AnyFunSuite:
   sealed trait Msg
   case class A()                                      extends Msg
   case class B(n: Int)                                extends Msg
@@ -20,9 +20,8 @@ abstract class UnitTests extends AnyFunSuite {
   case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-}
 
-class SingletonPatterns extends UnitTests {
+class SingletonPatterns extends UnitTests:
   test("Single Empty Message, no Predicate") {
     val expected = Random.nextInt
     val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg) =>
@@ -176,9 +175,8 @@ class SingletonPatterns extends UnitTests {
 
     assert(if rep == 0 then actual == expected else actual == expected.repeat(rep))
   }
-}
 
-class CompositePatterns extends UnitTests {
+class CompositePatterns extends UnitTests:
   test("Multiple Empty Messages, no Predicate") {
     val expected = Random.nextInt
     val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg) =>
@@ -484,4 +482,3 @@ class CompositePatterns extends UnitTests {
 
     assert(actual == expected)
   }
-}
