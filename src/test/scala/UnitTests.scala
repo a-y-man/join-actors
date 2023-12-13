@@ -29,7 +29,7 @@ class SingletonPatterns extends UnitTests:
         case A() => Stop(expected)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -48,7 +48,7 @@ class SingletonPatterns extends UnitTests:
         case A() if ifZero(0) => Stop(expected)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -66,7 +66,7 @@ class SingletonPatterns extends UnitTests:
         case B(n: Int) => Stop(n)
     }(ALGORITHM)
 
-    val actor                    = Actor_[Msg, Int] { matcher }
+    val actor                    = Actor[Msg, Int] { matcher }
     val (futureResult, actorRef) = actor.start()
 
     actorRef ! B(expected)
@@ -85,7 +85,7 @@ class SingletonPatterns extends UnitTests:
         case B(n: Int) if ifZero(0) => Stop(n)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -103,7 +103,7 @@ class SingletonPatterns extends UnitTests:
         case C(n: String) => Stop(n)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -124,7 +124,7 @@ class SingletonPatterns extends UnitTests:
         case C(n: String) if ifNotEmpty(n) => Stop(n)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -144,7 +144,7 @@ class SingletonPatterns extends UnitTests:
         case F(z: Int, c: String) => Stop(c.repeat(z))
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -165,7 +165,7 @@ class SingletonPatterns extends UnitTests:
         case F(z: Int, c: String)              => Stop(c.repeat(z))
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -188,7 +188,7 @@ class CompositePatterns extends UnitTests:
         case E()             => Stop(expected + 4)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -208,7 +208,7 @@ class CompositePatterns extends UnitTests:
         case (A()) => Stop(expected)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -228,7 +228,7 @@ class CompositePatterns extends UnitTests:
         case (A(), D(), E())              => Stop(expected)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -251,7 +251,7 @@ class CompositePatterns extends UnitTests:
           Stop(i) // This will always matches because there is no predicate on both cases.
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -273,7 +273,7 @@ class CompositePatterns extends UnitTests:
         case B(i: Int)                                => Stop(rep.toString)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -297,7 +297,7 @@ class CompositePatterns extends UnitTests:
         case B(i: Int) => Stop(rep.toString)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -319,7 +319,7 @@ class CompositePatterns extends UnitTests:
         case (D(), E())      => Stop(expected + 2)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -351,7 +351,7 @@ class CompositePatterns extends UnitTests:
           Stop(expected + 1)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -387,7 +387,7 @@ class CompositePatterns extends UnitTests:
         case (B(i0: Int), B(i1: Int), A())                       => Stop(i0)
         case B(i: Int)                                           => Stop(i)
     }(ALGORITHM)
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -408,7 +408,7 @@ class CompositePatterns extends UnitTests:
         case G(_: Int, y: String, z: Int, _: Boolean) => Stop(y + z)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, String] { matcher }
+    val actor = Actor[Msg, String] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -431,7 +431,7 @@ class CompositePatterns extends UnitTests:
         case G(y: Int, _: String, _: Int, b: Boolean) if is(!b) => Stop(y)
     }(ALGORITHM)
 
-    val actor = Actor_[Msg, Int] { matcher }
+    val actor = Actor[Msg, Int] { matcher }
 
     val (futureResult, actorRef) = actor.start()
 
@@ -453,7 +453,7 @@ class CompositePatterns extends UnitTests:
 
     val msgs = List[Msg](B(1), B(2), B(3), B(4), B(5), B(6), B(7), B(8), B(9), B(10), B(11), B(12))
 
-    val actor                    = Actor_[Msg, Int] { matcher }
+    val actor                    = Actor[Msg, Int] { matcher }
     val (futureResult, actorRef) = actor.start()
 
     msgs.foreach(actorRef ! _)
@@ -472,7 +472,7 @@ class CompositePatterns extends UnitTests:
 
     val msgs = List[Msg](D(), C(""), G(1, "", 1, false), F(1, ""), B(3), A(), B(2))
 
-    val actor                    = Actor_[Msg, Int] { matcher }
+    val actor                    = Actor[Msg, Int] { matcher }
     val (futureResult, actorRef) = actor.start()
 
     msgs.foreach(actorRef ! _)

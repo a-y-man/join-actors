@@ -1,6 +1,6 @@
 package test.classes.smartHouse
 
-import actor.Actor
+import actor.OldActor
 import actor.DynamicActor
 import join_patterns.receive
 import test.ALGORITHM
@@ -10,7 +10,7 @@ import test.classes.Msg
 import java.time.Duration
 import java.util.Date
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map as MutMap}
+import scala.collection.mutable.Map as MutMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
@@ -204,7 +204,7 @@ package smallSmartHouse {
   case class Light(status: Boolean, room: String)  extends Msg
   case class Contact(open: Boolean, room: String)  extends Msg
 
-  class SmallSmartHouse(private var actions: Int) extends Actor[Msg, Unit]:
+  class SmallSmartHouse(private var actions: Int) extends OldActor[Msg, Unit]:
     private var lastMotionInBathroom = Date(0L)
 
     def turnOff(rooms: Seq[String], mStatus: Boolean, lStatus: Boolean, window: Duration) = ???

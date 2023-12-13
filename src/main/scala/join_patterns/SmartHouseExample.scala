@@ -108,7 +108,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
       _ == true
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
-  val smartHouseActor = Actor_[Action, Unit] {
+  val smartHouseActor = Actor[Action, Unit] {
     receive { (y: Action) =>
       y match
         // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.

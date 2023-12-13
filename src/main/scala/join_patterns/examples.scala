@@ -66,7 +66,7 @@ def demo(algorithm: MatchingAlgorithm): Unit =
   // val q = List[Msg](D(42))
   // val q = List[Msg](E(2))
 
-  val actor                    = Actor_[Msg, Unit](matcher)
+  val actor                    = Actor[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -97,7 +97,7 @@ def test01(algorithm: MatchingAlgorithm): Unit =
   }(algorithm)
 
   val q                        = List[Msg](D(3), F(2), E(1), A(), B(), C())
-  val actor                    = Actor_[Msg, Unit](matcher)
+  val actor                    = Actor[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -119,7 +119,7 @@ def test02(algorithm: MatchingAlgorithm): Unit =
 
   val q = List.fill(9)(A())
 
-  val actor                    = Actor_[Msg, Unit](matcher)
+  val actor                    = Actor[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -146,7 +146,7 @@ def test03(algorithm: MatchingAlgorithm): Unit =
 
   val q = List[Msg](E(2), F(2), E(42))
 
-  val actor = Actor_[Msg, Int](matcher)
+  val actor = Actor[Msg, Int](matcher)
 
   val (futureResult, actorRef) = actor.start()
 
@@ -174,7 +174,7 @@ def test04(algorithm: MatchingAlgorithm): Unit =
   val q  = List[Msg](E(4), F(2), E(1))
   val q_ = List[Msg](A(), B(), A())
 
-  val actor                    = Actor_[Msg, Unit](matcher)
+  val actor                    = Actor[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -211,7 +211,7 @@ def test05(algorithm: MatchingAlgorithm): Unit =
   val q    = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10))
   val revQ = q.reverse
 
-  val actor                    = Actor_[Msg, String](matcher)
+  val actor                    = Actor[Msg, String](matcher)
   val (futureResult, actorRef) = actor.start()
 
   // q.foreach(actorRef ! _)
@@ -249,7 +249,7 @@ def test06(algorithm: MatchingAlgorithm): Unit =
     F(42)
   )
 
-  val actor = Actor_[Msg, Int](matcher)
+  val actor = Actor[Msg, Int](matcher)
 
   val (futureResult, actorRef) = actor.start()
 
@@ -273,7 +273,7 @@ def test07(algorithm: MatchingAlgorithm): Unit =
 
   val q = List[Msg](F(4), E(4), F(4))
 
-  val actor                    = Actor_[Msg, Int](matcher)
+  val actor                    = Actor[Msg, Int](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -289,7 +289,7 @@ def test08(algorithm: MatchingAlgorithm): Unit =
 
   val q = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10), E(11), E(12))
 
-  val actor = Actor_[Msg, Int] {
+  val actor = Actor[Msg, Int] {
     receive { (msg: Msg) =>
       msg match
         case (E(a: Int), E(b: Int), E(c: Int)) if a == 3 && b == 2 && c == 1    => Next()
@@ -328,7 +328,7 @@ def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
 
   val q = GenerateRandomMsgs.genRandomMsgs(10000)
 
-  val actor                    = Actor_[Msg, Unit](matcher)
+  val actor                    = Actor[Msg, Unit](matcher)
   val (futureResult, actorRef) = actor.start()
 
   q.foreach(actorRef ! _)
@@ -357,7 +357,7 @@ def nwptExample(algorithm: MatchingAlgorithm): Unit =
   //   (sA1 + sA2) >= bA && (sN1 == sN2) && (sID1 != sID2)
   //     (sA1 + sA2) >= bA && (sN1 == sN2) && (sID1 != sID2) &&
 
-  val tradingSystemActor = Actor_[Message, Unit] {
+  val tradingSystemActor = Actor[Message, Unit] {
     receive { (msg: Message) =>
       msg match
         case (Buy(bN: String, bID: String, bA: Int), Sell(sN: String, sID: String, sA: Int))

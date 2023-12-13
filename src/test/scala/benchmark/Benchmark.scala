@@ -1,6 +1,6 @@
 package test.benchmark
 
-import actor.Actor
+import actor.OldActor
 import join_patterns.Matcher
 import test.ALGORITHM
 
@@ -12,7 +12,7 @@ import scala.concurrent.duration.Duration
 
 import ExecutionContext.Implicits.global
 
-trait Benchmarkable[M, T] extends Actor[M, T]:
+trait Benchmarkable[M, T] extends OldActor[M, T]:
   def run_as_future: Future[Long]
 
 class BenchmarkPass(

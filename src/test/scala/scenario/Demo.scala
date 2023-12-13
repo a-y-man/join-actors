@@ -1,6 +1,6 @@
 package test.scenario.demo
 
-import actor.Actor
+import actor.OldActor
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalatest.funsuite.AnyFunSuite
@@ -15,7 +15,7 @@ case class Motion(status: Boolean, room: String) extends Msg
 case class Light(status: Boolean, room: String)  extends Msg
 case class Contact(open: Boolean, room: String)  extends Msg
 
-class DemoSmartHouse() extends Actor[Msg, Unit]:
+class DemoSmartHouse() extends OldActor[Msg, Unit]:
   private var lastMotionInBathroom = Date(0L)
   private var lastNotification     = Date(0L)
   private val between: (Date, Date) => Duration = (a, b) =>

@@ -37,7 +37,7 @@ extension [T](result: Result[T])
       case Stop(_) => true
       case Next()  => false
 
-class Actor_[M, T](private val matcher: Matcher[M, Result[T]]):
+class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   private val mailbox: Mailbox[M] = Mailbox[M]
 
   def start(): (Future[T], ActorRef[M]) =
@@ -54,7 +54,7 @@ class Actor_[M, T](private val matcher: Matcher[M, Result[T]]):
       case Next()      => run(promise)
       case Stop(value) => promise.success(value)
 
-abstract class Actor[M, T] extends Runnable:
+abstract class OldActor[M, T] extends Runnable:
   protected val q: Mailbox[M] = Mailbox[M]
   val ref: ActorRef[M]        = ActorRef(q)
   protected val matcher: Matcher[M, T]
