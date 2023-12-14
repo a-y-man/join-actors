@@ -18,7 +18,7 @@ import test.classes.smartHouse.SmartHouse
 import java.time.Duration
 import java.util.Date
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map as MutMap}
+import scala.collection.mutable.Map as MutMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Random
