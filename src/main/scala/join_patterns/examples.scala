@@ -3,7 +3,10 @@ import actor.*
 import join_patterns.*
 import org.scalacheck.*
 
+import java.util.concurrent.TimeUnit
+import scala.compiletime.ops.int
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
 
@@ -385,3 +388,83 @@ def nwptExample(algorithm: MatchingAlgorithm): Unit =
   result.onComplete(printResult)
 
   println("\n======================================================\n\n")
+
+object PingPong extends App:
+  sealed trait PingPong
+  case class Ping(ref: ActorRef[Ping], hits: Int) extends PingPong
+  case class Pong(ref: ActorRef[Pong], hits: Int) extends PingPong
+  case class StopMessage()                        extends PingPong
+  case class StartMessage()                       extends PingPong
+
+  type Ponger = ActorRef[PingPong]
+  type Pinger = ActorRef[PingPong]
+
+  val ALGORITHM = MatchingAlgorithm.BasicAlgorithm
+
+  def pingActor() =
+    var actor: Actor[PingPong, Unit] = null
+    // var counter = 0
+    // def incrementCounter(): Unit =
+    //   counter += 1
+    //   println(s"ping count: $counter")
+
+    actor = Actor[PingPong, Unit](receive { (y: PingPong /*, self: Pinger (initially None)  */ ) =>
+      y match
+        // case StartMessage() =>
+        //   incrementCounter()
+        //   pingRef ! Ping(actor.self, counter)
+        case Pong(pongRef: Ponger, x: Int) =>
+          if x < 100000 then
+            /*
+            val pongRef : Ponger = ...
+            val x : Int = ...
+            val pingRef : Pinger = ...
+             */
+            println(s"Ponged by $pongRef --- ping count: $x")
+            pongRef ! Ping(actor.self, x + 1)
+            Next()
+          else
+            pongRef ! Ping(actor.self, x)
+            Stop(println(s"Final count: $x"))
+    }(ALGORITHM))
+
+    actor
+
+  def pongActor() =
+    var actor: Actor[PingPong, Unit] = null
+
+    actor = Actor[PingPong, Unit](receive { (x: PingPong /*, self: Pinger (initially None)  */ ) =>
+      x match
+        case Ping(pingRef: Pinger, x: Int) =>
+          if x < 100000 then
+            /*
+            val pongRef : Ponger = ...
+            val x : Int = ...
+            val pingRef : Pinger = ...
+             */
+            // println(s"pong count: $x")
+            println(s"I'm $actor.self ..Pinged by $pingRef --- pong count: $x")
+            pingRef ! Pong(actor.self /* self */, x + 1)
+            Next()
+          else
+            pingRef ! Pong(actor.self, x)
+            Stop(println(s"Final count: $x"))
+    }(ALGORITHM))
+
+    actor
+
+  def pingPonger() =
+    val (futResult1, pinger) = pingActor().start()
+    val (futResult2, ponger) = pongActor().start()
+
+    val results = Future.sequence(Seq(futResult1, futResult2))
+
+    pinger ! Pong(ponger, 0)
+
+    val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+
+    finalResult.onComplete(printResult)
+
+    println("\n======================================================\n\n")
+
+  pingPonger()

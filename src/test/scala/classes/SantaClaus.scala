@@ -28,14 +28,7 @@ class SantaClaus(
     y match
       case (
             IsBack(),
-            IsBack(),
-            IsBack(),
-            IsBack(),
-            IsBack(),
-            IsBack(),
-            IsBack(),
-            IsBack(),
-            IsBack()
+            N_REINDEERS
           ) =>
         // _println("awake")
         // _println("delivering presents")

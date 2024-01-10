@@ -158,22 +158,36 @@ private def generateRhs[T](using
     tt: Type[T]
 )(rhs: quotes.reflect.Term, inners: List[(String, quotes.reflect.TypeRepr)]): quotes.reflect.Block =
   import quotes.reflect.*
+  val transformed =
+    Lambda(
+      owner = Symbol.spliceOwner,
+      tpe = MethodType(List("_"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
+      rhsFn = (sym: Symbol, params: List[Tree]) =>
+        val p0 = params.head.asInstanceOf[Ident]
+        val transform = new TreeMap:
+          override def transformTerm(term: Term)(owner: Symbol): Term = term match
+            case Ident(n) if inners.exists(_._1 == n) =>
+              val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
+              inners.find(_._1 == n).get._2.asType match
+                case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
+            case x => super.transformTerm(x)(owner)
 
-  Lambda(
-    owner = Symbol.spliceOwner,
-    tpe = MethodType(List("_"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
-    rhsFn = (sym: Symbol, params: List[Tree]) =>
-      val p0 = params.head.asInstanceOf[Ident]
-      val transform = new TreeMap:
-        override def transformTerm(term: Term)(owner: Symbol): Term = term match
-          case Ident(n) if inners.exists(_._1 == n) =>
-            val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
-            inners.find(_._1 == n).get._2.asType match
-              case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-          case x => super.transformTerm(x)(owner)
+        transform.transformTerm(rhs.changeOwner(sym))(sym) match
+          case Block(stmts, expr) =>
+            val a        = '{ val self = 23 }
+            val newStmts = a.asTerm :: stmts
+            report.info(s"expr: ${Printer.TreeStructure.show(expr)}")
+            report.info(s"newStmts: ${newStmts.map(Printer.TreeStructure.show(_)).mkString("\n")}")
+            Block(newStmts, expr)
+    )
 
-      transform.transformTerm(rhs.changeOwner(sym))(sym)
-  )
+  transformed
+  // transformed match
+  //   case Block(stmts, expr) =>
+  //     val a        = '{ val self = 2342343 }
+  //     val newStmts = a.asTerm :: stmts
+  //     report.info(s"newStmts: ${newStmts.map(Printer.TreeStructure.show(_)).mkString("\n")}")
+  //     Block(newStmts, expr)
 
 /** Generates a join-pattern for singleton patterns e.g. A(*) the asterix represents a potential
   * payload.
@@ -508,7 +522,7 @@ private def getCases[M, T](
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          cases.flatMap { generateJoinPattern[M, T](_) }
+          cases.flatMap(generateJoinPattern[M, T](_))
         // code
         case default =>
           errorTree("Unsupported code", default)
@@ -516,7 +530,7 @@ private def getCases[M, T](
     case Inlined(_, _, Block(stmts, _)) =>
       stmts.head match
         case DefDef(_, _, _, Some(Match(_, cases))) =>
-          cases.flatMap { generateJoinPattern[M, T](_) }
+          cases.flatMap(generateJoinPattern[M, T](_))
         // report.info(
         //   f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
         // )
@@ -558,7 +572,7 @@ private def receiveCodegen[M, T](
   *   a compile-time closure that takes a MatchingAlgorithm type and returns a Matcher-object that
   *   performs pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: M => T): MatchingAlgorithm => Matcher[M, T] =
+inline def receive[M, T](inline f: (M) => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
 
 // inline def receive_[M, T](inline f: PartialFunction[Any, T]): MatchingAlgorithm => Matcher[M, T] =

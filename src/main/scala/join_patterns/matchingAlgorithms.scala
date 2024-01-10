@@ -23,6 +23,7 @@ object CandidateMatches:
 
 trait Matcher[M, T]:
   def apply(q: Mailbox[M]): T
+  // def apply(q: Mailbox[M], self: ActorRef[M]): T
 
   def mapIdxsToFits(
       msgIdxsQ: List[Int],
@@ -136,7 +137,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
                       val validPermutations = computeValidPermutations(candidateI, msgIdxsToFits)
                       findBestMatch(validPermutations, messages, pattern)
                     }
-                    .collectFirst({ case Some(_bestMatch) => _bestMatch })
+                    .collectFirst { case Some(_bestMatch) => _bestMatch }
 
                   bestMatch match
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
