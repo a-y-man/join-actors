@@ -11,4 +11,4 @@ lazy val root = (project in file("."))
     libraryDependencies += "org.scalatestplus" %% "scalacheck-1-17"    % "3.2.16.0"
   )
 
-scalacOptions ++= Seq("-deprecation", "-feature")
+scalacOptions ++= Seq("-deprecation", "-feature", "-Xcheck-macros")
