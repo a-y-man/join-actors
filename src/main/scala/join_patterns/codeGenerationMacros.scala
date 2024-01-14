@@ -172,13 +172,14 @@ private def generateRhs[T](using
                 case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
             case x => super.transformTerm(x)(owner)
 
-        transform.transformTerm(rhs.changeOwner(sym))(sym) match
-          case Block(stmts, expr) =>
-            val a        = '{ val self = 23 }
-            val newStmts = a.asTerm :: stmts
-            report.info(s"expr: ${Printer.TreeStructure.show(expr)}")
-            report.info(s"newStmts: ${newStmts.map(Printer.TreeStructure.show(_)).mkString("\n")}")
-            Block(newStmts, expr)
+        transform.transformTerm(rhs.changeOwner(sym))(sym)
+        // match
+        //   case Block(stmts, expr) =>
+        //     val a        = '{ val self = 23 }
+        //     val newStmts = a.asTerm :: stmts
+        //     report.info(s"expr: ${Printer.TreeStructure.show(expr)}")
+        //     report.info(s"newStmts: ${newStmts.map(Printer.TreeStructure.show(_)).mkString("\n")}")
+        //     Block(newStmts, expr)
     )
 
   transformed
@@ -299,10 +300,11 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
+      val outerSymbol = outer.classSymbol
       outer.asType match
         case '[ot] =>
           (
-            Expr(outer.simplified.show),
+            Expr(TypeTree.of[ot].symbol.name),
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
               ${ extractor.asExprOf[ot => Map[String, Any]] }(m.asInstanceOf[ot])
@@ -312,30 +314,14 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
 
-  val msgTypes = outers.map { outer =>
-    outer.simplified.show
-  }
-
-  // println("Pattern")
-  // msgTypes.foreach(mtp => println(s"Msg types: ${mtp}"))
-
   val extract: Expr[
     List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
   ] =
     '{ (m: List[M]) =>
-      val messages = m.zipWithIndex
-      // val matched: ListBuffer[Int] = ListBuffer()
+      val messages    = m.zipWithIndex
       val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
       val msgPatterns = _extractors.zipWithIndex
       val patternSize = msgPatterns.size
-      // ((String, M => Boolean, M => Map[String, Any]), Int) --> String
-      val msgPatternsTypeNames = msgPatterns.map(msgPat => msgPat._1._1.split("[$.]").last)
-
-      val typeNamesInMsgs =
-        messages.map((msg, idx) => (msg.getClass().getSimpleName(), idx))
-
-      val patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)] =
-        msgPatterns.map(msgPattern => ((msgPattern._1._2, msgPattern._1._3), msgPattern._2)).toSet
 
       def countOccurences(typeNames: List[String]) =
         typeNames
@@ -344,8 +330,16 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           )
           .toMap
 
-      val msgPatternOccurences = countOccurences(msgPatternsTypeNames)
+      val typeNamesInMsgs =
+        messages.map((msg, idx) => (msg.asInstanceOf[M].getClass().getSimpleName(), idx))
 
+      val patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)] =
+        msgPatterns.map(msgPattern => ((msgPattern._1._2, msgPattern._1._3), msgPattern._2)).toSet
+
+      val typesInPattern = countOccurences(msgPatterns.map(_._1._1))
+
+      println(s"typesInPattern: ${typesInPattern}")
+      println(s"typeNamesInMsgs: ${countOccurences(typeNamesInMsgs.map(_._1))}")
       def generateValidMsgCombs(messagesInQ: List[(String, Int)]): Iterator[List[Int]] =
         if messagesInQ.isEmpty then Iterator.empty[List[Int]]
         else
@@ -354,13 +348,27 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
               patternSize
             ) // Create all combinations of pattern size from the current messages in the mailbox
             .filter(comb =>
-              val combOc = countOccurences(
-                comb.map(_._1)
-              ) // Filter the combinations that have the same pattern type composition as the composite pattern definition
+              val combOc = countOccurences(comb.map(_._1))
+              // Filter the combinations that have the same pattern type composition as the composite pattern definition
               // println(
               //   s"Q ${combOc} -- P ${msgPatternOccurences} -- ${combOc == msgPatternOccurences}"
               // )
-              combOc == msgPatternOccurences
+              /*
+                P = A() & A() & B() & C()       ----          M = A(), A(), B(), C()
+
+                PCount =
+                  { A.type -> 2,
+                    B.type -> 1,
+                    C.type -> 1 }
+
+                MCount =
+                  { A() -> 2,
+                    B() -> 1,
+                    C() -> 1 }
+
+                PCount == MCount
+               */
+              combOc == typesInPattern
             )
             .map(_.map(_._2)) // Keep only the indicies. _._1 is the string name of a msg type
           validCombs
