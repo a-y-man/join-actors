@@ -50,8 +50,6 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
 
   @tailrec
   private def run(promise: Promise[T]): Unit =
-    // TODO: add the actor reference as an argument to the matcher e.g. matcher(mailbox, self)
-    // Then introduce the self in RHS of the join pattern
     matcher(mailbox)(self) match
       case Next()      => run(promise)
       case Stop(value) => promise.success(value)

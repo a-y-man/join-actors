@@ -1,5 +1,7 @@
 package join_patterns
 
+import actor.ActorRef
+
 import scala.collection.immutable.TreeMap
 
 import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
@@ -42,7 +44,7 @@ case class JoinPattern[M, T](
       (Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])
     ],
     guard: Map[String, Any] => Boolean,
-    rhs: Map[String, Any] => T,
+    rhs: (Map[String, Any], ActorRef[M]) => T,
     size: Int,
     partialExtract: (Tuple2[M, Int], MatchingTree[M]) => Option[MatchingTree[M]]
 )
