@@ -1,6 +1,10 @@
 package join_patterns
 
+import actor.Actor
+import actor.ActorRef
+
 import java.util.concurrent.LinkedTransferQueue as Queue
+import scala.annotation.tailrec
 import scala.collection.immutable.Map
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
@@ -31,9 +35,13 @@ private def extractInner(using quotes: Quotes)(
   t match
     case Bind(n, typed @ Typed(_, TypeIdent(_))) => (n, typed.tpt.tpe.dealias.simplified)
     case typed @ Typed(Wildcard(), TypeIdent(_)) => ("_", typed.tpt.tpe.dealias.simplified)
-    // case b @ Bind(n, Wildcard())                 => (n, )
+    case b @ Bind(n, typed @ Typed(Wildcard(), Applied(_, _))) =>
+      (n, typed.tpt.tpe.dealias.simplified)
+    case Bind(n, w @ Wildcard()) => (n, w.tpe.dealias.simplified)
     // add support for binding patterns clauses using @
-    // case Bind(binderName, )
+    // case Bind(binderName, Bind(boundName, typed @ Typed(_, TypeIdent(_)))) =>
+    //   (binderName, typed.tpt.tpe.dealias.simplified)
+    // case Bind(binderName, Bind(boundName, w @ Wildcard())) => (binderName, w.tpe.dealias.simplified)
     case _ =>
       errorTree("Unsupported bottom-level pattern", t)
       ("", TypeRepr.of[Nothing])
@@ -53,9 +61,12 @@ private def getTypesData(using quotes: Quotes)(
   import quotes.reflect.*
 
   patterns.map {
-    case TypedOrTest(Unapply(Select(_, "unapply"), _, binds), tt: TypeTree) =>
+    case TypedOrTest(Unapply(Select(s, "unapply"), _, binds), tt: TypeTree) =>
+      // println(s"IDENT: ${classOf[s.companionClass]}") // '{ classOf[$s] }
       tt.tpe.dealias.simplified match
-        case tp: TypeRef => tp -> binds.map(extractInner(_))
+        case tp: TypeRef =>
+          // println(s.symbol.companionClass.typeRef.dealias.simplified)
+          tp -> binds.map(extractInner(_))
     case default =>
       errorTree("Unsupported top-level pattern", default)
       TypeRepr.of[Nothing] -> List()
@@ -91,6 +102,65 @@ private def generateExtractor(using
       ('{ Map[String, Any](${ Varargs[(String, Any)](args) }*) }).asTerm
   )
 
+private def collectBindings(using quotes: Quotes)(
+    tree: quotes.reflect.Tree
+): List[quotes.reflect.Symbol] =
+  import quotes.reflect.*
+
+  tree match
+    case Block(stmts, exprs) =>
+      val collectVals = stmts.foldLeft(List.empty[Symbol]) { case (acc, stmt) =>
+        stmt match
+          case ValDef(_, _, _) =>
+            stmt.symbol :: acc
+          case _ => acc
+      }
+      collectVals
+    case _ => Nil
+
+private def substitute(using quotes: Quotes)(
+    rhs: quotes.reflect.Term,
+    identToBeReplaced: String,
+    replacementExpr: quotes.reflect.Term
+): quotes.reflect.Term =
+  import quotes.reflect.*
+  val boundSymbols = collectBindings(rhs)
+  // report.info(
+  //   s"${boundSymbols.map(_.name).mkString(", ")}"
+  // )
+  val sym = Symbol.spliceOwner
+  val transform = new TreeMap:
+    override def transformTerm(rhsBlock: Term)(owner: Symbol): Term =
+      rhsBlock match
+        case Ident(name)
+            if !boundSymbols
+              .exists(_.name equals name) && identToBeReplaced == name =>
+          // report.info(
+          //   s"Replacing $name with $replacementExpr in $identToBeReplaced ----- ${boundSymbols.map(_.name).mkString(", ")}"
+          // )
+
+          replacementExpr.changeOwner(sym)
+        case x =>
+          super.transformTerm(x)(owner)
+  transform.transformTerm(rhs.changeOwner(sym))(sym)
+
+@tailrec
+private def substInners[T](using quotes: Quotes, tt: Type[T])(
+    inners: List[(String, quotes.reflect.TypeRepr)],
+    rhs: quotes.reflect.Term,
+    substs: quotes.reflect.Term
+): quotes.reflect.Term =
+  import quotes.reflect.*
+
+  if inners.isEmpty then rhs
+  else
+    val (name, tpe)     = inners.head
+    val replacementExpr = '{ (${ substs.asExprOf[Map[String, Any]] })(${ Expr(name) }) }
+    tpe.asType match
+      case '[innerType] =>
+        val x = ('{ ${ replacementExpr }.asInstanceOf[innerType] }).asTerm
+        substInners(inners.tail, substitute(rhs, name, x), substs)
+
 /** Creates a guard function.
   *
   * @param guard
@@ -120,7 +190,6 @@ private def generateGuard(using quotes: Quotes)(
       else
         _rhsFn = (sym: Symbol, params: List[Tree]) =>
           val p0 = params.head.asInstanceOf[Ident]
-          // report.info(s"generateGuard:transformTerm ---> ${p0.asExpr.show}")
 
           val transform = new TreeMap:
             override def transformTerm(term: Term)(owner: Symbol): Term =
@@ -153,42 +222,42 @@ private def generateGuard(using quotes: Quotes)(
   * @return
   *   a `Block` that is the rhs.
   */
-private def generateRhs[T](using
+private def generateRhs[M, T](using
     quotes: Quotes,
-    tt: Type[T]
-)(rhs: quotes.reflect.Term, inners: List[(String, quotes.reflect.TypeRepr)]): quotes.reflect.Block =
+    tt: Type[T],
+    tm: Type[M]
+)(
+    rhs: quotes.reflect.Term,
+    inners: List[(String, quotes.reflect.TypeRepr)],
+    selfRef: String
+): quotes.reflect.Block =
   import quotes.reflect.*
+
   val transformed =
     Lambda(
       owner = Symbol.spliceOwner,
-      tpe = MethodType(List("_"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[T]),
+      tpe = MethodType(List("_", "_"))(
+        _ =>
+          List(
+            TypeRepr.of[Map[String, Any]],
+            TypeRepr.of[ActorRef[M]]
+          ), // rhsFn takes 2 params: Map[String, Any] and ActorRef[M]
+        _ => TypeRepr.of[T]
+      ),
       rhsFn = (sym: Symbol, params: List[Tree]) =>
-        val p0 = params.head.asInstanceOf[Ident]
+        val p0                 = params.head.asInstanceOf[Ident]
+        val replaceSelf        = substitute(rhs, selfRef, (params(1).asExprOf[ActorRef[M]]).asTerm)
+        val substInnersInBlock = substInners[T](inners, replaceSelf, p0)
+        // report.info(s"generateRhs:transformTerm ---> ${Printer.TreeStructure.show(replaceSelf)})}")
         val transform = new TreeMap:
-          override def transformTerm(term: Term)(owner: Symbol): Term = term match
-            case Ident(n) if inners.exists(_._1 == n) =>
-              val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
-              inners.find(_._1 == n).get._2.asType match
-                case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-            case x => super.transformTerm(x)(owner)
+          override def transformTerm(term: Term)(owner: Symbol): Term =
+            // report.info(Printer.TreeStructure.show(term))
+            term match
+              case x => super.transformTerm(x)(owner)
 
-        transform.transformTerm(rhs.changeOwner(sym))(sym)
-        // match
-        //   case Block(stmts, expr) =>
-        //     val a        = '{ val self = 23 }
-        //     val newStmts = a.asTerm :: stmts
-        //     report.info(s"expr: ${Printer.TreeStructure.show(expr)}")
-        //     report.info(s"newStmts: ${newStmts.map(Printer.TreeStructure.show(_)).mkString("\n")}")
-        //     Block(newStmts, expr)
+        transform.transformTerm(substInnersInBlock.changeOwner(sym))(sym)
     )
-
   transformed
-  // transformed match
-  //   case Block(stmts, expr) =>
-  //     val a        = '{ val self = 2342343 }
-  //     val newStmts = a.asTerm :: stmts
-  //     report.info(s"newStmts: ${newStmts.map(Printer.TreeStructure.show(_)).mkString("\n")}")
-  //     Block(newStmts, expr)
 
 /** Generates a join-pattern for singleton patterns e.g. A(*) the asterix represents a potential
   * payload.
@@ -207,7 +276,8 @@ private def generateRhs[T](using
 private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
     dataType: quotes.reflect.Tree,
     guard: Option[quotes.reflect.Term],
-    _rhs: quotes.reflect.Term
+    _rhs: quotes.reflect.Term,
+    selfRef: String
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
@@ -246,8 +316,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         }
       val predicate: Expr[Map[String, Any] => Boolean] =
         generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-      val rhs: Expr[Map[String, Any] => T] =
-        generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
+      val rhs: Expr[(Map[String, Any], ActorRef[M]) => T] =
+        generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(Map[String, Any], ActorRef[M]) => T]
       val size = 1
 
       val partialExtract = '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) =>
@@ -291,7 +361,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
 private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
     dataType: List[quotes.reflect.Tree],
     guard: Option[quotes.reflect.Term],
-    _rhs: quotes.reflect.Term
+    _rhs: quotes.reflect.Term,
+    self: String
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
@@ -300,7 +371,6 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
-      val outerSymbol = outer.classSymbol
       outer.asType match
         case '[ot] =>
           (
@@ -314,6 +384,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
   val (outers, inners) = (typesData.map(_._1), typesData.map(_._2).flatten)
 
+  // val t = outers.map(_.classSymbol.get.getClass())
+  // println(s"${t}")
   val extract: Expr[
     List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
   ] =
@@ -325,21 +397,19 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
       def countOccurences(typeNames: List[String]) =
         typeNames
-          .map(typeName =>
-            (typeName, typeNames.count(otherTypeName => typeName equals otherTypeName))
-          )
+          .map(t1 => (t1, typeNames.count(t2 => t1 equals t2)))
           .toMap
 
       val typeNamesInMsgs =
-        messages.map((msg, idx) => (msg.asInstanceOf[M].getClass().getSimpleName(), idx))
+        messages.map((msg, idx) => (msg.getClass().getSimpleName(), idx))
 
       val patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)] =
         msgPatterns.map(msgPattern => ((msgPattern._1._2, msgPattern._1._3), msgPattern._2)).toSet
 
       val typesInPattern = countOccurences(msgPatterns.map(_._1._1))
 
-      println(s"typesInPattern: ${typesInPattern}")
-      println(s"typeNamesInMsgs: ${countOccurences(typeNamesInMsgs.map(_._1))}")
+      // println(s"typesInPattern: ${typesInPattern}")
+      // println(s"typeNamesInMsgs: ${countOccurences(typeNamesInMsgs.map(_._1))}")
       def generateValidMsgCombs(messagesInQ: List[(String, Int)]): Iterator[List[Int]] =
         if messagesInQ.isEmpty then Iterator.empty[List[Int]]
         else
@@ -357,14 +427,14 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
                 P = A() & A() & B() & C()       ----          M = A(), A(), B(), C()
 
                 PCount =
-                  { A.type -> 2,
-                    B.type -> 1,
-                    C.type -> 1 }
+                  { class A -> 2,
+                    class B -> 1,
+                    class C -> 1 }
 
                 MCount =
-                  { A() -> 2,
-                    B() -> 1,
-                    C() -> 1 }
+                  { class A -> 2,
+                    class B -> 1,
+                    class C -> 1 }
 
                 PCount == MCount
                */
@@ -381,8 +451,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
   val predicate: Expr[Map[String, Any] => Boolean] =
     generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-  val rhs: Expr[Map[String, Any] => T] =
-    generateRhs[T](_rhs, inners).asExprOf[Map[String, Any] => T]
+  val rhs: Expr[(Map[String, Any], ActorRef[M]) => T] =
+    generateRhs[M, T](_rhs, inners, self).asExprOf[(Map[String, Any], ActorRef[M]) => T]
   val size = outers.size
 
   val partialExtract: Expr[
@@ -470,8 +540,10 @@ private def generateWildcardPattern[M, T](using
   }
   val predicate: Expr[Map[String, Any] => Boolean] =
     generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
-  val rhs: Expr[Map[String, Any] => T] = '{ (_: Map[String, Any]) => ${ _rhs.asExprOf[T] } }
-  val size                             = 1
+  val rhs: Expr[(Map[String, Any], ActorRef[M]) => T] = '{ (_: Map[String, Any], _: ActorRef[M]) =>
+    ${ _rhs.asExprOf[T] }
+  }
+  val size = 1
 
   val partialExtract = '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) => None }
 
@@ -493,7 +565,8 @@ private def generateWildcardPattern[M, T](using
   *   a join-pattern expression.
   */
 private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
-    `case`: quotes.reflect.CaseDef
+    `case`: quotes.reflect.CaseDef,
+    selfRef: String
 ): Option[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
   `case` match
@@ -502,9 +575,9 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
         case t @ TypedOrTest(Unapply(fun, Nil, patterns), _) =>
           fun match
             case Select(_, "unapply") =>
-              Some(generateSingletonPattern[M, T](t, guard, _rhs))
+              Some(generateSingletonPattern[M, T](t, guard, _rhs, selfRef))
             case TypeApply(Select(_, "unapply"), _) =>
-              Some(generateCompositePattern[M, T](patterns, guard, _rhs))
+              Some(generateCompositePattern[M, T](patterns, guard, _rhs, selfRef))
         case w: Wildcard =>
           // report.info("Wildcards should be defined last", w.asExpr)
           Some(generateWildcardPattern[M, T](guard, _rhs))
@@ -520,7 +593,7 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
   *   a list of join-pattern expressions.
   */
 private def getCases[M, T](
-    expr: Expr[M => T]
+    expr: Expr[(M, ActorRef[M]) => T]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
   // report.info(
@@ -529,22 +602,30 @@ private def getCases[M, T](
   expr.asTerm match
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
-        case DefDef(_, _, _, Some(Block(_, Match(_, cases)))) =>
-          cases.flatMap(generateJoinPattern[M, T](_))
+        case DefDef(_, List(TermParamClause(params)), _, Some(Block(_, Match(_, cases)))) =>
+          // report.info(
+          //   s"${Printer.TreeStructure.show(params(1))}  --- ${params(1).tpt.tpe.dealias}"
+          // )
+          val selfRef = params(1).name
+          // params.map { param =>
+          //   Printer.TreeStructure.show(param)
+          // }
+
+          cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
         // code
         case default =>
           errorTree("Unsupported code", default)
           List()
-    case Inlined(_, _, Block(stmts, _)) =>
-      stmts.head match
-        case DefDef(_, _, _, Some(Match(_, cases))) =>
-          cases.flatMap(generateJoinPattern[M, T](_))
-        // report.info(
-        //   f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
-        // )
-        case default =>
-          errorTree("Unsupported code", default)
-          List()
+    // case Inlined(_, _, Block(stmts, _)) =>
+    //   stmts.head match
+    //     case DefDef(_, _, _, Some(Match(_, cases))) =>
+    //       cases.flatMap(generateJoinPattern[M, T](_))
+    //     // report.info(
+    //     //   f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
+    //     // )
+    //     case default =>
+    //       errorTree("Unsupported code", default)
+    //       List()
     case default =>
       errorTree("Unsupported expression", default)
       List()
@@ -557,7 +638,7 @@ private def getCases[M, T](
   *   a matcher instance.
   */
 private def receiveCodegen[M, T](
-    expr: Expr[M => T]
+    expr: Expr[(M, ActorRef[M]) => T]
 )(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{ (algorithm: MatchingAlgorithm) =>
   SelectMatcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
 }
@@ -580,11 +661,8 @@ private def receiveCodegen[M, T](
   *   a compile-time closure that takes a MatchingAlgorithm type and returns a Matcher-object that
   *   performs pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: (M) => T): MatchingAlgorithm => Matcher[M, T] =
+inline def receive[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
 
 // inline def receive_[M, T](inline f: PartialFunction[Any, T]): MatchingAlgorithm => Matcher[M, T] =
 //   ${ receiveCodegen('f) }
-
-// Inlined(None, Nil, Block(Nil, Block(List(DefDef("$anonfun", List(TermParamClause(List(ValDef("y", TypeIdent("Msg"), None)))), Inferred(), Some(Block(Nil, Match(Ident("y"), List(CaseDef(TypedOrTest(Unapply(TypeApply(Select(Ident("Tuple3"), "unapply"), List(Inferred(), Inferred(), Inferred())), Nil, List(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i0", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("E"), "unapply"), Nil, List(Bind("i1", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i2", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()))), Inferred()), Some(Apply(Select(Apply(Select(Ident("i0"), "=="), List(Ident("i1"))), "&&"), List(Apply(Select(Ident("i1"), "=="), List(Ident("i2")))))), Block(Nil, Ident("result"))), CaseDef(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("a", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), None, Block(Nil, Apply(Select(Ident("result"), "*"), List(Ident("a"))))))))))), Closure(Ident("$anonfun"), None))))
-// Inlined(None, Nil, Block(List(DefDef("$anonfun", List(TermParamClause(List(ValDef("x$1", Inferred(), None)))), Inferred(), Some(Match(Typed(Ident("x$1"), Inferred()),      List(CaseDef(TypedOrTest(Unapply(TypeApply(Select(Ident("Tuple3"), "unapply"), List(Inferred(), Inferred(), Inferred())), Nil, List(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i0", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("E"), "unapply"), Nil, List(Bind("i1", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("i2", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()))), Inferred()), Some(Apply(Select(Apply(Select(Ident("i0"), "=="), List(Ident("i1"))), "&&"), List(Apply(Select(Ident("i1"), "=="), List(Ident("i2")))))), Block(Nil, Ident("result"))), CaseDef(TypedOrTest(Unapply(Select(Ident("F"), "unapply"), Nil, List(Bind("a", Typed(Wildcard(), TypeIdent("Int"))))), Inferred()), None, Block(Nil, Apply(Select(Ident("result"), "*"), List(Ident("a")))))))))), Closure(Ident("$anonfun"), Some(AppliedType(TypeRef(TermRef(ThisType(TypeRef(NoPrefix(), "<root>")), "scala"), "PartialFunction"), List(TypeRef(TermRef(ThisType(TypeRef(NoPrefix(), "<root>")), "scala"), "Any"), TypeRef(ThisType(TypeRef(NoPrefix(), "scala")), "Int")))))))
