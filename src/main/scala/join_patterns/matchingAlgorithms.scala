@@ -1,5 +1,7 @@
 package join_patterns
 
+import actor.ActorRef
+
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.immutable.TreeMap
@@ -9,11 +11,11 @@ import scala.collection.mutable.Map as MutMap
 import math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
 
 type CandidateMatches[M, T] =
-  TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]
+  TreeMap[(List[Int], Int), (Map[String, Any], (Map[String, Any], ActorRef[M]) => T)]
 
 object CandidateMatches:
   def apply[M, T](): CandidateMatches[M, T] =
-    TreeMap[(List[Int], Int), (Map[String, Any], Map[String, Any] => T)]()(
+    TreeMap[(List[Int], Int), (Map[String, Any], (Map[String, Any], ActorRef[M]) => T)]()(
       Ordering[(List[Int], Int)]
     )
   def printCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]) =
@@ -22,8 +24,7 @@ object CandidateMatches:
     }
 
 trait Matcher[M, T]:
-  def apply(q: Mailbox[M]): T
-  // def apply(q: Mailbox[M], self: ActorRef[M]): T
+  def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
   def mapIdxsToFits(
       msgIdxsQ: List[Int],
@@ -113,7 +114,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
   private val messages         = ListBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
-  def apply(q: Mailbox[M]): T =
+  def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     import scala.jdk.CollectionConverters.*
 
     var result: Option[T] = None
@@ -143,7 +144,10 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
                       // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
                       val selectedMatch =
-                        (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
+                        (
+                          bestMatchSubsts,
+                          (substs: Map[String, Any], self: ActorRef[M]) => pattern.rhs(substs, self)
+                        )
                       // println(s"Selected match: $selectedMatch")
                       candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
                     case None => candidateMatchesAcc
@@ -155,7 +159,7 @@ class BasicMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends 
         // CandidateMatches.printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
 
-        result = Some(rhsFn(substs))
+        result = Some(rhsFn(substs, selfRef))
 
         val unprocessedMsgs = removeProcessedMsgs(indexedMessages, candidateQidxs)
         messages.clear()
@@ -178,7 +182,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
     }
 
   var mQidx = -1
-  def apply(q: Mailbox[M]): T =
+  def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     import scala.jdk.CollectionConverters.*
 
     var result: Option[T] = None
@@ -219,7 +223,10 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
                       // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
                       val selectedMatch =
-                        (bestMatchSubsts, (substs: Map[String, Any]) => pattern.rhs(substs))
+                        (
+                          bestMatchSubsts,
+                          (substs: Map[String, Any], self: ActorRef[M]) => pattern.rhs(substs, self)
+                        )
                       (
                         _updatedMTs,
                         candidateMatchesAcc.updated((bestMatchIdxs, patternIdx), selectedMatch)
@@ -245,7 +252,7 @@ class TreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends M
       if candidateMatches.nonEmpty then
         // CandidateMatches.printCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
-        result = Some(rhsFn(substs))
+        result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
         patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, currentMTree) =>
