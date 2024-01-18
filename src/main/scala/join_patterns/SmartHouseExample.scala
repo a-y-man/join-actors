@@ -6,7 +6,7 @@ import org.scalacheck.*
 
 import java.util.Date
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.{Map as MutMap}
+import scala.collection.mutable.Map as MutMap
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -109,7 +109,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
   val smartHouseActor = Actor[Action, Unit] {
-    receive { (y: Action) =>
+    receive { (y: Action, selfRef: ActorRef[Action]) =>
       y match
         // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case (
