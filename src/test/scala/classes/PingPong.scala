@@ -3,81 +3,55 @@ package test.classes.pingPong
 import scala.concurrent.{Future, ExecutionContext}
 
 import join_patterns.receive
-import actor.ActorRef
-import test.classes.Msg
-import test.benchmark.Benchmarkable
+import actor.*
 import test.ALGORITHM
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
 
-case class Ping() extends Msg
-case class Pong() extends Msg
+import ExecutionContext.Implicits.global
 
-class Pinger(private val maxHits: Int) extends Benchmarkable[Pong, Unit]:
-  var hits                            = 0
-  var pongRef: Option[ActorRef[Ping]] = None
-  var isDone                          = false
+type Ponger = ActorRef[Ping | Done]
+type Pinger = ActorRef[Pong | Done]
 
-  protected val matcher = receive { (y: Msg) =>
-    y match
-      case Pong() =>
-        // println(f"ping $hits")
-        pongRef.get.send(Ping())
+sealed trait PingPong
+case class Ping(ref: Pinger, hits: Int) extends PingPong
+case class Pong(ref: Ponger, hits: Int) extends PingPong
+case class Done(hits: Int)              extends PingPong
 
-        hits += 1
-        if hits >= maxHits then isDone = true
-  }(ALGORITHM)
-
-  def run_as_future: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-
-      ping()
-      while !isDone do
-        matcher(q)
-        Thread.`yield`()
-
-      System.nanoTime - start
+def pingPonger(maxHits: Int = 100) =
+  val pingActor: Actor[PingPong, Int] =
+    Actor[PingPong, Int] {
+      receive { (y: PingPong, pingRef: Pinger) =>
+        y match
+          case Pong(pongRef, x) =>
+            if x < maxHits then
+              pongRef ! Ping(pingRef, x + 1)
+              Next()
+            else
+              pongRef ! Done(x)
+              pingRef ! Done(x)
+              Next()
+          case Done(x) =>
+            Stop(x)
+      }(ALGORITHM)
     }
 
-  override def run =
-    ping()
-    while !isDone do
-      matcher(q)
-      Thread.`yield`()
-
-  def ping() =
-    pongRef.get.send(Ping())
-
-class Ponger(private val maxHits: Int) extends Benchmarkable[Ping, Unit]:
-  var hits                            = 0
-  var pingRef: Option[ActorRef[Pong]] = None
-  var isDone                          = false
-
-  protected val matcher = receive { (y: Msg) =>
-    y match
-      case Ping() =>
-        // println(f"pong $hits")
-        pingRef.get.send(Pong())
-
-        hits += 1
-        if hits >= maxHits then isDone = true
-  }(ALGORITHM)
-
-  def run_as_future: Future[Long] =
-    implicit val ec = ExecutionContext.global
-
-    Future {
-      val start = System.nanoTime
-
-      while !isDone do
-        matcher(q)
-        Thread.`yield`()
-
-      System.nanoTime - start
+  val pongActor: Actor[PingPong, Int] =
+    Actor[PingPong, Int] {
+      receive { (y: PingPong, pongRef: Ponger) =>
+        y match
+          case Ping(pingRef, x) =>
+            if x < maxHits then
+              pingRef ! Pong(pongRef, x + 1)
+              Next()
+            else
+              pingRef ! Done(x)
+              pongRef ! Done(x)
+              Next()
+          case Done(x) =>
+            Stop(x)
+      }(ALGORITHM)
     }
 
-  override def run =
-    while !isDone do
-      matcher(q)
-      Thread.`yield`()
+  (pingActor, pongActor)

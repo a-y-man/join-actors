@@ -1,3 +1,3 @@
 package test.classes
 
-abstract class Msg
+trait Msg

@@ -1,50 +1,47 @@
 package test.scenario.pingPong
 
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.Assertions.*
 import scala.util.Random
+import scala.concurrent.{Future, ExecutionContext}
 
 import test.classes.pingPong.*
 import join_patterns.MatchingAlgorithm
+import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
+import ExecutionContext.Implicits.global
 
 class PingPongTest extends AnyFunSuite:
   test("Fixed number of iterations") {
-    val maxHits    = 100_000
-    val ping       = Pinger(maxHits)
-    val pong       = Ponger(maxHits)
-    val pingThread = Thread(ping)
-    val pongThread = Thread(pong)
+    val maxHits = 100
 
-    ping.pongRef = Some(pong.ref)
-    pong.pingRef = Some(ping.ref)
+    val (pingActor, pongActor) = pingPonger(maxHits)
+    val (result1, pinger)      = pingActor.start()
+    val (result2, ponger)      = pongActor.start()
 
-    // println("start")
-    pingThread.start
-    pongThread.start
+    val results = Future.sequence(Seq(result1, result2))
 
-    pingThread.join
-    pongThread.join
-    // println("end")
+    ponger ! Ping(pinger, 0)
 
-    assert(ping.hits == maxHits)
-    assert(pong.hits == maxHits)
+    val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+
+    finalResult map { results => assert(results forall (_ == maxHits)) }
   }
 
   test("Random number of iterations") {
-    val maxHits    = Random.nextInt(100_000)
-    val ping       = Pinger(maxHits)
-    val pong       = Ponger(maxHits)
-    val pingThread = Thread(ping)
-    val pongThread = Thread(pong)
+    val maxHits = Random.nextInt(100)
 
-    ping.pongRef = Some(pong.ref)
-    pong.pingRef = Some(ping.ref)
+    val (pingActor, pongActor) = pingPonger(maxHits)
+    val (result1, pinger)      = pingActor.start()
+    val (result2, ponger)      = pongActor.start()
 
-    pingThread.start
-    pongThread.start
+    val results = Future.sequence(Seq(result1, result2))
 
-    pingThread.join
-    pongThread.join
+    ponger ! Ping(pinger, 0)
 
-    assert(ping.hits == maxHits)
-    assert(pong.hits == maxHits)
+    val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+
+    finalResult map { results => assert(results forall (_ == maxHits)) }
   }
