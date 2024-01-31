@@ -1,18 +1,37 @@
 package test.benchmark.pingPong
 
-import test.classes.pingPong.{Pinger, Ponger}
+import test.classes.pingPong.*
 import test.classes.Msg
 import test.benchmark.{Benchmark, BenchmarkPass}
 import test.ALGORITHM
+import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
+import scala.concurrent.ExecutionContext
 
-def setup(maxHits: Int): (Pinger, Ponger) =
-  val ping = Pinger(maxHits)
-  val pong = Ponger(maxHits)
+def runBenchmark(maxHits: Int) =
+  implicit val ec = ExecutionContext.global
 
-  ping.pongRef = Some(pong.ref)
-  pong.pingRef = Some(ping.ref)
+  val (pingActor, pongActor) = pingPonger(maxHits)
 
-  (ping, pong)
+  Future {
+    val startTime = System.nanoTime()
+
+    val (result1, pinger) = pingActor.start()
+    val (result2, ponger) = pongActor.start()
+
+    val results = Future.sequence(Seq(result1, result2))
+
+    ponger ! Ping(pinger, 0)
+
+    val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+
+    if results.isCompleted then
+      val endTime = System.nanoTime()
+      endTime - startTime
+    else -1L
+  }
 
 @main
 def pingPongBenchmark =
@@ -23,18 +42,12 @@ def pingPongBenchmark =
     200,
     BenchmarkPass(
       "Control",
-      () =>
-        val (ping, pong) = setup(maxHits)
-        pong.run_as_future
-        ping.run_as_future
+      () => runBenchmark(maxHits)
     ),
     List(
       BenchmarkPass(
         s"Macro using ${ALGORITHM.toString()}",
-        () =>
-          val (ping, pong) = setup(maxHits)
-          pong.run_as_future
-          ping.run_as_future
+        () => runBenchmark(maxHits)
       )
     )
   ).run
