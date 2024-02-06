@@ -14,5 +14,5 @@ target
 .vscode
 
 data/
-
+logs/
 Scratch.txt
