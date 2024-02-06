@@ -53,7 +53,7 @@ private def extractInner(using quotes: Quotes)(
   *   the patterns, as a `List[Tree]`.
   * @return
   *   a list of tuples, containing pattern type representation, and a list of tuples, containing
-  *   types' name and representation.
+  *   types' name and representation. substs: Map[String, Int]
   */
 private def getTypesData(using quotes: Quotes)(
     patterns: List[quotes.reflect.Tree]
@@ -101,65 +101,119 @@ private def generateExtractor(using
       }
       ('{ Map[String, Any](${ Varargs[(String, Any)](args) }*) }).asTerm
   )
+// substitute(
 
-private def collectBindings(using quotes: Quotes)(
-    tree: quotes.reflect.Tree
-): List[quotes.reflect.Symbol] =
-  import quotes.reflect.*
+//     Block(
 
-  tree match
-    case Block(stmts, exprs) =>
-      val collectVals = stmts.foldLeft(List.empty[Symbol]) { case (acc, stmt) =>
-        stmt match
-          case ValDef(_, _, _) =>
-            stmt.symbol :: acc
-          case _ => acc
-      }
-      collectVals
-    case _ => Nil
+//        stmt1
+
+//        stmt2
+
+//        val x = x + 1
+
+//        stmt3
+
+//        stmt4
+
+//     ), x, expr)
+
+// =
+
+// Block(
+
+//     substitute(stmt1, x, expr)
+
+//     substitute(stmt2, x, expr)
+
+//     val x = substitute(x+1, x, expr)
+
+//     stmt3
+
+//     stmt4
+
+// )
 
 private def substitute(using quotes: Quotes)(
     rhs: quotes.reflect.Term,
     identToBeReplaced: String,
     replacementExpr: quotes.reflect.Term
-): quotes.reflect.Term =
+)(sym: quotes.reflect.Symbol): quotes.reflect.Term =
   import quotes.reflect.*
-  val boundSymbols = collectBindings(rhs)
-  // report.info(
-  //   s"${boundSymbols.map(_.name).mkString(", ")}"
-  // )
-  val sym = Symbol.spliceOwner
-  val transform = new TreeMap:
-    override def transformTerm(rhsBlock: Term)(owner: Symbol): Term =
-      rhsBlock match
-        case Ident(name)
-            if !boundSymbols
-              .exists(_.name equals name) && identToBeReplaced == name =>
-          // report.info(
-          //   s"Replacing $name with $replacementExpr in $identToBeReplaced ----- ${boundSymbols.map(_.name).mkString(", ")}"
-          // )
 
-          replacementExpr.changeOwner(sym)
+  var isShadowed = false
+
+  val transform = new TreeMap:
+    override def transformStatement(stat: Statement)(owner: Symbol): Statement =
+      if isShadowed then
+        // println(s"Skipping ${Printer.TreeShortCode.show(stat)}")
+        stat
+      else
+        stat match
+          case t: ValDef if t.name == identToBeReplaced =>
+            isShadowed = true
+            val tpt1 = super.transformTypeTree(t.tpt)(t.symbol.owner)
+            val rhs1 = t.rhs.map(x =>
+              substitute(x, identToBeReplaced, replacementExpr)(t.symbol.owner)
+            ) // Do substitution only on the RHS
+            ValDef.copy(t)(t.name, tpt1, rhs1)
+          // case t: DefDef =>
+          //   val paramss1 = t.paramss.map {
+          //     case TypeParamClause(params) =>
+          //       TypeParamClause(transformSubTrees(params)(owner))
+          //     case TermParamClause(params) =>
+          //       TermParamClause {
+          //         isShadowed = params.exists {
+          //           case ValDef(name, _, _) if name == identToBeReplaced => true
+          //           case _                                               => false
+          //         }
+          //         params
+          //       }
+          //   }
+          //   if isShadowed then
+          //     isShadowed = false
+          //     println(s"Skipping ${Printer.TreeShortCode.show(t)}")
+          //     transformStatement(t)(owner)
+          //   else super.transformStatement(t)(owner)
+          case x =>
+            super.transformStatement(x)(owner)
+
+    override def transformStats(stats: List[Statement])(
+        owner: Symbol
+    ): List[Statement] =
+      super.transformStats(stats)(owner).map(transformStatement(_)(owner))
+
+    override def transformTerm(term: Term)(owner: Symbol): Term =
+      term match
+        case Block(stats, expr) =>
+          val wasShadowed = isShadowed
+          isShadowed = false
+          val stats1 = transformStats(stats)(owner)
+          val expr1  = transformTerm(expr)(owner)
+          isShadowed = wasShadowed
+          Block.copy(term)(stats1, expr1)
+        case t: Ident if identToBeReplaced == t.name && !isShadowed =>
+          // println(s"Replacing ${t.name} with ${Printer.TreeShortCode.show(replacementExpr)}")
+          replacementExpr.changeOwner(owner)
         case x =>
           super.transformTerm(x)(owner)
+
   transform.transformTerm(rhs.changeOwner(sym))(sym)
 
-@tailrec
 private def substInners[T](using quotes: Quotes, tt: Type[T])(
     inners: List[(String, quotes.reflect.TypeRepr)],
     rhs: quotes.reflect.Term,
     substs: quotes.reflect.Term
-): quotes.reflect.Term =
+)(owner: quotes.reflect.Symbol): quotes.reflect.Term =
   import quotes.reflect.*
 
-  if inners.isEmpty then rhs
-  else
-    val (name, tpe)     = inners.head
+  val result = inners.foldLeft(rhs) { case (acc, (name, tpe)) =>
     val replacementExpr = '{ (${ substs.asExprOf[Map[String, Any]] })(${ Expr(name) }) }
     tpe.asType match
       case '[innerType] =>
         val x = ('{ ${ replacementExpr }.asInstanceOf[innerType] }).asTerm
-        substInners(inners.tail, substitute(rhs, name, x), substs)
+        substitute(acc, name, x)(owner)
+  }
+  result
 
 /** Creates a guard function.
   *
@@ -236,7 +290,7 @@ private def generateRhs[M, T](using
   val transformed =
     Lambda(
       owner = Symbol.spliceOwner,
-      tpe = MethodType(List("_", "_"))(
+      tpe = MethodType(List("_", s"$selfRef"))(
         _ =>
           List(
             TypeRepr.of[Map[String, Any]],
@@ -245,18 +299,27 @@ private def generateRhs[M, T](using
         _ => TypeRepr.of[T]
       ),
       rhsFn = (sym: Symbol, params: List[Tree]) =>
-        val p0                 = params.head.asInstanceOf[Ident]
-        val replaceSelf        = substitute(rhs, selfRef, (params(1).asExprOf[ActorRef[M]]).asTerm)
-        val substInnersInBlock = substInners[T](inners, replaceSelf, p0)
-        // report.info(s"generateRhs:transformTerm ---> ${Printer.TreeStructure.show(replaceSelf)})}")
+        val lookupEnv   = params.head.asInstanceOf[Ident]
+        val actorRefObj = params(1).asExprOf[ActorRef[M]].asTerm
+        val rhsWithSelf = substitute(rhs, selfRef, actorRefObj)(sym)
+        // report.info(
+        //   s"RHS': ${Printer.TreeShortCode.show(rhsWithSelf)}"
+        // )
         val transform = new TreeMap:
-          override def transformTerm(term: Term)(owner: Symbol): Term =
-            // report.info(Printer.TreeStructure.show(term))
+          override def transformTerm(term: Term)(sym: Symbol): Term =
+            // println(s"Inners: ${inners.map(_._1).mkString(",")}")
             term match
-              case x => super.transformTerm(x)(owner)
-
-        transform.transformTerm(substInnersInBlock.changeOwner(sym))(sym)
+              case Ident(n) if inners.exists(_._1 equals n) =>
+                // println(s"Substituting $n")
+                substInners[T](inners, term, lookupEnv)(sym)
+              case x =>
+                super.transformTerm(x)(sym)
+        transform.transformTerm(rhsWithSelf.changeOwner(sym))(sym)
     )
+  // report.info(
+  //   s"RHS: ${Printer.TreeShortCode.show(transformed)}"
+  // )
+
   transformed
 
 /** Generates a join-pattern for singleton patterns e.g. A(*) the asterix represents a potential
