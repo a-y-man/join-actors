@@ -1,6 +1,7 @@
 package examples
 
 import actor.*
+import com.typesafe.scalalogging.*
 import join_patterns.*
 import org.scalacheck.*
 import org.scalatest.run
@@ -26,27 +27,29 @@ object PingPong extends App:
   val ALGORITHM = MatchingAlgorithm.TreeBasedAlgorithm
 
   def pingPonger(maxHits: Int = 100) =
+    val logger = Logger("PingPong")
     val pingActor: Actor[PingPong, Int] =
       Actor[PingPong, Int] {
         receive { (y: PingPong, pingRef: Pinger) =>
           y match
             case Pong(pongRef, x) =>
-              // println(s"x = $x")
+              // logger.debug(s"x = $x")
               // def square(x: Int): Int = x * x + x + maxHits
               if x < maxHits then
                 // val x: Int = square(maxHits + x)
-                // println(s"x_squared = $x")
-                println(s"Ponged by $pongRef --- ping count: $x")
+                // logger.debug(s"x_squared = $x")
+                // val x: Int = x + x + x + maxHits
+                logger.debug(s"Ponged by $pongRef --- ping count: $x")
                 pongRef ! Ping(pingRef, x + 1)
                 Next()
               else
                 // val x = 42
-                // println(s"x' = $maxHits")
+                // logger.debug(s"x' = $maxHits")
                 pongRef ! Done(x)
                 pingRef ! Done(x)
                 Next()
             case Done(x) =>
-              println(s"Final count: $x")
+              logger.debug(s"Final count: $x")
               Stop(x)
         }(ALGORITHM)
       }
@@ -56,12 +59,12 @@ object PingPong extends App:
         receive { (y: PingPong, pongRef: Ponger) =>
           y match
             case Ping(pingRef, x) =>
-              // println(s"x = $x")
+              // logger.debug(s"x = $x")
               if x < maxHits then
                 // val x = 42
-                // println(s"x = $x")
-                println(s"Pinged by $pingRef --- pong count: $x")
-                // println(s"maxHits: $maxHits")
+                // logger.debug(s"x = $x")
+                logger.debug(s"Pinged by $pingRef --- pong count: $x")
+                // logger.debug(s"maxHits: $maxHits")
                 pingRef ! Pong(pongRef, x + 1)
                 Next()
               else
@@ -69,7 +72,7 @@ object PingPong extends App:
                 pongRef ! Done(x)
                 Next()
             case Done(x) =>
-              println(s"Final count: $x")
+              logger.debug(s"Final count: $x")
               Stop(x)
         }(ALGORITHM)
       }
@@ -85,11 +88,11 @@ object PingPong extends App:
 
     finalResult.onComplete(printResult)
 
-    // println("\n======================================================\n\n")
+    // logger.debug("\n======================================================\n\n")
 
   // pingPonger()
   // Measure the time it takes to the pingPonger to finish
   // val start = System.nanoTime
   pingPonger(100)
   // val end = System.nanoTime
-  // println(s"Time taken: ${(end - start) / 1000000} ms")
+  // logger.debug(s"Time taken: ${(end - start) / 1000000} ms")
