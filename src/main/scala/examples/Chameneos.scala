@@ -1,4 +1,4 @@
-package examples
+package join_patterns.examples
 
 // import actor.*
 // import join_patterns.*

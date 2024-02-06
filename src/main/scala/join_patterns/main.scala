@@ -1,5 +1,7 @@
 package join_patterns
 
+import join_patterns.examples.*
+
 @main
 def main(): Unit =
   // demo(MatchingAlgorithm.BasicAlgorithm)

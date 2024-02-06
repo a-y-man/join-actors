@@ -1,7 +1,8 @@
-package examples
+package join_patterns.examples
+
+import org.scalacheck.Gen
 
 import scala.util.*
-import org.scalacheck.Gen
 
 def printResult[A](result: Try[A]): Unit = result match
   case Failure(exception) => println("Failed with: " + exception.getMessage)

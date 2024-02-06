@@ -1,6 +1,7 @@
-package examples
+package join_patterns.examples
 
 import actor.*
+import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.*
 
@@ -12,7 +13,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
-import join_patterns.MatchingAlgorithm
 
 sealed trait Action
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Action
