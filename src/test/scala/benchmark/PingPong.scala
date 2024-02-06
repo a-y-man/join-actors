@@ -1,14 +1,16 @@
 package test.benchmark.pingPong
 
-import test.classes.pingPong.*
-import test.classes.Msg
-import test.benchmark.{Benchmark, BenchmarkPass}
 import test.ALGORITHM
-import scala.concurrent.Future
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import test.benchmark.Benchmark
+import test.benchmark.BenchmarkPass
+import test.classes.Msg
+import test.classes.pingPong.*
+
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 def runBenchmark(maxHits: Int) =
   implicit val ec = ExecutionContext.global
