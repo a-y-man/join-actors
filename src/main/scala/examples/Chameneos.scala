@@ -14,7 +14,7 @@ package join_patterns.examples
 
 // import concurrent.ExecutionContext.Implicits.global
 
-object Chameneos extends App:
+def ChameneosExample() =
   println("Chameneos")
   // type ChameneoRef  = ActorRef[ChameneoMsg]
   // type MeetingPlace = ActorRef[MeetingPlaceMsg]

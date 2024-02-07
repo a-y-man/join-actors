@@ -72,7 +72,7 @@ object GenerateActions:
     Gen.containerOfN[List, Action](n, pickAction).sample
 
 def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
