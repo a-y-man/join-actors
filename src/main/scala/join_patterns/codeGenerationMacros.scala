@@ -2,6 +2,7 @@ package join_patterns
 
 import actor.Actor
 import actor.ActorRef
+import com.typesafe.scalalogging.Logger
 
 import java.util.concurrent.LinkedTransferQueue as Queue
 import scala.annotation.tailrec
@@ -12,6 +13,8 @@ import scala.quoted.Expr
 import scala.quoted.Quotes
 import scala.quoted.Type
 import scala.quoted.Varargs
+
+val logger = Logger("CodeGenMacros")
 
 // Bind("b",
 //   TypedOrTest(Unapply(Select(Ident("Bid"), "unapply"), Nil,
@@ -88,7 +91,7 @@ private def generateExtractor(using
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe = MethodType(List(""))(_ => List(outerType), _ => TypeRepr.of[Map[String, Any]]),
+    tpe = MethodType(List(""))(_ => List(outerType), _ => TypeRepr.of[LookupEnv]),
     rhsFn = (_: Symbol, params: List[Tree]) =>
       val p0 = params.head.asInstanceOf[Ident]
       val isMemberName: Symbol => Boolean =
@@ -99,7 +102,7 @@ private def generateExtractor(using
       val args = varNames.zipWithIndex.map { (name, i) =>
         Expr.ofTuple(Expr(name), Select(p0, memberSymbols(i)).asExprOf[Any])
       }
-      ('{ Map[String, Any](${ Varargs[(String, Any)](args) }*) }).asTerm
+      ('{ LookupEnv(${ Varargs[(String, Any)](args) }*) }).asTerm
   )
 // substitute(
 
@@ -143,54 +146,54 @@ private def substitute(using quotes: Quotes)(
   var isShadowed = false
 
   val transform = new TreeMap:
-    override def transformStatement(stat: Statement)(owner: Symbol): Statement =
-      if isShadowed then
-        // println(s"Skipping ${Printer.TreeShortCode.show(stat)}")
-        stat
-      else
-        stat match
-          case t: ValDef if t.name == identToBeReplaced =>
-            isShadowed = true
-            val tpt1 = super.transformTypeTree(t.tpt)(t.symbol.owner)
-            val rhs1 = t.rhs.map(x =>
-              substitute(x, identToBeReplaced, replacementExpr)(t.symbol.owner)
-            ) // Do substitution only on the RHS
-            ValDef.copy(t)(t.name, tpt1, rhs1)
-          // case t: DefDef =>
-          //   val paramss1 = t.paramss.map {
-          //     case TypeParamClause(params) =>
-          //       TypeParamClause(transformSubTrees(params)(owner))
-          //     case TermParamClause(params) =>
-          //       TermParamClause {
-          //         isShadowed = params.exists {
-          //           case ValDef(name, _, _) if name == identToBeReplaced => true
-          //           case _                                               => false
-          //         }
-          //         params
-          //       }
-          //   }
-          //   if isShadowed then
-          //     isShadowed = false
-          //     println(s"Skipping ${Printer.TreeShortCode.show(t)}")
-          //     transformStatement(t)(owner)
-          //   else super.transformStatement(t)(owner)
-          case x =>
-            super.transformStatement(x)(owner)
+    // override def transformStatement(stat: Statement)(owner: Symbol): Statement =
+    //   if isShadowed then
+    //     // println(s"Skipping ${Printer.TreeShortCode.show(stat)}")
+    //     stat
+    //   else
+    //     stat match
+    //       case t: ValDef if t.name == identToBeReplaced =>
+    //         isShadowed = true
+    //         val tpt1 = super.transformTypeTree(t.tpt)(t.symbol.owner)
+    //         val rhs1 = t.rhs.map(x =>
+    //           substitute(x, identToBeReplaced, replacementExpr)(t.symbol.owner)
+    //         ) // Do substitution only on the RHS
+    //         ValDef.copy(t)(t.name, tpt1, rhs1)
+    //       // case t: DefDef =>
+    //       //   val paramss1 = t.paramss.map {
+    //       //     case TypeParamClause(params) =>
+    //       //       TypeParamClause(transformSubTrees(params)(owner))
+    //       //     case TermParamClause(params) =>
+    //       //       TermParamClause {
+    //       //         isShadowed = params.exists {
+    //       //           case ValDef(name, _, _) if name == identToBeReplaced => true
+    //       //           case _                                               => false
+    //       //         }
+    //       //         params
+    //       //       }
+    //       //   }
+    //       //   if isShadowed then
+    //       //     isShadowed = false
+    //       //     println(s"Skipping ${Printer.TreeShortCode.show(t)}")
+    //       //     transformStatement(t)(owner)
+    //       //   else super.transformStatement(t)(owner)
+    //       case x =>
+    //         super.transformStatement(x)(owner)
 
-    override def transformStats(stats: List[Statement])(
-        owner: Symbol
-    ): List[Statement] =
-      super.transformStats(stats)(owner).map(transformStatement(_)(owner))
+    // override def transformStats(stats: List[Statement])(
+    //     owner: Symbol
+    // ): List[Statement] =
+    //   super.transformStats(stats)(owner).map(transformStatement(_)(owner))
 
     override def transformTerm(term: Term)(owner: Symbol): Term =
       term match
-        case Block(stats, expr) =>
-          val wasShadowed = isShadowed
-          isShadowed = false
-          val stats1 = transformStats(stats)(owner)
-          val expr1  = transformTerm(expr)(owner)
-          isShadowed = wasShadowed
-          Block.copy(term)(stats1, expr1)
+        // case Block(stats, expr) =>
+        //   val wasShadowed = isShadowed
+        //   isShadowed = false
+        //   val stats1 = transformStats(stats)(owner)
+        //   val expr1  = transformTerm(expr)(owner)
+        //   isShadowed = wasShadowed
+        //   Block.copy(term)(stats1, expr1)
         case t: Ident if identToBeReplaced == t.name && !isShadowed =>
           // println(s"Replacing ${t.name} with ${Printer.TreeShortCode.show(replacementExpr)}")
           replacementExpr.changeOwner(owner)
@@ -207,7 +210,7 @@ private def substInners[T](using quotes: Quotes, tt: Type[T])(
   import quotes.reflect.*
 
   val result = inners.foldLeft(rhs) { case (acc, (name, tpe)) =>
-    val replacementExpr = '{ (${ substs.asExprOf[Map[String, Any]] })(${ Expr(name) }) }
+    val replacementExpr = '{ (${ substs.asExprOf[LookupEnv] })(${ Expr(name) }) }
     tpe.asType match
       case '[innerType] =>
         val x = ('{ ${ replacementExpr }.asInstanceOf[innerType] }).asTerm
@@ -249,7 +252,7 @@ private def generateGuard(using quotes: Quotes)(
             override def transformTerm(term: Term)(owner: Symbol): Term =
               term match
                 case Ident(n) if inners.exists(_._1 == n) =>
-                  val inner = '{ (${ p0.asExprOf[Map[String, Any]] })(${ Expr(n) }) }
+                  val inner = '{ (${ p0.asExprOf[LookupEnv] })(${ Expr(n) }) }
                   inners.find(_._1 == n).get._2.asType match
                     case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
                 case x =>
@@ -262,8 +265,7 @@ private def generateGuard(using quotes: Quotes)(
 
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe =
-      MethodType(List("_"))(_ => List(TypeRepr.of[Map[String, Any]]), _ => TypeRepr.of[Boolean]),
+    tpe = MethodType(List("_"))(_ => List(TypeRepr.of[LookupEnv]), _ => TypeRepr.of[Boolean]),
     rhsFn = _rhsFn
   )
 
@@ -293,9 +295,9 @@ private def generateRhs[M, T](using
       tpe = MethodType(List("_", s"$selfRef"))(
         _ =>
           List(
-            TypeRepr.of[Map[String, Any]],
+            TypeRepr.of[LookupEnv],
             TypeRepr.of[ActorRef[M]]
-          ), // rhsFn takes 2 params: Map[String, Any] and ActorRef[M]
+          ), // rhsFn takes 2 params: LookupEnv and ActorRef[M]
         _ => TypeRepr.of[T]
       ),
       rhsFn = (sym: Symbol, params: List[Tree]) =>
@@ -306,20 +308,15 @@ private def generateRhs[M, T](using
         //   s"RHS': ${Printer.TreeShortCode.show(rhsWithSelf)}"
         // )
         val transform = new TreeMap:
-          override def transformTerm(term: Term)(sym: Symbol): Term =
-            // println(s"Inners: ${inners.map(_._1).mkString(",")}")
-            term match
-              case Ident(n) if inners.exists(_._1 equals n) =>
-                // println(s"Substituting $n")
-                substInners[T](inners, term, lookupEnv)(sym)
-              case x =>
-                super.transformTerm(x)(sym)
+          override def transformTerm(term: Term)(owner: Symbol): Term = term match
+            case Ident(n) if inners.exists(_._1 == n) =>
+              val inner = '{ (${ lookupEnv.asExprOf[LookupEnv] })(${ Expr(n) }) }
+              inners.find(_._1 == n).get._2.asType match
+                case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
+            case x => super.transformTerm(x)(owner)
+
         transform.transformTerm(rhsWithSelf.changeOwner(sym))(sym)
     )
-  // report.info(
-  //   s"RHS: ${Printer.TreeShortCode.show(transformed)}"
-  // )
-
   transformed
 
 /** Generates a join-pattern for singleton patterns e.g. A(*) the asterix represents a potential
@@ -345,7 +342,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
   import quotes.reflect.*
 
   val typesData = getTypesData(List(dataType))
-  val extractors: List[(Expr[M => Boolean], Expr[M => Map[String, Any]])] =
+  val extractors: List[(Expr[M => Boolean], Expr[M => LookupEnv])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
@@ -354,7 +351,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
           (
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
-              ${ extractor.asExprOf[ot => Map[String, Any]] }(m.asInstanceOf[ot])
+              ${ extractor.asExprOf[ot => LookupEnv] }(m.asInstanceOf[ot])
             }
           )
     }.toList
@@ -364,7 +361,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
   outer.asType match
     case '[ot] =>
       val extract: Expr[
-        List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
+        List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
       ] =
         '{ (m: List[M]) =>
           val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
@@ -377,10 +374,10 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
             Some(Iterator(List(mQidx)) -> Set(((checkMsgType, extractField), 0)))
           else None
         }
-      val predicate: Expr[Map[String, Any] => Boolean] =
-        generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-      val rhs: Expr[(Map[String, Any], ActorRef[M]) => T] =
-        generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(Map[String, Any], ActorRef[M]) => T]
+      val predicate: Expr[LookupEnv => Boolean] =
+        generateGuard(guard, inners).asExprOf[LookupEnv => Boolean]
+      val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
+        generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(LookupEnv, ActorRef[M]) => T]
       val size = 1
 
       val partialExtract = '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) =>
@@ -430,7 +427,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
   import quotes.reflect.*
 
   val typesData = getTypesData(dataType)
-  val extractors: List[(Expr[String], Expr[M => Boolean], Expr[M => Map[String, Any]])] =
+  val extractors: List[(Expr[String], Expr[M => Boolean], Expr[M => LookupEnv])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
@@ -440,7 +437,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
             Expr(TypeTree.of[ot].symbol.name),
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
-              ${ extractor.asExprOf[ot => Map[String, Any]] }(m.asInstanceOf[ot])
+              ${ extractor.asExprOf[ot => LookupEnv] }(m.asInstanceOf[ot])
             }
           )
     }.toList
@@ -450,7 +447,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
   // val t = outers.map(_.classSymbol.get.getClass())
   // println(s"${t}")
   val extract: Expr[
-    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
+    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
   ] =
     '{ (m: List[M]) =>
       val messages    = m.zipWithIndex
@@ -466,7 +463,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val typeNamesInMsgs =
         messages.map((msg, idx) => (msg.getClass().getSimpleName(), idx))
 
-      val patternInfo: Set[((M => Boolean, M => Map[String, Any]), Int)] =
+      val patternInfo: Set[((M => Boolean, M => LookupEnv), Int)] =
         msgPatterns.map(msgPattern => ((msgPattern._1._2, msgPattern._1._3), msgPattern._2)).toSet
 
       val typesInPattern = countOccurences(msgPatterns.map(_._1._1))
@@ -512,10 +509,10 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       else Some((candidateMatches, patternInfo))
     }
 
-  val predicate: Expr[Map[String, Any] => Boolean] =
-    generateGuard(guard, inners).asExprOf[Map[String, Any] => Boolean]
-  val rhs: Expr[(Map[String, Any], ActorRef[M]) => T] =
-    generateRhs[M, T](_rhs, inners, self).asExprOf[(Map[String, Any], ActorRef[M]) => T]
+  val predicate: Expr[LookupEnv => Boolean] =
+    generateGuard(guard, inners).asExprOf[LookupEnv => Boolean]
+  val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
+    generateRhs[M, T](_rhs, inners, self).asExprOf[(LookupEnv, ActorRef[M]) => T]
   val size = outers.size
 
   val partialExtract: Expr[
@@ -537,30 +534,61 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
           val ((checkMsgType, _), _) = msgPat
           checkMsgType(mQ)
         }.toSet
-        // println(
-        //   s"matches: ${matches.size} -- mQ: $mQ -- mQidx: $mQidx "
-        // )
-        val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping[M]()) { (acc, mapping) =>
-          val (node, currentFits) = mapping
-          val newFitsIdxs         = matches.map(_._2).diff(currentFits.map(_._2))
-          // println(
-          //   s"newFitsIdxs: $newFitsIdxs -- currentFits: ${currentFits.size} -- mQ: $mQ -- mQidx: $mQidx"
-          // )
 
-          if newFitsIdxs.isEmpty then
-            // println(s"node ${node.mkString(",")} -- mQidx: ${mQidx}")
-            if node.size < msgTypesInPattern.size then
-              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches) + mapping
-            else acc + (List(mQidx)       -> matches) + mapping
-          else
-            val currentFitsIdxs = currentFits.map(_._2)
-            val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
-            val newMapping = newMappingIdxs.map { idx =>
-              val ((checkMsgType, extractField), _) = msgTypesInPattern(idx)
-              ((checkMsgType, extractField), idx)
-            }
-            acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> matches)
-        }
+        val matchIdxs          = matches.map(_._2)
+        val currentNodeMapping = mTree.nodeMapping
+
+        given Ordering[MessageIdxs] = Ordering.by[MessageIdxs, Int](-_.size)
+
+        val newNodeMapping: NodeMapping[M] =
+          // mTree.logMapping("Before", -1)
+          currentNodeMapping
+            .flatMap { mapping =>
+              val (node, currentFits) = mapping
+              val currentFitsIdxs     = currentFits map (_._2)
+              val newFitsIdxs         = matchIdxs -- currentFitsIdxs
+
+              val newFits = currentFits union matches
+              val logMessage =
+                s"""|node =
+                    |${node.mkString("{", ", ", "}")} ---
+                    |currentFits =
+                    |${currentFitsIdxs.mkString("{", ", ", "}")}
+                    |
+                    |matchIdxs = ${matchIdxs.mkString(
+                     "{",
+                     ", ",
+                     "}"
+                   )} for m: $mQidx which has matches ${matchIdxs.mkString(
+                     "{",
+                     ", ",
+                     "}"
+                   )}
+                  """.stripMargin
+
+              logger.info(
+                logMessage
+              )
+              val newMapping = newFits map { (_, idx) =>
+                msgTypesInPattern(idx)
+              }
+              val patSize = msgTypesInPattern.size
+
+              if node.isEmpty && currentFits.isEmpty then
+                logger.info(s"New node: ${matchIdxs} is added for m: $mQidx")
+                List(List(mQidx) -> matches)
+              else if newFitsIdxs.nonEmpty && node.size < patSize then
+                logger.info(
+                  s"There are new fits: ${newFitsIdxs} for m: $mQidx --- adding ${matchIdxs} to node ${node}"
+                )
+                List((node.appended(mQidx)) -> newMapping) ++ List(List(mQidx) -> matches)
+              else List(List(mQidx) -> matches)
+              // else
+              //   logger.info(s"Node ${node} -> ${currentFitsIdxs} is not updated for m: $mQidx")
+              //   List(node -> currentFits)
+
+            } ++ currentNodeMapping
+
         Some(MatchingTree(newNodeMapping))
       else Some(mTree)
     }
@@ -597,13 +625,13 @@ private def generateWildcardPattern[M, T](using
   import quotes.reflect.*
 
   val extract: Expr[
-    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => Map[String, Any]), Int)])]
+    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
   ] = '{ (m: List[M]) =>
     None
   }
-  val predicate: Expr[Map[String, Any] => Boolean] =
-    generateGuard(guard, List()).asExprOf[Map[String, Any] => Boolean]
-  val rhs: Expr[(Map[String, Any], ActorRef[M]) => T] = '{ (_: Map[String, Any], _: ActorRef[M]) =>
+  val predicate: Expr[LookupEnv => Boolean] =
+    generateGuard(guard, List()).asExprOf[LookupEnv => Boolean]
+  val rhs: Expr[(LookupEnv, ActorRef[M]) => T] = '{ (_: LookupEnv, _: ActorRef[M]) =>
     ${ _rhs.asExprOf[T] }
   }
   val size = 1
