@@ -22,7 +22,7 @@ type CandidateMatch[M, T] = Option[(MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))]
 type CandidateMatches[M, T] =
   TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]
 
-object CandidateMatches extends LazyLogging:
+object CandidateMatches: // extends LazyLogging:
   def apply[M, T](): CandidateMatches[M, T] =
     TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]()(Ordering[MatchIdxs])
 
@@ -34,9 +34,9 @@ object CandidateMatches extends LazyLogging:
         }
         .mkString("\n")
 
-    logger.info {
+    println {
       s"\n===================CandidateMatches===================\n" +
-        s"${stringifiedMatches}\n" +
+        s"${stringifiedMatches}" +
         s"\n======================================================\n"
     }
 
@@ -106,7 +106,7 @@ trait Matcher[M, T] extends LazyLogging:
     var bestMatchIdxs: MessageIdxs = null
     validPermutations.find { possibleFit =>
       bestMatchSubsts = computeSubsts(messages, possibleFit)
-      // logger.info(s"Possible fit: ${possibleFit.map(_._1).mkString(", ")}\n")
+      // logger.debug(s"Possible fit: ${possibleFit.map(_._1).mkString(", ")}\n")
       if pattern.guard(bestMatchSubsts) then
         bestMatchIdxs = possibleFit.map(_._1)
         true
@@ -137,7 +137,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 
     if messages.isEmpty then
       messages.append(q.take())
-      logger.info(s"Queue: ${messages.mkString(", ")}")
+      logger.debug(s"Queue: ${messages.mkString(", ")}")
 
     while result.isEmpty do
       val indexedMessages = messages.zipWithIndex
@@ -196,7 +196,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
   var initMatchingTree = MatchingTree[M](nodeMapping = NodeMapping[M]())
-  var patternsWithMatchingTrees: List[PatternState[M, T]] = patternsWithIdxs
+  var patternsWithMatchingTrees = patternsWithIdxs
     .map { patternsWithIdxs =>
       (patternsWithIdxs, initMatchingTree)
     }
@@ -209,10 +209,9 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     val (mQ, mQidx)                    = newMsg
     val ((pattern, patternIdx), mTree) = patternState
     val updatedMatchingTree            = pattern.partialExtract((mQ, mQidx), mTree)
-
     updatedMatchingTree match
       case Some(updatedMTree) =>
-        updatedMTree.logMapping(s" Matching Tree for JP ${patternIdx} ", patternIdx)
+        updatedMTree.logMapping(s" Matching Tree for JP ${patternIdx} ")
         val enoughMsgsToMatch: Option[(MessageIdxs, PatternFits[M])] =
           updatedMTree.nodeMapping.view.find((node, fits) =>
             node.size == pattern.size && fits.nonEmpty && fits.size == pattern.size
@@ -234,9 +233,8 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
                     bestMatchSubsts,
                     (substs: LookupEnv, self: ActorRef[M]) => pattern.rhs(substs, self)
                   )
-
                 (
-                  ((pattern, patternIdx), updatedMTree.removeNode(bestMatchIdxs)),
+                  ((pattern, patternIdx), updatedMTree),
                   Some((bestMatchIdxs, patternIdx), selectedMatch)
                 )
               case None =>
@@ -262,7 +260,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     var mQ                = q.take()
     mQidx += 1
     messages.append((mQ, mQidx))
-    logger.info(
+    logger.debug(
       s"Queue: \n${messages.map((m, i) => (m.getClass().getSimpleName(), i)).mkString("\n")}"
     )
 
@@ -284,27 +282,31 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       //   currentMTree.ppTree
       // }
 
-      // logger.info(ppTrees.mkString("\n"))
+      // logger.debug(ppTrees.mkString("\n"))
 
       if candidateMatches.nonEmpty then
         CandidateMatches.logCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
         result = Some(rhsFn(substs, selfRef))
 
-        logger.info(s"Result: $result")
+        // logger.debug(s"Result: $result")
         // Prune tree
-        // patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, currentMTree) =>
-        //   currentMTree.logMapping(s" Matching Tree for JP ${joinPat._2} ", joinPat._2)
-        //   val prunedTree = currentMTree.pruneTree(candidateQidxs)
-        //   // prunedTree.logMapping(joinPat._2)
-        //   (joinPat, prunedTree)
-        // }
+        patternsWithMatchingTrees = patternsWithMatchingTrees.map { (joinPat, currentMTree) =>
+          val prunedTree = currentMTree.pruneTree(candidateQidxs)
+          (joinPat, prunedTree)
+        }
+
+        patternsWithMatchingTrees foreach { (joinPat, prunedTree) =>
+          prunedTree.logMapping(
+            s" Matching Tree for JP ${joinPat._2} after pruning ${candidateQidxs.mkString("{", ", ", "}")}\n"
+          )
+        }
 
       if result.isEmpty then
         mQ = q.take()
         mQidx += 1
         messages.append((mQ, mQidx))
-      logger.info(
+      logger.debug(
         s"Queue: \n${messages.map((m, i) => (m.getClass().getSimpleName(), i)).mkString("\n")}"
       )
     result.get
