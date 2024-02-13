@@ -31,25 +31,25 @@ object GenerateActions:
   private val genMotion: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr // .suchThat(s => s.length == 10)
   yield Motion(i, b, s).asInstanceOf[Action]
 
   private val genAmbientLight: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.choose(0, 100)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr
   yield AmbientLight(i, b, s).asInstanceOf[Action]
 
   private val genLight: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr
   yield Light(i, b, s).asInstanceOf[Action]
 
   private val genContact: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr
   yield Contact(i, b, s).asInstanceOf[Action]
 
   private val genConsumption: Gen[Action] = for
@@ -59,7 +59,7 @@ object GenerateActions:
 
   private val genHeatingF: Gen[Action] = for
     i <- Gen.choose(0, 100)
-    s <- Gen.oneOf("internal", "floor")
+    s <- Gen.alphaStr
   yield HeatingF(i, s).asInstanceOf[Action]
 
   private val genDoorBell: Gen[Action] =
