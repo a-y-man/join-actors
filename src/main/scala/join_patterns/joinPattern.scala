@@ -24,12 +24,21 @@ object PatternFits:
 
 type PatternState[M, T] = ((JoinPattern[M, T], Int), MatchingTree[M])
 
+// Define a custom ordering for lists based on size and value equality
+given listOrdering[T: Ordering]: Ordering[List[T]] with
+  def compare(x: List[T], y: List[T]): Int =
+    val sizeComp = x.size.compareTo(y.size) // compare by size first
+    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
+    else
+      x.zip(y).foldLeft(0) { // otherwise, compare each element pair
+        case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
+        case (_, (a, b)) => Ordering[T].compare(a, b) // else, compare the elements
+      }
+
 type NodeMapping[M] = TreeMap[MessageIdxs, PatternFits[M]]
 object NodeMapping:
   def apply[M](): TreeMap[MessageIdxs, PatternFits[M]] =
-    TreeMap[MessageIdxs, PatternFits[M]](List.empty -> Set.empty)(
-      Ordering.by[MessageIdxs, Int](-_.size)
-    )
+    TreeMap[MessageIdxs, PatternFits[M]](List.empty -> Set.empty)
 
 case class MatchingTree[M](
     val nodeMapping: NodeMapping[M] = NodeMapping()
@@ -40,7 +49,7 @@ case class MatchingTree[M](
   def pruneTree(idxsToRemove: MessageIdxs): MatchingTree[M] =
     val updatedNodeMapping =
       nodeMapping.view.filterKeys(node => node.forall(i => !idxsToRemove.contains(i)))
-    // logger.info(s"Removed nodes containing indices: $idxsToRemove")
+    // logger.debug(s"Removed nodes containing indices: $idxsToRemove")
     MatchingTree(TreeMap.from(updatedNodeMapping))
 
   def removeNode(node: MessageIdxs): MatchingTree[M] =
@@ -58,8 +67,8 @@ case class MatchingTree[M](
       }
       .mkString("\n")
 
-  def logMapping(ident: String, patIdx: Int): Unit =
-    logger.info(
+  def logMapping(ident: String): Unit =
+    logger.debug(
       s"\n\n************$ident****************\n${ppTree}\n***************$ident*************\n"
     )
 

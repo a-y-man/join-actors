@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.Logger
 import java.util.concurrent.LinkedTransferQueue as Queue
 import scala.annotation.tailrec
 import scala.collection.immutable.Map
+import scala.collection.immutable.TreeMap as Nodes
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
 import scala.quoted.Expr
@@ -519,6 +520,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     (Tuple2[M, Int], MatchingTree[M]) => Option[MatchingTree[M]]
   ] =
     '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) =>
+      logger.debug(s"Just received ${m}")
       val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
       val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
 
@@ -530,52 +532,82 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       }
 
       if isMsgInPat then
+        logger.debug(s"'Just received ${m}")
+
         val matches = msgTypesInPattern.filter { msgPat =>
           val ((checkMsgType, _), _) = msgPat
           checkMsgType(mQ)
         }.toSet
 
-        val newNodeMapping = mTree.nodeMapping.foldLeft(NodeMapping[M]()) { (acc, mapping) =>
-          val (node, currentFits) = mapping
-          val currentFitsIdxs     = currentFits.map(_._2)
-          val matchIdxs           = matches.map(_._2)
-          val newFitsIdxs         = matchIdxs.diff(currentFitsIdxs)
-          val logMessage =
-            s"""|node =
-                |${node.mkString("{", ", ", "}")} ---
-                |currentFits =
-                |${currentFitsIdxs.mkString("{", ", ", "}")}
-                |
-                |matchIdxs = ${matchIdxs.mkString(
-                 "{",
-                 ", ",
-                 "}"
-               )} for m: $mQidx which has matches ${matchIdxs.mkString(
-                 "{",
-                 ", ",
-                 "}"
-               )}
-              """.stripMargin
+        logger.debug(s"\nMatches for ${mQidx}: ${matches.map(_._2).mkString("{", ", ", "}")}")
+        // mTree.logMapping("WHY!?!!?")
 
-          logger.info(
-            logMessage
-          )
-          if newFitsIdxs.isEmpty then
-            // println(s"node ${node.mkString(",")} -- mQidx: ${mQidx}")
-            if node.size < msgTypesInPattern.size then
-              acc + (node.appended(mQidx) -> currentFits) + (List(mQidx) -> matches) + mapping
-            else acc + (List(mQidx)       -> matches) + mapping
-          else
-            val currentFitsIdxs = currentFits.map(_._2)
-            val newMappingIdxs  = currentFitsIdxs.`+`(newFitsIdxs.head)
-            val newMapping = newMappingIdxs.map { idx =>
-              val ((checkMsgType, extractField), _) = msgTypesInPattern(idx)
-              ((checkMsgType, extractField), idx)
+        // val logMessage =
+        //   s"""|node =
+        //       |${node.mkString("{", ", ", "}")} ---
+        //       |currentFits =
+        //       |${currentFitsIdxs.mkString("{", ", ", "}")}
+        //       |
+        //       |matchIdxs = ${matchIdxs.mkString(
+        //        "{",
+        //        ", ",
+        //        "}"
+        //      )} for m: $mQidx which has matches ${matchIdxs.mkString(
+        //        "{",
+        //        ", ",
+        //        "}"
+        //      )}
+        //     """.stripMargin
+
+        // logger.debug(
+        //   logMessage
+        // )
+        // Define a custom ordering for lists based on size and value equality
+        given listOrdering: Ordering[List[Int]] with
+          def compare(x: List[Int], y: List[Int]): Int =
+            val sizeComp = x.size.compareTo(y.size) // compare by size first
+            if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
+            else
+              x.zip(y).foldLeft(0) { // otherwise, compare each element pair
+                case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
+                case (_, (a, b)) => Ordering[Int].compare(a, b) // else, compare the elements
+              }
+
+        val currentNodeMapping = mTree.nodeMapping
+
+        val newNodeMapping = currentNodeMapping.flatMap { currentMapping =>
+          val newNode                       = List(mQidx) -> matches
+          val (currentNode, currentMatches) = currentMapping
+          val currentMatchesIdxs            = currentMatches.map(_._2)
+
+          val matchIdxs   = matches.map(_._2)
+          val newFitsIdxs = matchIdxs -- currentMatchesIdxs
+          val newMapping = (matchIdxs union currentMatchesIdxs) flatMap { idx =>
+            msgTypesInPattern.find {
+              _._2 equals idx
             }
-            acc + ((node.appended(mQidx)) -> newMapping) + (List(mQidx) -> matches)
-        }
+          }
+
+          val nodeSize = currentNode.size
+          val patSize  = msgTypesInPattern.size
+
+          if newFitsIdxs.isEmpty && (nodeSize < patSize) then
+            if nodeSize < currentMatchesIdxs.size && currentMatchesIdxs.size <= patSize then
+              Nodes(currentNode.appended(mQidx) -> currentMatches)
+            else Nodes(newNode)
+          else if newFitsIdxs.isEmpty && (nodeSize >= patSize) then Nodes(newNode)
+          else if newFitsIdxs.nonEmpty && (nodeSize < patSize) then
+            if nodeSize < currentMatchesIdxs.size && currentMatchesIdxs.size <= patSize then
+              Nodes((currentNode.appended(mQidx)) -> newMapping)
+            else Nodes(newNode)
+          else Nodes(newNode)
+
+        } ++ currentNodeMapping
+
         Some(MatchingTree(newNodeMapping))
-      else Some(mTree)
+      else
+        logger.debug(s"The message ${m} with idx = ${mQidx} is not pattern.")
+        Some(mTree)
     }
 
   '{
