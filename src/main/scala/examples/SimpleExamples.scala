@@ -324,10 +324,8 @@ def nwptExample(algorithm: MatchingAlgorithm): Unit =
   val tradingSystemActor = Actor[Message, Unit] {
     receive { (msg: Message, systemActor: ActorRef[Message]) =>
       msg match
-        // case (Buy(bN, bID, bA), Sell(sN, sID, sA)) if sA >= bA =>
-        //   println(s"$maxVal --- $sA")
-        //   val sA: String = "1234"
-        //   Stop(println(s"Buy and Sell --- ${maxVal} + ${sA} --- $systemActor"))
+        case (Buy(bN, bID, bA), Sell(sN, sID, sA)) if sA >= bA =>
+          Stop(println(s"${sA} >= ${bA}"))
         case (
               Sell(sN1, sID1, sA1),
               Sell(sN2, sID2, sA2),
