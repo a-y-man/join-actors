@@ -24,7 +24,7 @@ object PingPong extends App:
   case class Pong(ref: Ponger, hits: Int) extends PingPong
   case class Done(hits: Int)              extends PingPong
 
-  val ALGORITHM = MatchingAlgorithm.TreeBasedAlgorithm
+  val ALGORITHM = MatchingAlgorithm.StatefulTreeBasedAlgorithm
 
   def pingPonger(maxHits: Int = 100) =
     val logger = Logger("PingPong")

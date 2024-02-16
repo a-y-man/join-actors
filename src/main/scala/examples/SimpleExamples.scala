@@ -324,23 +324,22 @@ def nwptExample(algorithm: MatchingAlgorithm): Unit =
   val tradingSystemActor = Actor[Message, Unit] {
     receive { (msg: Message, systemActor: ActorRef[Message]) =>
       msg match
-        case (Buy(bN, bID, bA), Sell(sN, sID, sA)) if sA >= bA =>
-          println(s"$maxVal --- $sA")
-          val sA: String = "1234"
-          Stop(println(s"Buy and Sell --- ${maxVal} + ${sA} --- $systemActor"))
+        // case (Buy(bN, bID, bA), Sell(sN, sID, sA)) if sA >= bA =>
+        //   println(s"$maxVal --- $sA")
+        //   val sA: String = "1234"
+        //   Stop(println(s"Buy and Sell --- ${maxVal} + ${sA} --- $systemActor"))
         case (
               Sell(sN1, sID1, sA1),
               Sell(sN2, sID2, sA2),
               Buy(bN, bID, bA)
             ) if ((sA1 + sA2) >= bA) =>
-          val sA = 1234
-          Stop(println(s"${sA1} + ${sA2} >= ${sA} ----- $maxVal --- $systemActor"))
+          Stop(println(s"${sA1} + ${sA2} >= ${bA}"))
     }(algorithm)
   }
 
   val (futureResult, actorRef) = tradingSystemActor.start()
 
-  val msgs = List(Sell("A", "1", 20), Buy("A", "1", 20))
+  val msgs = List(Sell("A", "1", 10), Sell("A", "1", 10), Sell("A", "1", 20), Buy("A", "1", 20))
 
   msgs.foreach(actorRef ! _)
 
