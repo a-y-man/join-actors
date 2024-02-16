@@ -52,7 +52,7 @@ case class MatchingTree[M](
         val nodesToStr = s"${nodes.mkString("{ ", ", ", " }")}"
         val candidatesToStr =
           candidates
-            .map(x => s"(${x._2}, MSG-CLOSURE, FIELDS-CLOSURE)")
+            .map(x => s"${x._2}") // ", MSG-CLOSURE, FIELDS-CLOSURE)")
             .mkString("{ ", ", ", " }")
         s"${nodesToStr}\t -> ${candidatesToStr}"
       }

@@ -515,14 +515,40 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     generateRhs[M, T](_rhs, inners, self).asExprOf[(LookupEnv, ActorRef[M]) => T]
   val size = outers.size
 
+  type MatchCounter = Map[Set[Int], Int]
+  object MatchCounter:
+    def apply(elems: (Set[Int], Int)*) = Map[Set[Int], Int](elems*)
+
+  type TempTree = Map[Set[Int], MatchCounter]
+  object TempTree:
+    def apply[Set[Int], MatchCounter](elems: (Set[Int], MatchCounter)*) =
+      Map[Set[Int], MatchCounter](elems*)
+
+  def updateMatchCount(newMatch: Set[Int], matchCounter: MatchCounter): Option[MatchCounter] =
+    matchCounter.get(newMatch) match
+      case Some(card) if card < newMatch.size => Some(matchCounter.updated(newMatch, card + 1))
+      case _                                  => None
+
+  def updateTempTree(newMsg: (Int, Set[Int]), tmpTree: TempTree): TempTree =
+    val (mIdx, newMatches) = newMsg
+    val newMatchesSize     = newMatches.size
+
+    tmpTree.flatMap { (msgIdxs, matchCounter) =>
+      updateMatchCount(newMatches, matchCounter) match
+        case Some(updatedMatchCounter) =>
+          tmpTree.updated(msgIdxs + mIdx, updatedMatchCounter)
+        case None => tmpTree
+    } ++ TempTree(Set(mIdx) -> MatchCounter(newMatches -> 1))
+
   val partialExtract: Expr[
     (Tuple2[M, Int], MatchingTree[M]) => Option[MatchingTree[M]]
   ] =
     '{ (m: Tuple2[M, Int], mTree: MatchingTree[M]) =>
+      val (mQ, mQidx) = m // Take the newest msg from the queue
+
+      logger.debug(s"Just received (${mQ}, ${mQidx})")
       val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
       val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
-
-      val (mQ, mQidx) = m // Take the newest msg from the queue
 
       val isMsgInPat = msgTypesInPattern.exists { msgPat =>
         val ((checkMsgType, _), _) = msgPat
@@ -530,14 +556,50 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       }
 
       if isMsgInPat then
+        logger.debug(s"Processing message (${mQ}, ${mQidx})")
+
         val matches = msgTypesInPattern.filter { msgPat =>
           val ((checkMsgType, _), _) = msgPat
           checkMsgType(mQ)
         }.toSet
 
+        given listOrdering: Ordering[List[Int]] with
+          def compare(x: List[Int], y: List[Int]): Int =
+            val sizeComp = x.size.compareTo(y.size) // compare by size first
+            if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
+            else
+              x.zip(y).foldLeft(0) { // otherwise, compare each element pair
+                case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
+                case (_, (a, b)) => Ordering[Int].compare(a, b) // else, compare the elements
+              }
+
         val matchIdxs          = matches.map(_._2)
         val currentNodeMapping = mTree.nodeMapping
 
+        val newNode = List(mQidx) -> matches
+        val newNodeMapping = currentNodeMapping.flatMap { currentMapping =>
+          val (currentNode, currentMatches) = currentMapping
+          val currentMatchesIdxs            = currentMatches.map(_._2)
+
+          val matchIdxs  = matches.map(_._2)
+          val newMatches = matchIdxs -- currentMatchesIdxs
+          val newMapping = (matchIdxs union currentMatchesIdxs) flatMap { idx =>
+            msgTypesInPattern.find {
+              _._2 equals idx
+            }
+          }
+
+          val nodeSize       = currentNode.size
+          val patSize        = msgTypesInPattern.size
+          val curMatchesSize = currentMatchesIdxs.size
+
+          // TODO: There is a better way that this mess
+          if nodeSize < curMatchesSize && curMatchesSize <= patSize then
+            if newMatches.isEmpty then Nodes(currentNode.appended(mQidx) -> currentMatches, newNode)
+            else Nodes((currentNode.appended(mQidx))                     -> newMapping, newNode)
+          else
+            // logger.debug(s"Message ${mQ} with idx = ${mQidx} is not pattern.")
+            Nodes(newNode)
         given Ordering[MessageIdxs] = Ordering.by[MessageIdxs, Int](-_.size)
 
         val newNodeMapping: NodeMapping[M] =
@@ -587,9 +649,12 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
               //   logger.info(s"Node ${node} -> ${currentFitsIdxs} is not updated for m: $mQidx")
               //   List(node -> currentFits)
 
-            } ++ currentNodeMapping
+        } ++ currentNodeMapping
 
         Some(MatchingTree(newNodeMapping))
+      else
+        // logger.debug(s"The message ${m} with idx = ${mQidx} is not pattern.")
+        Some(mTree)
       else Some(mTree)
     }
 
