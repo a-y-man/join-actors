@@ -35,25 +35,25 @@ object GenerateActions:
   private val genMotion: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr // .suchThat(s => s.length == 10)
   yield Motion(i, b, s).asInstanceOf[Action]
 
   private val genAmbientLight: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.choose(0, 100)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr
   yield AmbientLight(i, b, s).asInstanceOf[Action]
 
   private val genLight: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr
   yield Light(i, b, s).asInstanceOf[Action]
 
   private val genContact: Gen[Action] = for
     i <- Gen.choose(0, 100)
     b <- Gen.oneOf(true, false)
-    s <- Gen.oneOf("bathroom", "front_door", "entrance_hall")
+    s <- Gen.alphaStr
   yield Contact(i, b, s).asInstanceOf[Action]
 
   private val genConsumption: Gen[Action] = for
@@ -63,7 +63,7 @@ object GenerateActions:
 
   private val genHeatingF: Gen[Action] = for
     i <- Gen.choose(0, 100)
-    s <- Gen.oneOf("internal", "floor")
+    s <- Gen.alphaStr
   yield HeatingF(i, s).asInstanceOf[Action]
 
   private val genDoorBell: Gen[Action] =
@@ -189,12 +189,6 @@ def sendE5(actorRef: ActorRef[Action]) =
     actorRef ! Contact(0, true, "front_door")
     actorRef ! Motion(0, true, "front_door")
 
-def sendE6(actorRef: ActorRef[Action]) =
-  actorRef ! Consumption(0, Random.nextInt(100))
-
-def sendE7(ref: ActorRef[Action]) =
-  ref ! HeatingF(0, (if Random.nextInt % 4 == 0 then "internal" else "floor"))
-
 def sendE1WithNoise(actorRef: ActorRef[Action], nRndMsgs: Int) =
   val randomMsgs = GenerateActions.genActionsOfSizeN(nRndMsgs).get
   randomMsgs.foreach(actorRef ! _)
@@ -205,10 +199,14 @@ def sendE5WithNoise(actorRef: ActorRef[Action], nRndMsgs: Int) =
   randomMsgs.foreach(actorRef ! _)
   sendE5(actorRef)
 
-def runSmartHouse(smartHouseActions: Int, numberOfRandomMsgs: Int) =
+// def prepBenchmarkData(numberOfRandomMsgs: Int) =
+//   val randomMsgs = GenerateActions.genActionsOfSizeN(numberOfRandomMsgs).get
+//   randomMsgs
+
+def runSmartHouse(smartHouseActions: Int, numberOfRandomMsgs: Int, algorithm: MatchingAlgorithm) =
   implicit val ec = ExecutionContext.global
 
-  val actor = smartHouseExample(ALGORITHM)
+  val actor = smartHouseExample(algorithm)
 
   Future {
     val startTime = System.nanoTime()
@@ -235,8 +233,10 @@ def runSmartHouse(smartHouseActions: Int, numberOfRandomMsgs: Int) =
 
 @main
 def smartHouseBenchmark =
-  val smartHouseActions = 1000
-  val randomMsgsPerPass = List(0, 2, 4, 6, 8, 10, 12)
+  val smartHouseActions     = 1000
+  val randomMsgsPerPass     = List(0, 2, 4, 6, 8, 10, 12)
+  val statefulTreeAlgorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
+  val bruteForceAlgorithm   = MatchingAlgorithm.BruteForceAlgorithm
 
   Benchmark(
     "Smart House",
@@ -244,12 +244,12 @@ def smartHouseBenchmark =
     100,
     BenchmarkPass(
       "Control",
-      () => runSmartHouse(smartHouseActions, 0)
+      () => runSmartHouse(smartHouseActions, 0, statefulTreeAlgorithm)
     ),
     randomMsgsPerPass map { n =>
       BenchmarkPass(
-        s"Using ${ALGORITHM.toString} with $n random messages",
-        () => runSmartHouse(smartHouseActions, n)
+        s"Using ${statefulTreeAlgorithm.toString} with $n random messages",
+        () => runSmartHouse(smartHouseActions, n, statefulTreeAlgorithm)
       )
     }
   ).run

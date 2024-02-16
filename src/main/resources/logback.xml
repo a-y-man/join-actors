@@ -71,7 +71,78 @@
         <appender-ref ref="STDOUT" />
     </logger>
 
-    <root level="debug">
+    <appender name="CodeGenLog" class="ch.qos.logback.core.FileAppender">
+        <!-- path to your log file, where you want to store logs -->
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/CodeGenLog.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%date %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="TreeMatcherLog" class="ch.qos.logback.core.FileAppender">
+        <!-- path to your log file, where you want to store logs -->
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/TreeMatcherLog.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%date %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="BruteForceMatcherLog" class="ch.qos.logback.core.FileAppender">
+        <!-- path to your log file, where you want to store logs -->
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/BruteForceMatcherLog.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%date %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="MatchingTreeLog" class="ch.qos.logback.core.FileAppender">
+        <!-- path to your log file, where you want to store logs -->
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/MatchingTreeLog.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%date %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CandidateMatchesLog" class="ch.qos.logback.core.FileAppender">
+        <!-- path to your log file, where you want to store logs -->
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/CandidateMatchesLog.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%date %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="CodeGenMacros" level="INFO">
+        <appender-ref ref="CodeGenLog" />
+        <!-- <appender-ref ref="STDOUT" /> -->
+    </logger>
+
+    <logger name="join_patterns.StatefulTreeMatcher" level="INFO">
+        <appender-ref ref="TreeMatcherLog" />
+        <!-- <appender-ref ref="STDOUT" /> -->
+    </logger>
+
+    <logger name="join_patterns.CandidateMatches" level="INFO">
+        <appender-ref ref="CandidateMatchesLog" />
+        <!-- <appender-ref ref="STDOUT" /> -->
+    </logger>
+
+    <logger name="join_patterns.BruteForceMatcher" level="INFO">
+        <appender-ref ref="BruteForceMatcherLog" />
+        <!-- <appender-ref ref="STDOUT" /> -->
+    </logger>
+
+
+    <logger name="join_patterns.MatchingTree" level="INFO">
+        <appender-ref ref="MatchingTreeLog" />
+        <!-- <appender-ref ref="STDOUT" /> -->
+    </logger>
+
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
