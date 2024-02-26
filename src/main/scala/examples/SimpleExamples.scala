@@ -30,7 +30,7 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 //         case D(n) if n > 0 =>
 //           Stop(println(s"I've received one message with the payload ${n} :)"))
 //         case E(n) if n != n => Stop(println(s"I cannot happen :("))
-//         case (F(a), E(b)) if (a + b == 42) =>
+//         case (F(a), E(b)) if a + b == 42 =>
 //           Stop(println(s"I've received 2 messages with the same payload :)"))
 //     }(algorithm)
 //   )
@@ -134,16 +134,16 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 //   val m                      = 0
 //   val isZero: Int => Boolean = (n: Int) => n == 0
 
-//   val matcher: Matcher[Msg, Result[Unit]] = receive { (y: Msg, _: ActorRef[Msg]) =>
-//     y match
-//       case (E(m), F(n), E(o)) => Stop(println(s"E(m = $m), F(n = $n), E(o = $o)"))
-//   }(algorithm)
+//   val actor = Actor[Msg, Unit] {
+//     receive { (y: Msg, _: ActorRef[Msg]) =>
+//       y match
+//         case (E(m), F(n), E(o)) => Stop(println(s"E(m = $m), F(n = $n), E(o = $o)"))
+//     }(algorithm)
+//   }
+//   val (futureResult, actorRef) = actor.start()
 
 //   val q  = List[Msg](E(4), F(2), E(1))
 //   val q_ = List[Msg](A(), B(), A())
-
-//   val actor                    = Actor[Msg, Unit](matcher)
-//   val (futureResult, actorRef) = actor.start()
 
 //   q.foreach(actorRef ! _)
 //   // q_.foreach(actorRef ! _)
@@ -157,7 +157,7 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 // def test05(algorithm: MatchingAlgorithm): Unit =
 //   println(s"Using ${algorithm}\n\n")
 
-//   val matcher: Matcher[Msg, Result[String]] =
+//   val actor = Actor[Msg, String] {
 //     receive { (y: Msg, _: ActorRef[Msg]) =>
 //       y match
 //         case (
@@ -175,15 +175,14 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 //             if a == 10 && b == 9 && c == 8 && d == 7 && e == 6 && f == 5 && g == 4 && h == 3 && i == 2 && j == 1 =>
 //           Stop("Match!")
 //     }(algorithm)
+//   }
+//   val (futureResult, actorRef) = actor.start()
 
 //   val q    = List[Msg](E(1), E(2), E(3), E(4), E(5), E(6), E(7), E(8), E(9), E(10))
 //   val revQ = q.reverse
 
-//   val actor                    = Actor[Msg, String](matcher)
-//   val (futureResult, actorRef) = actor.start()
-
-//   // q.foreach(actorRef ! _)
-//   revQ.foreach(actorRef ! _)
+//   q.foreach(actorRef ! _)
+//   // revQ.foreach(actorRef ! _)
 
 //   println(s"Q =  ${q.zipWithIndex}")
 
@@ -194,15 +193,17 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 // def test06(algorithm: MatchingAlgorithm): Unit =
 //   println(s"Using ${algorithm}\n\n")
 //   val expected = 42
-//   val matcher: Matcher[Msg, Result[Int]] = receive { (y: Msg, self: ActorRef[Msg]) =>
-//     y match
-//       case (F(i0), E(i1)) if i0 == i1 =>
-//         println(s"${self}")
-//         Stop(expected)
-//       case (F(i0), G(i1, s1, i2, b)) if i0 == i1 && s1 == s1 && b =>
-//         println(s"${self}")
-//         Stop(expected + 1)
-//   }(algorithm)
+//   val actor = Actor[Msg, Int] {
+//     receive { (y: Msg, self: ActorRef[Msg]) =>
+//       y match
+//         case (F(i0), E(i1)) if i0 == i1 =>
+//           Stop(expected)
+//         case (F(i0), G(i1, s1, i2, b)) if i0 == i1 && s1 == s1 && b =>
+//           Stop(expected + 1)
+//     }(algorithm)
+//   }
+
+//   val (futureResult, actorRef) = actor.start()
 //   val q = List[Msg](
 //     B(),
 //     A(),
@@ -218,10 +219,6 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 //     G(42, "G", 1, true),
 //     F(42)
 //   )
-
-//   val actor = Actor[Msg, Int](matcher)
-
-//   val (futureResult, actorRef) = actor.start()
 
 //   q.foreach(actorRef ! _)
 //   println(s"Q =  ${q.zipWithIndex}")
@@ -282,23 +279,23 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 // def randomMsgTesting(algorithm: MatchingAlgorithm): Unit =
 //   println(s"Using ${algorithm}\n\n")
 
-//   val matcher: Matcher[Msg, Result[Unit]] = receive { (msg: Msg, _: ActorRef[Msg]) =>
-//     msg match
-//       case (A(), B(), C()) => Stop(println(s"I've received 3 messages: A, B and C :)"))
-//       case (D(n), E(m), F(o)) if n < m && m < o =>
-//         Stop(println(s"I've received 3 messages: D, E and F :)"))
-//       case (E(x), F(a), G(b, c, d, e)) if x >= a && a <= b && d <= c.length =>
-//         Stop(println(s"I've received 3 messages: E, F and G :)"))
-//   }(algorithm)
+//   val actor = Actor[Msg, Unit] {
+//     receive { (msg: Msg, _: ActorRef[Msg]) =>
+//       msg match
+//         case (A(), B(), C()) => Stop(println(s"I've received 3 messages: A, B and C :)"))
+//         case (D(n), E(m), F(o)) if n < m && m < o =>
+//           Stop(println(s"I've received 3 messages: D, E and F :)"))
+//         case (E(x), F(a), G(b, c, d, e)) if x >= a && a <= b && d <= c.length =>
+//           Stop(println(s"I've received 3 messages: E, F and G :)"))
+//     }(algorithm)
+//   }
+//   val (futureResult, actorRef) = actor.start()
 
 //   val msgsForCase1 = List[Msg](A(), B(), C())
 //   val msgsForCase2 = List[Msg](D(1), E(2), F(3))
 //   val msgsForCase3 = List[Msg](E(3), F(2), G(3, "G", 1, true))
 
 //   val q = GenerateRandomMsgs.genRandomMsgs(10000)
-
-//   val actor                    = Actor[Msg, Unit](matcher)
-//   val (futureResult, actorRef) = actor.start()
 
 //   q.foreach(actorRef ! _)
 //   Random.nextInt(3) match
