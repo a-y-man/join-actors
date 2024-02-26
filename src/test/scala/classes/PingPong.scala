@@ -1,13 +1,14 @@
 package test.classes.pingPong
 
-import scala.concurrent.{Future, ExecutionContext}
-
-import join_patterns.receive
 import actor.*
-import test.ALGORITHM
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import join_patterns.MatchingAlgorithm
+import join_patterns.receive
+
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 import ExecutionContext.Implicits.global
 
@@ -19,7 +20,7 @@ case class Ping(ref: Pinger, hits: Int) extends PingPong
 case class Pong(ref: Ponger, hits: Int) extends PingPong
 case class Done(hits: Int)              extends PingPong
 
-def pingPonger(maxHits: Int = 100) =
+def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
   val pingActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
       receive { (y: PingPong, pingRef: Pinger) =>
@@ -34,7 +35,7 @@ def pingPonger(maxHits: Int = 100) =
               Next()
           case Done(x) =>
             Stop(x)
-      }(ALGORITHM)
+      }(algorithm)
     }
 
   val pongActor: Actor[PingPong, Int] =
@@ -51,7 +52,7 @@ def pingPonger(maxHits: Int = 100) =
               Next()
           case Done(x) =>
             Stop(x)
-      }(ALGORITHM)
+      }(algorithm)
     }
 
   (pingActor, pongActor)

@@ -3,7 +3,8 @@ package test.scenario.pingPong
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Assertions.*
 import scala.util.Random
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import test.classes.pingPong.*
 import join_patterns.MatchingAlgorithm
@@ -14,10 +15,10 @@ import java.util.concurrent.TimeUnit
 import ExecutionContext.Implicits.global
 
 class PingPongTest extends AnyFunSuite:
-  test("Fixed number of iterations") {
+  test(s"Fixed number of iterations with ${MatchingAlgorithm.StatefulTreeBasedAlgorithm}") {
     val maxHits = 100
 
-    val (pingActor, pongActor) = pingPonger(maxHits)
+    val (pingActor, pongActor) = pingPonger(maxHits, MatchingAlgorithm.StatefulTreeBasedAlgorithm)
     val (result1, pinger)      = pingActor.start()
     val (result2, ponger)      = pongActor.start()
 
@@ -33,7 +34,7 @@ class PingPongTest extends AnyFunSuite:
   test("Random number of iterations") {
     val maxHits = Random.nextInt(100)
 
-    val (pingActor, pongActor) = pingPonger(maxHits)
+    val (pingActor, pongActor) = pingPonger(maxHits, MatchingAlgorithm.StatefulTreeBasedAlgorithm)
     val (result1, pinger)      = pingActor.start()
     val (result2, ponger)      = pongActor.start()
 

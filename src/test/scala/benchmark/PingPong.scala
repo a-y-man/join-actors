@@ -1,6 +1,6 @@
 package test.benchmark.pingPong
 
-import test.ALGORITHM
+import join_patterns.MatchingAlgorithm
 import test.benchmark.Benchmark
 import test.benchmark.BenchmarkPass
 import test.classes.Msg
@@ -12,44 +12,57 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-def runBenchmark(maxHits: Int) =
+def measurePingPong(maxHits: Int, algorithm: MatchingAlgorithm) =
   implicit val ec = ExecutionContext.global
 
-  val (pingActor, pongActor) = pingPonger(maxHits)
+  val (pingActor, pongActor) = pingPonger(maxHits, algorithm)
+  val (result1, pinger)      = pingActor.start()
+  val (result2, ponger)      = pongActor.start()
 
   Future {
-    val startTime = System.nanoTime()
-
-    val (result1, pinger) = pingActor.start()
-    val (result2, ponger) = pongActor.start()
+    val startTime = System.currentTimeMillis()
 
     val results = Future.sequence(Seq(result1, result2))
 
     ponger ! Ping(pinger, 0)
 
-    val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+    Await.ready(results, Duration(30, TimeUnit.SECONDS))
 
-    if results.isCompleted then
-      val endTime = System.nanoTime()
-      endTime - startTime
-    else -1L
+    val endTime = System.currentTimeMillis()
+    endTime - startTime
   }
 
-@main
-def pingPongBenchmark =
-  val maxHits = 100_000
+def pingPongBenchmark(maxHits: Int, algorithm: MatchingAlgorithm) =
   Benchmark(
     "Ping Pong",
+    algorithm,
     10,
     200,
     BenchmarkPass(
-      "Control",
-      () => runBenchmark(maxHits)
+      "Control Null Pass",
+      () => measurePingPong(maxHits, algorithm)
     ),
     List(
       BenchmarkPass(
-        s"Macro using ${ALGORITHM.toString()}",
-        () => runBenchmark(maxHits)
+        s"PingPong using ${algorithm}",
+        () => measurePingPong(maxHits, algorithm)
       )
     )
-  ).run
+  )
+
+@main
+def runPingPongBenchmark() =
+  val statefulTreeAlgorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
+  val bruteForceAlgorithm   = MatchingAlgorithm.BruteForceAlgorithm
+
+  val maxHits = 100_000
+
+  List(bruteForceAlgorithm, statefulTreeAlgorithm) foreach { algorithm =>
+    println(
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+    )
+    pingPongBenchmark(maxHits, algorithm).run(false)
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+    )
+  }
