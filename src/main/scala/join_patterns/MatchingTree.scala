@@ -16,7 +16,7 @@ type PatternIdxs = List[PatternIdx]
 
 type PatternBins = Map[PatternIdxs, MessageIdxs]
 object PatternBins:
-  def apply(): PatternBins = Map.empty
+  def apply(elems: (PatternIdxs, MessageIdxs)*) = Map[PatternIdxs, MessageIdxs](elems*)
 
 def ppPatternBins(patternBins: PatternBins): String =
   patternBins
@@ -53,8 +53,8 @@ given intListOrdering: Ordering[List[Int]] with
 
 type MatchingTree = TreeMap[MessageIdxs, PatternBins]
 object MatchingTree:
-  def apply(): TreeMap[MessageIdxs, PatternBins] =
-    TreeMap[MessageIdxs, PatternBins](List.empty -> PatternBins())
+  def apply(elems: (MessageIdxs, PatternBins)*): TreeMap[MessageIdxs, PatternBins] =
+    TreeMap[MessageIdxs, PatternBins](elems*)
 
 def ppTree(mtree: MatchingTree): String =
   mtree
@@ -64,7 +64,8 @@ def ppTree(mtree: MatchingTree): String =
       val patternBinsStr = ppPatternBins(patternBins)
       s"[ ${messageIdxsStr} ] -> { ${patternBinsStr} }"
     }
-    .mkString("\n")
+    .mkString("\n") +
+    "\nThe tree has " + mtree.size + " nodes"
 
 def updateMTree(
     mtree: MatchingTree,
@@ -103,40 +104,10 @@ def findCompletePatterns(mtree: MatchingTree, patternSize: Int): MatchingTree =
     .filterKeys { case messageIdxs =>
       messageIdxs.size == patternSize
     }
+    .filter { case (_, patternBins) =>
+      patternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
+    }
     .to(TreeMap)
-
-def computeMappings(patternBins: PatternBins) =
-  patternBins
-    .map((patternShape, messageIdxs) =>
-      val mapping = messageIdxs.permutations.map { perm =>
-        patternShape.zip(perm).toList
-      }
-      mapping.toList
-    )
-    .toList
-
-def computeLookupEnv[M, T](
-    candI: List[(PatternIdx, MessageIdx)],
-    patternExtractors: PatternExtractors[M, T],
-    messages: List[M]
-): LookupEnv =
-  candI.flatMap { case (patternIdx, messageIdx) =>
-    val (checkMsgType, fieldExtractor) = patternExtractors(patternIdx)
-    val message                        = messages(messageIdx)
-    if checkMsgType(message) then fieldExtractor(message)
-    else Map()
-  }.toMap
-
-// def multiCartesianProduct[A](
-//     sets: List[List[List[(A, A)]]]
-// ): Iterator[List[(A, A)]] =
-//   sets match
-//     case Nil => Iterator(List.empty)
-//     case head :: tail =>
-//       for
-//         x  <- head.iterator
-//         xs <- multiCartesianProduct(tail)
-//       yield x ++ xs
 
 def msgIdxsToFits(patternBins: PatternBins): Map[MessageIdx, PatternIdxs] =
   // patternBins: [[3, 5] -> [0, 2], [4] -> [1]]
@@ -147,17 +118,17 @@ def msgIdxsToFits(patternBins: PatternBins): Map[MessageIdx, PatternIdxs] =
     }
   }
 
-def computeValidPermutations_[M, T](
+def findValidPermutations[M, T](
     msgIdxs: MessageIdxs,
     patExtractors: PatternExtractors[M, T],
     patternBins: PatternBins
 ): Iterator[List[(Int, M => LookupEnv)]] =
 
+  // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
   val msgToPatternIndices = msgIdxsToFits(patternBins)
+
   def isValidPermutation(permutation: MessageIdxs): Boolean =
     permutation.zipWithIndex.forall { (msgIdx, permIdx) =>
-      // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
-
       // P  [0, 1, 2]
       // M  [3, 4, 5] || [5, 4, 3]
       msgToPatternIndices(msgIdx).contains(permIdx)
