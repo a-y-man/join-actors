@@ -2,13 +2,15 @@ package test.benchmark
 
 import actor.OldActor
 import join_patterns.Matcher
-import test.ALGORITHM
+import join_patterns.MatchingAlgorithm
+import join_patterns.MatchingTree
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 import ExecutionContext.Implicits.global
 
@@ -49,6 +51,7 @@ class BenchmarkPass(
 
 class Benchmark(
     private val name: String,
+    private val algorithm: MatchingAlgorithm,
     val warmupIterations: Int,
     val iterations: Int,
     private val nullPass: BenchmarkPass,
@@ -90,34 +93,22 @@ class Benchmark(
           "\n\t" + f"pass speed related to null pass: $delta_formatted " + '%'
       )
 
-  def boxplot(results: List[(String, Seq[Long])]): List[(String, Seq[Double])] =
-    results.map((n, t) =>
-      val _t = t.sorted
-      val lw = _t(0) / 1e6
-      val q1 = _t((_t.size * 0.25).ceil.toInt) / 1e6
-      val md = _t((_t.size * 0.5).ceil.toInt) / 1e6
-      val q3 = _t((_t.size * 0.75).ceil.toInt) / 1e6
-      val hw = _t.last / 1e6
-
-      (n, List(lw, q1, md, q3, hw))
-    )
-
   def toFile(results: List[(String, Seq[Long])]) =
     import java.util.Date
     import java.io.{File, PrintWriter}
     import java.text.SimpleDateFormat
 
-    val folder    = "data"
+    val folder    = "/home/ayhu/Documents/JoinPatterns/experiment_results/data"
     val sep       = ';'
     val timestamp = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Date())
-    val file      = PrintWriter(File(f"$folder/${timestamp}_${name}_${ALGORITHM}.csv"))
+    val file      = PrintWriter(File(f"$folder/${timestamp}_${name}_${algorithm}.csv"))
 
     file.write(
       results.map((name, times) => name + sep + times.mkString(sep.toString)).mkString("\n")
     )
     file.close
 
-  def run: Long =
+  def run(writeToFile: Boolean): Long =
     println(
       f"Benchmark $name BEGIN (iterations: $iterations, warmup iterations: $warmupIterations)"
     )
@@ -130,6 +121,7 @@ class Benchmark(
     println(f"Benchmark $name END")
 
     displayResults(results)
-    toFile(results.tail)
+
+    if writeToFile then toFile(results.tail)
 
     results.map(_._2.sum).sum
