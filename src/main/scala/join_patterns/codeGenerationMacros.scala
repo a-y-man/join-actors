@@ -356,17 +356,29 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
   val (outer, inners) = typesData.head
 
+  val patternInfo: Expr[PatternInfo[M, T]] = '{
+    val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+    val checkMsgType = _extractors.head._1
+    val extractField = _extractors.head._2
+
+    PatternInfo(
+      patternBins = Map(List(0) -> List()),
+      patternExtractors = PatternExtractors(0 -> (checkMsgType, extractField))
+    )
+  }
+
   outer.asType match
     case '[ot] =>
       val extract: Expr[
         List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
       ] =
         '{ (m: List[M]) =>
-          val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-          val extractField = _extractors.head._2
-          val checkMsgType = _extractors.head._1
-          val messages     = ListBuffer.from(m.zipWithIndex)
-          val (mQ, mQidx)  = messages.last // Take the newest msg from the queue
+          val patInfo            = ${ patternInfo }
+          val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
+          val checkMsgType       = patExtractors(0)._1
+          val extractField       = patExtractors(0)._2
+          val messages           = ListBuffer.from(m.zipWithIndex)
+          val (mQ, mQidx)        = messages.last // Take the newest msg from the queue
 
           if checkMsgType(mQ) then
             Some(Iterator(List(mQidx)) -> Set(((checkMsgType, extractField), 0)))
@@ -378,22 +390,17 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(LookupEnv, ActorRef[M]) => T]
       val size = 1
 
-      val partialExtract = '{
-        (m: Tuple2[M, Int], pState: (MatchingTree, PatternExtractors[M, T])) =>
-          val _extractors            = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-          val checkMsgType           = _extractors.head._1
-          val extractField           = _extractors.head._2
-          val (mQ, mQidx)            = m // Take the newest msg from the queue
-          val (mTree, patExtractors) = pState
-          val mIdxs                  = List(mQidx)
-          if checkMsgType(mQ) then
-            Some(
-              (
-                mTree.updated(mIdxs, Map(List(0) -> mIdxs)),
-                patExtractors.updated(0, (checkMsgType, extractField))
-              )
-            )
-          else Some((mTree, patExtractors))
+      val partialExtract = '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
+        // val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+        // val extractField = _extractors.head._2
+        val patInfo            = ${ patternInfo }
+        val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
+        val checkMsgType       = patExtractors(0)._1
+        val (mQ, mQidx)        = m // Take the newest msg from the queue
+        val mTree              = pState
+        val mIdxs              = List(mQidx)
+        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, Map(List(0) -> mIdxs)))
+        else Some(mTree)
       }
 
       '{
@@ -402,7 +409,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
           $predicate,
           $rhs,
           ${ Expr(size) },
-          $partialExtract
+          $partialExtract,
+          ${ patternInfo }
         )
       }
 
@@ -517,60 +525,49 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
     generateRhs[M, T](_rhs, inners, self).asExprOf[(LookupEnv, ActorRef[M]) => T]
   val size = outers.size
 
-  // type MatchCounter = Map[Set[Int], Int]
-  // object MatchCounter:
-  //   def apply(elems: (Set[Int], Int)*) = Map[Set[Int], Int](elems*)
+  val patExtractors: Expr[PatternExtractors[M, T]] = '{
+    val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+    _extractors.zipWithIndex.flatMap { case ((_, checkMsgType, extractField), idx) =>
+      Map(idx -> (checkMsgType, extractField))
+    }.toMap
 
-  // type TempTree = Map[Set[Int], MatchCounter]
-  // object TempTree:
-  //   def apply[Set[Int], MatchCounter](elems: (Set[Int], MatchCounter)*) =
-  //     Map[Set[Int], MatchCounter](elems*)
+  }
 
-  // def updateMatchCount(newMatch: Set[Int], matchCounter: MatchCounter): Option[MatchCounter] =
-  //   matchCounter.get(newMatch) match
-  //     case Some(card) if card < newMatch.size => Some(matchCounter.updated(newMatch, card + 1))
-  //     case _                                  => None
+  val patternInfo: Expr[PatternInfo[M, T]] = '{
+    val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
+    val msgTypesInPattern = _extractors.map(pat => (pat._1, pat._2)).zipWithIndex
+    val patBins =
+      msgTypesInPattern
+        .groupBy(_._1._1)
+        .map { case (checkMsgType, occurrences) =>
+          val indices = occurrences.map(_._2)
+          indices -> List.empty[MessageIdx]
+        }
 
-  // def updateTempTree(newMsg: (Int, Set[Int]), tmpTree: TempTree): TempTree =
-  //   val (mIdx, newMatches) = newMsg
-  //   val newMatchesSize     = newMatches.size
-
-  //   tmpTree.flatMap { (msgIdxs, matchCounter) =>
-  //     updateMatchCount(newMatches, matchCounter) match
-  //       case Some(updatedMatchCounter) =>
-  //         tmpTree.updated(msgIdxs + mIdx, updatedMatchCounter)
-  //       case None => tmpTree
-  //   } ++ TempTree(Set(mIdx) -> MatchCounter(newMatches -> 1))
+    PatternInfo(patternBins = patBins, patternExtractors = $patExtractors)
+  }
 
   val partialExtract: Expr[
     (
         Tuple2[M, Int],
-        (MatchingTree, PatternExtractors[M, T])
-    ) => Option[(MatchingTree, PatternExtractors[M, T])]
+        MatchingTree
+    ) => Option[MatchingTree]
   ] =
-    '{ (m: Tuple2[M, Int], pState: (MatchingTree, PatternExtractors[M, T])) =>
-      val (mQ, mQidx)             = m // Take the newest msg from the queue
-      val (_mTree, patExtractors) = pState
-
+    '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
+      val (mQ, mQidx)                  = m // Take the newest msg from the queue
+      val mTree                        = pState
+      val patInfo                      = ${ patternInfo }
+      val (patternBins, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
       // logger.debug(s"Just received (${mQ}, ${mQidx})")
 
       val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
       val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
 
-      val patBins =
-        _extractors.zipWithIndex
-          .map(x => (x._1._1, x._2))
-          .groupBy(_._1)
-          .map { (_, occurrences) =>
-            occurrences.map(_._2) -> List.empty[MessageIdx]
-          }
-      // logger.info(s"${patBins}")
-
-      val mTree =
-        _mTree.flatMap((mIdxs, pBins) =>
-          if mIdxs.isEmpty then _mTree.updated(mIdxs, patBins)
-          else _mTree.updated(mIdxs, pBins)
-        )
+      // val mTree =
+      //   _mTree.flatMap((mIdxs, pBins) =>
+      //     if mIdxs.isEmpty then _mTree.updated(mIdxs, pBins)
+      //     else _mTree.updated(mIdxs, pBins)
+      //   )
 
       val isMsgInPat = msgTypesInPattern.exists { msgPat =>
         val ((checkMsgType, _), _) = msgPat
@@ -594,10 +591,10 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
         val updatedMTree = updateMTree(mTree, mQidx, matches)
 
-        Some((updatedMTree, mkPatExtractors))
+        Some(updatedMTree)
       else
         // logger.debug(s"The message ${m} with idx = ${mQidx} is not pattern.")
-        Some((mTree, mkPatExtractors))
+        Some(mTree)
     }
 
   '{
@@ -606,7 +603,8 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
       $predicate,
       $rhs,
       ${ Expr(size) },
-      $partialExtract
+      $partialExtract,
+      ${ patternInfo }
     )
   }
 
@@ -643,8 +641,15 @@ private def generateWildcardPattern[M, T](using
   }
   val size = 1
 
-  val partialExtract = '{ (m: Tuple2[M, Int], pState: (MatchingTree, PatternExtractors[M, T])) =>
+  val partialExtract = '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
     None
+  }
+
+  val patternInfo: Expr[PatternInfo[M, T]] = '{
+    PatternInfo(
+      patternBins = Map(),
+      patternExtractors = Map()
+    )
   }
 
   '{
@@ -653,7 +658,8 @@ private def generateWildcardPattern[M, T](using
       $predicate,
       $rhs,
       ${ Expr(size) },
-      $partialExtract
+      $partialExtract,
+      ${ patternInfo }
     )
   }
 

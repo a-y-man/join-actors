@@ -202,12 +202,14 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
-  var initMatchingTree = MatchingTree()
-  val initPatternBins  = PatternBins()
 
   var patternsWithMatchingTrees: List[PatternState[M, T]] = patternsWithIdxs
-    .map { patternsWithIdxs =>
-      (patternsWithIdxs, (initMatchingTree, initPatternBins))
+    .map { case p @ (pattern, _) =>
+      val patInfo                          = pattern.getPatternInfo
+      val (initPatternBins, patExtractors) = (patInfo._1, patInfo._2)
+
+      val initMatchingTree = MatchingTree().updated(List.empty, initPatternBins)
+      (p, (initMatchingTree, patInfo))
     }
 
   def findMatch(
@@ -215,26 +217,26 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       patternState: PatternState[M, T]
   ): (PatternState[M, T], CandidateMatch[M, T]) =
 
-    val (mQ, mQidx)                             = newMsg
-    val ((pattern, patternIdx), (mTree, pBins)) = patternState
-    val updatedMatchingTree = pattern.partialExtract((mQ, mQidx), (mTree, PatternExtractors()))
-    val messages_           = messages.map(_._1).toList
+    val (mQ, mQidx)                               = newMsg
+    val ((pattern, patternIdx), (mTree, patInfo)) = patternState
+    val updatedMatchingTree                       = pattern.partialExtract((mQ, mQidx), mTree)
+    val messages_                                 = messages.map(_._1).toList
 
     updatedMatchingTree match
-      case Some((updatedMTree, patExtractors)) =>
+      case Some(updatedMTree) =>
         // logMapping(ppTree(updatedMTree), s" Matching Tree for JP ${patternIdx} ")
         // logMapping(ppPatternExtractors(patExtractors), s" Pattern Extractors for JP ${patternIdx} ")
         val completePatterns = findCompletePatterns(updatedMTree, pattern.size)
 
-        // logger.info(
-        //   s"Complete Patterns: ${completePatterns.map((k, v) => (k, v)).mkString("\n")}"
+        // println(
+        //   s"Complete Patterns:\n${completePatterns.map((k, v) => (k, v)).mkString("\n")}"
         // )
 
         val possibleMatches = completePatterns.iterator
           .map { (msgIdxs, patternBins) =>
 
             val validPermutations =
-              computeValidPermutations_[M, T](msgIdxs, patExtractors, patternBins)
+              findValidPermutations[M, T](msgIdxs, patInfo.patternExtractors, patternBins)
 
             val bestMatchOpt = findBestMatch(validPermutations, messages.map(_._1), pattern)
 
@@ -257,7 +259,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
             //   s"Some(${bestMatchIdxs}) -- Removed non-matching nodes: \n${ppTree(removedNonMatchingNodes)}"
             // )
             (
-              ((pattern, patternIdx), (removedNonMatchingNodes, pBins)),
+              ((pattern, patternIdx), (removedNonMatchingNodes, patInfo)),
               Some((bestMatchIdxs, patternIdx), selectedMatch)
             )
           case None =>
@@ -265,7 +267,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
             // logger.info(
             //   s"None -- Removed non-matching nodes: \n${ppTree(removedNonMatchingNodes)}"
             // )
-            (((pattern, patternIdx), (removedNonMatchingNodes, pBins)), None)
+            (((pattern, patternIdx), (removedNonMatchingNodes, patInfo)), None)
 
       case None => (patternState, None)
 
@@ -293,6 +295,8 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       val (updatedPatternStates, possibleMatches) =
         collectCandidateMatches((mQ, mQidx), patternsWithMatchingTrees).unzip
 
+      patternsWithMatchingTrees = updatedPatternStates
+
       val candidateMatches: CandidateMatches[M, T] =
         possibleMatches.foldLeft(CandidateMatches[M, T]()) {
           case (acc, Some(candidateMatch)) =>
@@ -301,7 +305,6 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
           case (acc, None) => acc
         }
 
-      patternsWithMatchingTrees = updatedPatternStates
       // val ppTrees = updatedPatternStates map { (pState: PatternState[M, T]) =>
       //   val (joinPat, currentMTree) = pState
       //   currentMTree.ppTree

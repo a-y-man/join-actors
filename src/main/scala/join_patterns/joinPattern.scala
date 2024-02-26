@@ -32,8 +32,9 @@ case class JoinPattern[M, T](
     size: Int,
     partialExtract: (
         Tuple2[M, Int],
-        (MatchingTree, PatternExtractors[M, T])
-    ) => Option[(MatchingTree, PatternExtractors[M, T])]
+        MatchingTree
+    ) => Option[MatchingTree],
+    getPatternInfo: PatternInfo[M, T] // (PatternBins, PatternExtractors[M, T])
 )
 
 enum MatchingAlgorithm:

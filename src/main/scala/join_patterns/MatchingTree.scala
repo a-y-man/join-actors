@@ -2,7 +2,6 @@ package join_patterns
 
 import scala.Console
 import scala.annotation.tailrec
-import scala.collection.immutable.IntMap
 import scala.collection.immutable.TreeMap
 
 import math.Ordering.Implicits.infixOrderingOps
@@ -29,7 +28,8 @@ def ppPatternBins(patternBins: PatternBins): String =
 
 type PatternExtractors[M, T] = Map[PatternIdx, (M => Boolean, M => LookupEnv)]
 object PatternExtractors:
-  def apply[M, T](): PatternExtractors[M, T] = Map.empty
+  def apply[M, T](elems: (PatternIdx, (M => Boolean, M => LookupEnv))*): PatternExtractors[M, T] =
+    Map[PatternIdx, (M => Boolean, M => LookupEnv)](elems*)
 
 def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M, T]): String =
   patternExtractors
@@ -39,7 +39,12 @@ def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M, T]): Strin
     }
     .mkString(", ")
 
-type PatternState[M, T] = ((JoinPattern[M, T], PatternIdx), (MatchingTree, PatternBins))
+final case class PatternInfo[M, T](
+    val patternBins: PatternBins,
+    val patternExtractors: PatternExtractors[M, T]
+)
+
+type PatternState[M, T] = ((JoinPattern[M, T], PatternIdx), (MatchingTree, PatternInfo[M, T]))
 
 given intListOrdering: Ordering[List[Int]] with
   def compare(x: List[Int], y: List[Int]): Int =
