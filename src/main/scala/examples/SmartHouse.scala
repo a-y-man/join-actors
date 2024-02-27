@@ -72,8 +72,6 @@ object GenerateActions:
     Gen.containerOfN[List, Action](n, pickAction).sample
 
 def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
-  implicit val ec: ExecutionContext = ExecutionContext.global
-
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
   def isSorted: Seq[Date] => Boolean = times =>
