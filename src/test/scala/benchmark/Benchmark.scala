@@ -11,8 +11,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.Executors
 
-import ExecutionContext.Implicits.global
+implicit val ec: ExecutionContext =
+  ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
 
 trait Benchmarkable[M, T] extends OldActor[M, T]:
   def run_as_future: Future[Long]

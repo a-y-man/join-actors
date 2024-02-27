@@ -2,6 +2,7 @@ package actor
 
 import join_patterns.Matcher
 
+import java.util.concurrent.Executors
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -42,9 +43,11 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   val self                        = ActorRef(mailbox)
 
   def start(): (Future[T], ActorRef[M]) =
-    val promise = Promise[T]
+    val promise         = Promise[T]
+    val executorService = Executors.newVirtualThreadPerTaskExecutor()
+    val eCtx            = ExecutionContext.fromExecutorService(executorService)
 
-    ExecutionContext.global.execute(() => run(promise))
+    eCtx.execute(() => run(promise))
 
     (promise.future, self)
 
