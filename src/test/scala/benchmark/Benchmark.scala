@@ -5,13 +5,13 @@ import join_patterns.Matcher
 import join_patterns.MatchingAlgorithm
 import join_patterns.MatchingTree
 
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.Executors
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
@@ -19,9 +19,18 @@ implicit val ec: ExecutionContext =
 trait Benchmarkable[M, T] extends OldActor[M, T]:
   def run_as_future: Future[Long]
 
+case class Measurement(time: FiniteDuration, matches: Int)
+object Measurement:
+  def apply(time: Long, matches: Int): Measurement =
+    Measurement(FiniteDuration(time, TimeUnit.MILLISECONDS), matches)
+
+  def time(measurement: Measurement): FiniteDuration = measurement.time
+
+  def matches(measurement: Measurement): Int = measurement.matches
+
 class BenchmarkPass(
     val name: String,
-    private val mainFn: () => Future[Long]
+    private val mainFn: () => Future[Measurement]
 ):
   def warmup(warmupIterations: Int): Unit =
     Await.ready(
@@ -29,23 +38,23 @@ class BenchmarkPass(
       Duration(20, TimeUnit.MINUTES)
     )
 
-  def benchmark(iterations: Int): Seq[Long] =
+  def benchmark(iterations: Int): Seq[Measurement] =
     Await
       .result(
         Future.sequence((1 to iterations).map(_ => mainFn())),
         Duration(90, TimeUnit.MINUTES)
       )
 
-  def run(warmupIterations: Int, iterations: Int): Seq[Long] =
+  def run(warmupIterations: Int, iterations: Int): Seq[Measurement] =
     println(f"-- Pass $name")
 
-    println("\tstart warmup")
+    println(Console.YELLOW + "\tstart warmup" + Console.RESET)
     warmup(warmupIterations)
-    println("\tend warmup")
+    println(Console.YELLOW + "\tend warmup" + Console.RESET)
 
-    println("\tstart benchmark")
+    println(Console.GREEN + "\tstart benchmark" + Console.RESET)
     val elapsed = benchmark(iterations)
-    println("\tend benchmark")
+    println(Console.GREEN + "\tend benchmark" + Console.RESET)
 
     println(f"-- Pass $name end")
 
@@ -59,63 +68,66 @@ class Benchmark(
     private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
 ):
-  def displayResults(results: List[(String, Seq[Long])]) =
+  def displayResults(results: List[(String, Seq[Measurement])]) =
     import Console.{GREEN, RED, RESET}
 
-    val total               = results.map(_._2.sum).sum
-    val average             = total / results.size
-    val (nullName, nullRes) = (results(0)._1, results(0)._2.sum)
+    val (nullName, nullPassMeasurements) = results.head
+
+    val nullPassElapsed = nullPassMeasurements.map(Measurement.time).reduce(_ + _)
+    val nullPassMatches = nullPassMeasurements.map(Measurement.matches).sum
+    val nullPassAverage = nullPassElapsed / warmupIterations
 
     println(
-      f"Benchmark $name RESULTS" +
-        "\n" + "total elapsed time: " + "%.2f".format(total / 1e9) + "s" +
-        "\n" + "average time per pass: " + "%.2f".format(average / 1e9) + "s" + '\n'
+      Console.YELLOW + f"Null Pass $nullName" + Console.RESET +
+        "\n\t" + f"total matches : $nullPassMatches" +
+        "\n\t" + f"elapsed time : ${Console.GREEN}${nullPassElapsed}" + Console.RESET +
+        "\n\t" + f"average time per iteration : ${Console.GREEN}$nullPassAverage" + Console.RESET + '\n'
     )
 
-    val averagePerIt  = "%.2f".format(nullRes.toDouble / iterations)
-    val averagePerItS = "%.4f".format((nullRes.toDouble / iterations) / 1e9)
-    println(
-      f"Pass $nullName" +
-        "\n\t" + f"elapsed time : " + "%.2f".format(nullRes / 1e9) + "s" +
-        "\n\t" + f"average time per iteration : $averagePerIt ns / $averagePerItS s" + '\n'
-    )
+    val passes = results.tail
 
-    for (passName, passResult) <- results.tail do
-      val res           = passResult.sum
-      val averagePerIt  = "%.2f".format(res.toDouble / iterations)
-      val averagePerItS = "%.4f".format((res.toDouble / iterations) / 1e9)
-      val delta         = ((res - nullRes) * 100.0) / nullRes.toDouble
+    for (passName, passRuntimes) <- passes do
+      val totalMatches     = passRuntimes.map(Measurement.matches).sum
+      val totalElapsedPass = passRuntimes.map(Measurement.time).reduce(_ + _)
+      val passAverage      = totalElapsedPass / iterations
+      val delta            = ((passAverage - nullPassAverage) * 100.0) / nullPassAverage
       val delta_formatted =
         (if delta < 0 then s"${GREEN}" else s"${RED}") + "%.2f".format(delta) + s"${RESET}"
 
       println(
         f"Pass $passName" +
-          "\n\t" + f"elapsed time : " + "%.2f".format(res / 1e9) + "s" +
-          "\n\t" + f"average time per iteration : $averagePerIt ns / $averagePerItS s" +
+          "\n\t" + f"total matches : $totalMatches" +
+          "\n\t" + f"elapsed time : ${totalElapsedPass}" +
+          "\n\t" + f"average time per iteration : $passAverage" +
           "\n\t" + f"pass speed related to null pass: $delta_formatted " + '%'
       )
 
-  def toFile(results: List[(String, Seq[Long])]) =
+  def toFile(results: List[(String, Seq[Measurement])]) =
     import java.util.Date
     import java.io.{File, PrintWriter}
     import java.text.SimpleDateFormat
 
     val folder    = "/home/ayhu/Documents/JoinPatterns/experiment_results/data"
-    val sep       = ';'
+    val sep       = ";"
     val timestamp = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Date())
     val file      = PrintWriter(File(f"$folder/${timestamp}_${name}_${algorithm}.csv"))
 
     file.write(
-      results.map((name, times) => name + sep + times.mkString(sep.toString)).mkString("\n")
+      results
+        .map((name, measurements) =>
+          val times = measurements.map(Measurement.time).map(_.toMillis)
+          s"${name.toInt} $sep ${times.mkString(sep)}"
+        )
+        .mkString("\n")
     )
     file.close
 
-  def run(writeToFile: Boolean): Long =
+  def run(writeToFile: Boolean): Unit =
     println(
       f"Benchmark $name BEGIN (iterations: $iterations, warmup iterations: $warmupIterations)"
     )
 
-    val results: List[(String, Seq[Long])] =
+    val results: List[(String, Seq[Measurement])] =
       List((nullPass.name, nullPass.run(warmupIterations, iterations))).concat(
         passes.map(p => (p.name, p.run(warmupIterations, iterations)))
       )
@@ -125,5 +137,3 @@ class Benchmark(
     displayResults(results)
 
     if writeToFile then toFile(results.tail)
-
-    results.map(_._2.sum).sum
