@@ -3,6 +3,7 @@ package test.benchmark.pingPong
 import join_patterns.MatchingAlgorithm
 import test.benchmark.Benchmark
 import test.benchmark.BenchmarkPass
+import test.benchmark.Measurement
 import test.classes.Msg
 import test.classes.pingPong.*
 
@@ -22,7 +23,7 @@ def measurePingPong(maxHits: Int, algorithm: MatchingAlgorithm) =
   val (result2, ponger)      = pongActor.start()
 
   Future {
-    val startTime = System.nanoTime()
+    val startTime = System.currentTimeMillis()
 
     val results = Future.sequence(Seq(result1, result2))
 
@@ -30,8 +31,8 @@ def measurePingPong(maxHits: Int, algorithm: MatchingAlgorithm) =
 
     Await.ready(results, Duration(30, TimeUnit.SECONDS))
 
-    val endTime = System.nanoTime()
-    endTime - startTime
+    val endTime = System.currentTimeMillis()
+    Measurement(endTime - startTime, maxHits)
   }
 
 def pingPongBenchmark(maxHits: Int, algorithm: MatchingAlgorithm) =

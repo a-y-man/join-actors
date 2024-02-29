@@ -5,17 +5,18 @@ import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.*
 import org.scalatest.run
-import test.ALGORITHM
 import test.benchmark.Benchmark
 import test.benchmark.BenchmarkPass
+import test.benchmark.Measurement
 
 import java.util.Date
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.Map as MutMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.util.*
 
 sealed trait Action
@@ -72,14 +73,21 @@ object GenerateActions:
 
   def genActionsOfSizeN(n: Int): Option[List[Action]] =
     val pickAction =
-      Gen.oneOf(genMotion, genAmbientLight, genLight, genContact, genConsumption, genHeatingF)
+      Gen.oneOf(
+        genMotion,
+        genAmbientLight,
+        genLight,
+        genContact,
+        genConsumption,
+        genHeatingF,
+        genDoorBell
+      )
     Gen.containerOfN[List, Action](n, pickAction).sample
 
 def smartHouseExample(algorithm: MatchingAlgorithm) =
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
+  var actions              = 0
   def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
   def bathroomOccupied =
@@ -113,7 +121,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
       _ == true
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
-  val smartHouseActor = Actor[Action, Unit] {
+  Actor[Action, (Long, Int)] {
     receive { (y: Action, selfRef: ActorRef[Action]) =>
       y match
         // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
@@ -131,7 +139,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
             ) =>
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
-          // println("Someone entered the bathroom")
+          actions += 1
           Next()
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
         case (
@@ -147,7 +155,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
               cRoom
             ) =>
           lastNotification = Date()
-          // println("Someone arrived home")
+          actions += 1
           Next()
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
@@ -162,98 +170,124 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
               cRoom
             ) =>
           lastNotification = Date()
-          // println("Someone left home")
+          actions += 1
           Next()
-
         case ShutOff() =>
-          // println("Shutting down the smart house. Bye!")
-          Stop(())
-
+          Stop((System.currentTimeMillis(), actions))
     }(algorithm)
   }
 
-  smartHouseActor
+def intercalateCorrectMsgs[A](
+    correctMsgs: Vector[A],
+    randomMsgs: Vector[A]
+): Vector[A] =
+  val randomMsgsSize  = randomMsgs.size
+  val correctMsgsSize = correctMsgs.size
+  val groupSize       = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
+  if randomMsgsSize > 0 then
+    randomMsgs
+      .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
+      .zipAll(correctMsgs, Vector.empty, randomMsgs.headOption.getOrElse(correctMsgs.head))
+      .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
+      .toVector
+  else correctMsgs
 
-def sendE1(actorRef: ActorRef[Action]) =
-  actorRef ! Motion(0, true, "bathroom")
-  actorRef ! AmbientLight(0, 30, "bathroom")
-  actorRef ! Light(0, false, "bathroom")
+def smartHouseMsgs(n: Int): Vector[Action] =
+  val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
 
-def sendE5(actorRef: ActorRef[Action]) =
-  if Random.nextInt % 2 == 0 then
-    actorRef ! Motion(0, true, "front_door")
-    actorRef ! Contact(0, true, "front_door")
-    actorRef ! Motion(0, true, "entrance_hall")
-  else
-    actorRef ! Motion(0, true, "entrance_hall")
-    actorRef ! Contact(0, true, "front_door")
-    actorRef ! Motion(0, true, "front_door")
+  val correctMsgs =
+    Random.nextInt(3) match
+      case 0 =>
+        // List of messages that trigger E1
+        Vector(
+          Motion(0, true, "bathroom"),
+          AmbientLight(0, 30, "bathroom"),
+          Light(0, false, "bathroom")
+        )
+      case 1 =>
+        // List of messages that trigger E5.1
+        Vector(
+          Motion(0, true, "front_door"),
+          Contact(0, true, "front_door"),
+          Motion(0, true, "entrance_hall")
+        )
+      case 2 =>
+        // List of messages that trigger E5.2
+        Vector(
+          Motion(0, true, "entrance_hall"),
+          Contact(0, true, "front_door"),
+          Motion(0, true, "front_door")
+        )
 
-def sendE1WithNoise(actorRef: ActorRef[Action], nRndMsgs: Int) =
-  val randomMsgs = GenerateActions.genActionsOfSizeN(nRndMsgs).get
-  randomMsgs.foreach(actorRef ! _)
-  sendE1(actorRef)
+  intercalateCorrectMsgs(correctMsgs, randomMsgs)
 
-def sendE5WithNoise(actorRef: ActorRef[Action], nRndMsgs: Int) =
-  val randomMsgs = GenerateActions.genActionsOfSizeN(nRndMsgs).get
-  randomMsgs.foreach(actorRef ! _)
-  sendE5(actorRef)
-
-// def prepBenchmarkData(numberOfRandomMsgs: Int) =
-//   val randomMsgs = GenerateActions.genActionsOfSizeN(numberOfRandomMsgs).get
-//   randomMsgs
-
-def runSmartHouse(smartHouseActions: Int, numberOfRandomMsgs: Int, algorithm: MatchingAlgorithm) =
-  implicit val ec = ExecutionContext.global
+def measureSmartHouse(
+    smartHouseActions: Int,
+    msgs: Vector[Action],
+    algorithm: MatchingAlgorithm
+): Future[Measurement] =
+  implicit val ec: ExecutionContext =
+    ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
 
   val actor = smartHouseExample(algorithm)
 
+  val (result, actorRef) = actor.start()
+
   Future {
-    val startTime = System.nanoTime()
+    val startTime = System.currentTimeMillis()
 
-    val (result, actorRef) = actor.start()
+    for _ <- 1 to smartHouseActions do msgs.foreach(actorRef ! _)
 
-    if numberOfRandomMsgs > 0 then
-      Random.nextInt(2) match
-        case 0 => sendE1WithNoise(actorRef, numberOfRandomMsgs)
-        case 1 => sendE5WithNoise(actorRef, numberOfRandomMsgs)
+    actorRef ! ShutOff()
 
-    for i <- 0 to smartHouseActions do
-      Random.nextInt(2) match
-        case 0 => sendE1(actorRef) // Send messages that trigger E1
-        case 1 => sendE5(actorRef) // Send messages that trigger E5
+    val (endTime, matches) = Await.result(result, Duration(20, TimeUnit.MINUTES))
 
-    actorRef ! ShutOff() // Finally, shut off the smart house
-
-    Await.ready(result, Duration(20, "minutes"))
-
-    val endTime = System.nanoTime()
-    endTime - startTime
+    Measurement(endTime - startTime, matches)
   }
 
+def smartHouseBenchmark(
+    smartHouseActions: Int,
+    rangeOfRandomMsgs: Vector[(Vector[Action], Int)],
+    algorithm: MatchingAlgorithm
+) =
+
+  val nullPassMsgs = smartHouseMsgs(5)
+  Benchmark(
+    name = "SmartHouse",
+    algorithm = algorithm,
+    warmupIterations = 5,
+    iterations = 10,
+    nullPass = BenchmarkPass(
+      s"Null Pass ${algorithm}",
+      () => measureSmartHouse(smartHouseActions, nullPassMsgs, algorithm)
+    ),
+    passes = rangeOfRandomMsgs map { case (msgs, n) =>
+      BenchmarkPass(
+        s"$n",
+        () => measureSmartHouse(smartHouseActions, msgs, algorithm)
+      )
+    }
+  )
+
 @main
-def smartHouseBenchmark =
-  val smartHouseActions     = 1000
-  val randomMsgsPerPass     = List(0, 2, 4, 6, 8, 10, 12)
+def runSmartHouseBenchmark() =
   val statefulTreeAlgorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
   val bruteForceAlgorithm   = MatchingAlgorithm.BruteForceAlgorithm
 
-  Benchmark(
-    "Smart House",
-    10,
-    100,
-    BenchmarkPass(
-      "Control",
-      () => runSmartHouse(smartHouseActions, 0, statefulTreeAlgorithm)
-    ),
-    randomMsgsPerPass map { n =>
-      BenchmarkPass(
-        s"Using ${statefulTreeAlgorithm.toString} with $n random messages",
-        () => runSmartHouse(smartHouseActions, n, statefulTreeAlgorithm)
-      )
+  val smartHouseActions = 5 // Successful matches per benchmark repetition
+  val maxRandomMsgs     = 18
+  val rndMsgsStep       = 3
+  val rangeOfRandomMsgs =
+    Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
+      (smartHouseMsgs(n), n)
     }
-  ).run
 
-// Make sure same input queue for both algos (store sequences or seed)
-// Make sure the tree is growing as expected
-// Report tree size
+  List(statefulTreeAlgorithm, bruteForceAlgorithm) foreach { algorithm =>
+    println(
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+    )
+    smartHouseBenchmark(smartHouseActions, rangeOfRandomMsgs, algorithm).run(true)
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+    )
+  }
