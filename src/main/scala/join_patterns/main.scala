@@ -26,12 +26,14 @@ def main(): Unit =
   // randomMsgTesting(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
   // randomMsgTesting(MatchingAlgorithm.BruteForceAlgorithm)
 
-  smartHouseExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 10)
+  // smartHouseExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 10)
   // smartHouseExample(MatchingAlgorithm.BruteForceAlgorithm, 10)
   // nwptExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
   // nwptExample(MatchingAlgorithm.BruteForceAlgorithm)
   // pingPongExample(4, MatchingAlgorithm.StatefulTreeBasedAlgorithm)
   // pingPongExample(4, MatchingAlgorithm.BruteForceAlgorithm)
+  boundedBufferExample(MatchingAlgorithm.BruteForceAlgorithm, 10)
+  boundedBufferExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 10)
 
 // [{} -> [{0, 2} -> {}, {1} -> {}]
 // {0} -> [{0, 2} -> {}, {1} -> {}]
