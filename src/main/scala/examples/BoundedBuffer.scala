@@ -5,43 +5,42 @@ import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.management.Query
 import scala.collection.immutable.LazyList.cons
-import scala.collection.mutable.ListBuffer as Buffer
+import scala.collection.mutable.ArrayBuffer as Buffer
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-type ProducerRef = ActorRef[BoundedBuffer]
 type ConsumerRef = ActorRef[Reply]
 
 sealed trait BoundedBuffer
-case class Put(ref: ProducerRef, x: Int) extends BoundedBuffer
-case class Get(ref: ConsumerRef)         extends BoundedBuffer
-case class Reply(x: Int)                 extends BoundedBuffer
+case class Put(x: Int)           extends BoundedBuffer
+case class Get(ref: ConsumerRef) extends BoundedBuffer
+case class Reply(x: Int)         extends BoundedBuffer
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(
     Executors.newVirtualThreadPerTaskExecutor()
   )
 
-def bbActor(bufferBound: Int, algorithm: MatchingAlgorithm): Actor[BoundedBuffer, Unit] =
-  val buffer = Buffer[Int]()
+def bbActor(bufferBound: Int, algorithm: MatchingAlgorithm): Actor[BoundedBuffer, String] =
+  val buffer = Buffer[Int](bufferBound)
 
-  Actor[BoundedBuffer, Unit] {
+  Actor[BoundedBuffer, String] {
     receive { (y: BoundedBuffer, selfRef: ActorRef[BoundedBuffer]) =>
       y match
-        case (Get(consumerRef), Put(producerRef, x)) =>
+        case (Get(consumerRef), Put(x)) =>
           consumerRef ! Reply(x)
           Next()
-        case Put(producerRef, x) =>
+        case Put(x) =>
           if buffer.size < bufferBound then
             buffer.addOne(x)
             Next()
           else
-            buffer.clear()
-            buffer.addOne(x)
+            println(s"Buffer is full, cannot add $x")
             Next()
     }(algorithm)
   }
@@ -61,18 +60,22 @@ def boundedBufferExample(algorithm: MatchingAlgorithm, bufferBound: Int) =
   val (_, bbRef)              = bb.start()
   val (replyFut, consumerRef) = consumerActor.start()
 
-  Future(
+  val producer = Future(
     (1 to bufferBound) foreach { i =>
-      bbRef ! Put(bbRef, i)
+      Thread.sleep(200)
+      bbRef ! Put(i)
+      Thread.sleep(200)
     }
   )
 
-  Future(
-    (1 to bufferBound) foreach { i =>
-      bbRef ! Get(consumerRef)
-    }
-  )
+  (1 to bufferBound) foreach { i =>
+    Thread.sleep(200)
+    bbRef ! Get(consumerRef)
+    Thread.sleep(200)
+  }
 
-  Await.ready(replyFut, Duration.Inf)
+  Await.ready(producer, Duration(1, TimeUnit.MINUTES))
+  producer.onComplete(printResult)
 
+  Await.ready(replyFut, Duration(1, TimeUnit.MINUTES))
   replyFut.onComplete(printResult)
