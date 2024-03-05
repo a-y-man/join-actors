@@ -72,6 +72,21 @@ def ppTree(mtree: MatchingTree): String =
     .mkString("\n") +
     "\nThe tree has " + mtree.size + " nodes"
 
+// M = [ 3, 4, 5 ]  P = [ 0, 1, 2 ]
+
+// 3 -> { 0, 2 }
+// 4 -> { 1 }
+// 5 -> { 0, 2 }
+
+// { 3, 4, 5 } -> [{ 0, 2 } -> { 3, 5 }, { 1 } -> { 4 }]]
+// { 3, 4 }    -> [{ 0, 2 } -> { 3 },    { 1 } -> { 4 }]
+// { 3, 5 }    -> [{ 0, 2 } -> { 3, 5 }, { 1 } -> {   }]
+// { 4, 5 }    -> [{ 0, 2 } -> { 5 },    { 1 } -> { 4 }]
+// { 3 }       -> [{ 0, 2 } -> { 3 },    { 1 } -> {   }]
+// { 4 }       -> [{ 0, 2 } -> {   },    { 1 } -> { 4  }]
+// { 5 }       -> [{ 0, 2 } -> { 5 },    { 1 } -> {   }]
+// [{ }        -> [{ 0, 2 } -> {   },    { 1 } -> {   }]
+
 def updateMTree(
     mtree: MatchingTree,
     messageIdx: MessageIdx,
@@ -151,13 +166,10 @@ def findValidPermutations[M, T](
     }
   validPermutations
 
-@tailrec
 def processMessages(
     mtree: MatchingTree,
     messageIdxWithFits: List[(MessageIdx, PatternIdxs)]
 ): MatchingTree =
-  messageIdxWithFits match
-    case (messageIdx, patternShape) :: tail =>
-      val updatedPTree = updateMTree(mtree, messageIdx, patternShape)
-      processMessages(updatedPTree, tail)
-    case Nil => mtree
+  messageIdxWithFits.foldLeft(mtree) { case (accMTree, (messageIdx, patternShape)) =>
+    updateMTree(accMTree, messageIdx, patternShape)
+  }
