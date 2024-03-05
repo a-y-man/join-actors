@@ -31,7 +31,7 @@ case class ShutOff()                                                            
 
 object GenerateActions:
   // Set seed for the random generator
-  Random.setSeed(42)
+  Random.setSeed(512)
 
   private val genMotion: Gen[Action] = for
     i <- Gen.choose(0, 100)
@@ -183,14 +183,14 @@ def intercalateCorrectMsgs[A](
 ): Vector[A] =
   val randomMsgsSize  = randomMsgs.size
   val correctMsgsSize = correctMsgs.size
-  val groupSize       = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
-  if randomMsgsSize > 0 then
+  if randomMsgsSize >= correctMsgsSize then
+    val groupSize = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
     randomMsgs
       .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
-      .zipAll(correctMsgs, Vector.empty, randomMsgs.headOption.getOrElse(correctMsgs.head))
+      .zipAll(correctMsgs, randomMsgs, randomMsgs.headOption.getOrElse(correctMsgs.last))
       .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
       .toVector
-  else correctMsgs
+  else randomMsgs ++ correctMsgs
 
 def smartHouseMsgs(n: Int): Vector[Action] =
   val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
@@ -240,7 +240,7 @@ def measureSmartHouse(
 
     actorRef ! ShutOff()
 
-    val (endTime, matches) = Await.result(result, Duration(20, TimeUnit.MINUTES))
+    val (endTime, matches) = Await.result(result, Duration.Inf)
 
     Measurement(endTime - startTime, matches)
   }
