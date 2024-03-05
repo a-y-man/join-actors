@@ -208,7 +208,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       val patInfo                          = pattern.getPatternInfo
       val (initPatternBins, patExtractors) = (patInfo._1, patInfo._2)
 
-      val initMatchingTree = MatchingTree().updated(List.empty, initPatternBins)
+      val initMatchingTree = MatchingTree().updated(MessageIdxs(), initPatternBins)
       (p, (initMatchingTree, patInfo))
     }
 

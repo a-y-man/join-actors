@@ -4,9 +4,8 @@ import actor.Actor
 import actor.ActorRef
 import com.typesafe.scalalogging.Logger
 
-import java.util.concurrent.LinkedTransferQueue as Queue
-import scala.collection.immutable.Map
-import scala.collection.immutable.TreeMap as Node
+import scala.collection.immutable.*
+import scala.collection.immutable.TreeMap as MTree
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
 import scala.quoted.Expr
@@ -362,7 +361,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
     val extractField = _extractors.head._2
 
     PatternInfo(
-      patternBins = Map(List(0) -> List()),
+      patternBins = Map(List(0) -> MessageIdxs()),
       patternExtractors = PatternExtractors(0 -> (checkMsgType, extractField))
     )
   }
@@ -370,7 +369,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
   outer.asType match
     case '[ot] =>
       val extract: Expr[
-        List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
+        List[M] => Option[(Iterator[MessageIdxs], Set[((M => Boolean, M => LookupEnv), Int)])]
       ] =
         '{ (m: List[M]) =>
           val patInfo            = ${ patternInfo }
@@ -381,7 +380,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
           val (mQ, mQidx)        = messages.last // Take the newest msg from the queue
 
           if checkMsgType(mQ) then
-            Some(Iterator(List(mQidx)) -> Set(((checkMsgType, extractField), 0)))
+            Some(Iterator(MessageIdxs(mQidx)) -> Set(((checkMsgType, extractField), 0)))
           else None
         }
       val predicate: Expr[LookupEnv => Boolean] =
@@ -398,8 +397,8 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
         val checkMsgType       = patExtractors(0)._1
         val (mQ, mQidx)        = m // Take the newest msg from the queue
         val mTree              = pState
-        val mIdxs              = List(mQidx)
-        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, Map(List(0) -> mIdxs)))
+        val mIdxs              = MessageIdxs(mQidx)
+        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, Map(PatternIdxs(0) -> mIdxs)))
         else Some(mTree)
       }
 
@@ -457,7 +456,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
   // val t = outers.map(_.classSymbol.get.getClass())
   // println(s"${t}")
   val extract: Expr[
-    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
+    List[M] => Option[(Iterator[MessageIdxs], Set[((M => Boolean, M => LookupEnv), Int)])]
   ] =
     '{ (m: List[M]) =>
       val messages    = m.zipWithIndex
@@ -480,10 +479,10 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
 
       // println(s"typesInPattern: ${typesInPattern}")
       // println(s"typeNamesInMsgs: ${countOccurences(typeNamesInMsgs.map(_._1))}")
-      def generateValidMsgCombs(messagesInQ: List[(String, Int)]): Iterator[List[Int]] =
-        if messagesInQ.isEmpty then Iterator.empty[List[Int]]
+      def generateValidMsgCombs(messagesInQ: List[(String, Int)]): Iterator[MessageIdxs] =
+        if messagesInQ.isEmpty then Iterator.empty[MessageIdxs]
         else
-          val validCombs = messagesInQ
+          val validCombs: Iterator[MessageIdxs] = messagesInQ
             .combinations(
               patternSize
             ) // Create all combinations of pattern size from the current messages in the mailbox
@@ -510,7 +509,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
                */
               combOc == typesInPattern
             )
-            .map(_.map(_._2)) // Keep only the indicies. _._1 is the string name of a msg type
+            .map(_.map(_._2))
           validCombs
 
       val candidateMatches = generateValidMsgCombs(typeNamesInMsgs)
@@ -541,7 +540,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
         .groupBy(_._1._1)
         .map { case (checkMsgType, occurrences) =>
           val indices = occurrences.map(_._2)
-          indices -> List.empty[MessageIdx]
+          indices -> MessageIdxs()
         }
 
     PatternInfo(patternBins = patBins, patternExtractors = $patExtractors)
@@ -630,7 +629,7 @@ private def generateWildcardPattern[M, T](using
   import quotes.reflect.*
 
   val extract: Expr[
-    List[M] => Option[(Iterator[List[Int]], Set[((M => Boolean, M => LookupEnv), Int)])]
+    List[M] => Option[(Iterator[MessageIdxs], Set[((M => Boolean, M => LookupEnv), Int)])]
   ] = '{ (m: List[M]) =>
     None
   }

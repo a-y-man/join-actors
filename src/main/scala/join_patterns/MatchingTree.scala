@@ -1,17 +1,20 @@
 package join_patterns
 
 import scala.Console
-import scala.annotation.tailrec
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.*
 
 import math.Ordering.Implicits.infixOrderingOps
 import math.Ordering.Implicits.seqOrdering
 
 type MessageIdx  = Int
 type MessageIdxs = List[MessageIdx]
+object MessageIdxs:
+  def apply(elems: MessageIdx*): MessageIdxs = List(elems*)
 
 type PatternIdx  = Int
 type PatternIdxs = List[PatternIdx]
+object PatternIdxs:
+  def apply(elems: PatternIdx*): PatternIdxs = List(elems*)
 
 type PatternBins = Map[PatternIdxs, MessageIdxs]
 object PatternBins:
@@ -104,14 +107,14 @@ def updateMTree(
       case Some(updatedPatternBins) => acc.updated(messageIdxs :+ messageIdx, updatedPatternBins)
   }
 
-def pruneTree(mtree: MatchingTree, messageIdxsToRemove: List[MessageIdx]): MatchingTree =
+def pruneTree(mtree: MatchingTree, messageIdxsToRemove: MessageIdxs): MatchingTree =
   mtree.view
     .filterKeys { case messageIdxs =>
       messageIdxsToRemove.forall(i => !messageIdxs.contains(i))
     }
     .to(TreeMap)
 
-def removeNode(mtree: MatchingTree, messageIdxsToRemove: List[MessageIdx]): MatchingTree =
+def removeNode(mtree: MatchingTree, messageIdxsToRemove: MessageIdxs): MatchingTree =
   mtree - messageIdxsToRemove
 
 def logMapping(ppTree: String, ident: String): Unit =

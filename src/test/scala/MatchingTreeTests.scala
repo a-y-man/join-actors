@@ -11,70 +11,70 @@ import scala.concurrent.duration.*
 import scala.util.Random
 
 val exampleTree = MatchingTree(
-  List(0, 1, 2) -> PatternBins(
-    List(0) -> List(0),
-    List(1) -> List(1),
-    List(2) -> List(2)
+  MessageIdxs(0, 1, 2) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(0),
+    PatternIdxs(1) -> MessageIdxs(1),
+    PatternIdxs(2) -> MessageIdxs(2)
   ),
-  List(0, 1) -> PatternBins(
-    List(0) -> List(0),
-    List(1) -> List(1),
-    List(2) -> List()
+  MessageIdxs(0, 1) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(0),
+    PatternIdxs(1) -> MessageIdxs(1),
+    PatternIdxs(2) -> MessageIdxs()
   ),
-  List(0, 2) -> PatternBins(
-    List(0) -> List(0),
-    List(1) -> List(),
-    List(2) -> List(2)
+  MessageIdxs(0, 2) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(0),
+    PatternIdxs(1) -> MessageIdxs(),
+    PatternIdxs(2) -> MessageIdxs(2)
   ),
-  List(1, 2) -> PatternBins(
-    List(0) -> List(),
-    List(1) -> List(1),
-    List(2) -> List(2)
+  MessageIdxs(1, 2) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(),
+    PatternIdxs(1) -> MessageIdxs(1),
+    PatternIdxs(2) -> MessageIdxs(2)
   ),
-  List(0) -> PatternBins(
-    List(0) -> List(0),
-    List(1) -> List(),
-    List(2) -> List()
+  MessageIdxs(0) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(0),
+    PatternIdxs(1) -> MessageIdxs(),
+    PatternIdxs(2) -> MessageIdxs()
   ),
-  List(1) -> PatternBins(
-    List(0) -> List(),
-    List(1) -> List(1),
-    List(2) -> List()
+  MessageIdxs(1) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(),
+    PatternIdxs(1) -> MessageIdxs(1),
+    PatternIdxs(2) -> MessageIdxs()
   ),
-  List(2) -> PatternBins(
-    List(0) -> List(),
-    List(1) -> List(),
-    List(2) -> List(2)
+  MessageIdxs(2) -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(),
+    PatternIdxs(1) -> MessageIdxs(),
+    PatternIdxs(2) -> MessageIdxs(2)
   ),
-  List() -> PatternBins(
-    List(0) -> List(),
-    List(1) -> List(),
-    List(2) -> List()
+  MessageIdxs() -> PatternBins(
+    PatternIdxs(0) -> MessageIdxs(),
+    PatternIdxs(1) -> MessageIdxs(),
+    PatternIdxs(2) -> MessageIdxs()
   )
 )
 
 class MatchingTreeTests extends AnyFunSuite:
   test("Disjoint types in pattern -- Single message tree update") {
     val bins = PatternBins(
-      List(0) -> List(),
-      List(1) -> List(),
-      List(2) -> List()
+      PatternIdxs(0) -> MessageIdxs(),
+      PatternIdxs(1) -> MessageIdxs(),
+      PatternIdxs(2) -> MessageIdxs()
     )
 
-    val tree = MatchingTree(List.empty[Int] -> bins)
+    val tree = MatchingTree(MessageIdxs() -> bins)
 
-    val patIdxs                             = List(0, 1, 2)
-    val newMsg @ (newMsgIdx, newMsgMatches) = (0, List(0))
+    val patIdxs                             = PatternIdxs(0, 1, 2)
+    val newMsg @ (newMsgIdx, newMsgMatches) = (0, PatternIdxs(0))
 
     val newTree = updateMTree(tree, newMsgIdx, newMsgMatches)
 
     assert(
       newTree == tree.updated(
-        List(newMsgIdx),
+        MessageIdxs(newMsgIdx),
         PatternBins(
-          List(0) -> List(newMsgIdx),
-          List(1) -> List(),
-          List(2) -> List()
+          PatternIdxs(0) -> MessageIdxs(newMsgIdx),
+          PatternIdxs(1) -> MessageIdxs(),
+          PatternIdxs(2) -> MessageIdxs()
         )
       )
     )
@@ -82,17 +82,17 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Disjoint types in pattern -- Multiple message tree update") {
     val bins = PatternBins(
-      List(0) -> List(),
-      List(1) -> List(),
-      List(2) -> List()
+      PatternIdxs(0) -> MessageIdxs(),
+      PatternIdxs(1) -> MessageIdxs(),
+      PatternIdxs(2) -> MessageIdxs()
     )
 
-    val tree = MatchingTree(List.empty[Int] -> bins)
+    val tree = MatchingTree(MessageIdxs() -> bins)
 
-    val patIdxs                                = List(0, 1, 2)
-    val newMsg0 @ (newMsgIdx0, newMsgMatches1) = (0, List(0))
-    val newMsg1 @ (newMsgIdx1, newMsgMatches2) = (1, List(1))
-    val newMsg2 @ (newMsgIdx2, newMsgMatches3) = (2, List(2))
+    val patIdxs                                = PatternIdxs(0, 1, 2)
+    val newMsg0 @ (newMsgIdx0, newMsgMatches1) = (0, PatternIdxs(0))
+    val newMsg1 @ (newMsgIdx1, newMsgMatches2) = (1, PatternIdxs(1))
+    val newMsg2 @ (newMsgIdx2, newMsgMatches3) = (2, PatternIdxs(2))
 
     val newTree0 = updateMTree(tree, newMsgIdx0, newMsgMatches1)
     val newTree1 = updateMTree(newTree0, newMsgIdx1, newMsgMatches2)
@@ -101,10 +101,10 @@ class MatchingTreeTests extends AnyFunSuite:
     assert {
       newTree0 ==
         tree ++ MatchingTree(
-          List(newMsgIdx0) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx0) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(),
+            PatternIdxs(2) -> MessageIdxs()
           )
         )
     }
@@ -112,20 +112,20 @@ class MatchingTreeTests extends AnyFunSuite:
     assert {
       newTree1 == tree ++
         MatchingTree(
-          List(newMsgIdx0, newMsgIdx1) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(newMsgIdx1),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx0, newMsgIdx1) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(newMsgIdx1),
+            PatternIdxs(2) -> MessageIdxs()
           ),
-          List(newMsgIdx0) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx0) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(),
+            PatternIdxs(2) -> MessageIdxs()
           ),
-          List(newMsgIdx1) -> PatternBins(
-            List(0) -> List(),
-            List(1) -> List(newMsgIdx1),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx1) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(),
+            PatternIdxs(1) -> MessageIdxs(newMsgIdx1),
+            PatternIdxs(2) -> MessageIdxs()
           )
         )
     }
@@ -133,40 +133,40 @@ class MatchingTreeTests extends AnyFunSuite:
     assert {
       newTree2 == tree ++
         MatchingTree(
-          List(newMsgIdx0, newMsgIdx1, newMsgIdx2) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(newMsgIdx1),
-            List(2) -> List(newMsgIdx2)
+          MessageIdxs(newMsgIdx0, newMsgIdx1, newMsgIdx2) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(newMsgIdx1),
+            PatternIdxs(2) -> MessageIdxs(newMsgIdx2)
           ),
-          List(newMsgIdx0, newMsgIdx1) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(newMsgIdx1),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx0, newMsgIdx1) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(newMsgIdx1),
+            PatternIdxs(2) -> MessageIdxs()
           ),
-          List(newMsgIdx0, newMsgIdx2) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(),
-            List(2) -> List(newMsgIdx2)
+          MessageIdxs(newMsgIdx0, newMsgIdx2) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(),
+            PatternIdxs(2) -> MessageIdxs(newMsgIdx2)
           ),
-          List(newMsgIdx1, newMsgIdx2) -> PatternBins(
-            List(0) -> List(),
-            List(1) -> List(newMsgIdx1),
-            List(2) -> List(newMsgIdx2)
+          MessageIdxs(newMsgIdx1, newMsgIdx2) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(),
+            PatternIdxs(1) -> MessageIdxs(newMsgIdx1),
+            PatternIdxs(2) -> MessageIdxs(newMsgIdx2)
           ),
-          List(newMsgIdx0) -> PatternBins(
-            List(0) -> List(newMsgIdx0),
-            List(1) -> List(),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx0) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1) -> MessageIdxs(),
+            PatternIdxs(2) -> MessageIdxs()
           ),
-          List(newMsgIdx1) -> PatternBins(
-            List(0) -> List(),
-            List(1) -> List(newMsgIdx1),
-            List(2) -> List()
+          MessageIdxs(newMsgIdx1) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(),
+            PatternIdxs(1) -> MessageIdxs(newMsgIdx1),
+            PatternIdxs(2) -> MessageIdxs()
           ),
-          List(newMsgIdx2) -> PatternBins(
-            List(0) -> List(),
-            List(1) -> List(),
-            List(2) -> List(newMsgIdx2)
+          MessageIdxs(newMsgIdx2) -> PatternBins(
+            PatternIdxs(0) -> MessageIdxs(),
+            PatternIdxs(1) -> MessageIdxs(),
+            PatternIdxs(2) -> MessageIdxs(newMsgIdx2)
           )
         )
     }
@@ -174,23 +174,23 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Duplicate Types in pattern -- Single message tree update") {
     val bins = PatternBins(
-      List(0, 2) -> List(),
-      List(1)    -> List()
+      PatternIdxs(0, 2) -> MessageIdxs(),
+      PatternIdxs(1)    -> MessageIdxs()
     )
 
-    val tree = MatchingTree(List.empty[Int] -> bins)
+    val tree = MatchingTree(MessageIdxs() -> bins)
 
-    val patIdxs                             = List(0, 1, 2)
-    val newMsg @ (newMsgIdx, newMsgMatches) = (0, List(0, 2))
+    val patIdxs                             = MessageIdxs(0, 1, 2)
+    val newMsg @ (newMsgIdx, newMsgMatches) = (0, PatternIdxs(0, 2))
 
     val newTree = updateMTree(tree, newMsgIdx, newMsgMatches)
 
     assert {
       newTree == tree ++ MatchingTree(
-        List(newMsgIdx) ->
+        MessageIdxs(newMsgIdx) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx),
-            List(1)    -> List()
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx),
+            PatternIdxs(1)    -> MessageIdxs()
           )
       )
     }
@@ -198,16 +198,16 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Duplicate Types in pattern -- Multiple message tree update") {
     val bins = PatternBins(
-      List(0, 2) -> List(),
-      List(1)    -> List()
+      List(0, 2) -> MessageIdxs(),
+      List(1)    -> MessageIdxs()
     )
 
-    val tree = MatchingTree(List.empty[Int] -> bins)
+    val tree = MatchingTree(MessageIdxs() -> bins)
 
-    val patIdxs                                = List(0, 1, 2)
-    val newMsg0 @ (newMsgIdx0, newMsgMatches1) = (0, List(0, 2))
-    val newMsg1 @ (newMsgIdx1, newMsgMatches2) = (1, List(1))
-    val newMsg2 @ (newMsgIdx2, newMsgMatches3) = (2, List(0, 2))
+    val patIdxs                                = MessageIdxs(0, 1, 2)
+    val newMsg0 @ (newMsgIdx0, newMsgMatches1) = (0, PatternIdxs(0, 2))
+    val newMsg1 @ (newMsgIdx1, newMsgMatches2) = (1, PatternIdxs(1))
+    val newMsg2 @ (newMsgIdx2, newMsgMatches3) = (2, PatternIdxs(0, 2))
 
     val newTree0 = updateMTree(tree, newMsgIdx0, newMsgMatches1)
     val newTree1 = updateMTree(newTree0, newMsgIdx1, newMsgMatches2)
@@ -215,70 +215,70 @@ class MatchingTreeTests extends AnyFunSuite:
 
     assert {
       newTree0 == tree ++ MatchingTree(
-        List(newMsgIdx0) ->
+        MessageIdxs(newMsgIdx0) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0),
-            List(1)    -> List()
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1)    -> MessageIdxs()
           )
       )
     }
 
     assert {
       newTree1 == tree ++ MatchingTree(
-        List(newMsgIdx0, newMsgIdx1) ->
+        MessageIdxs(newMsgIdx0, newMsgIdx1) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0),
-            List(1)    -> List(newMsgIdx1)
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1)    -> MessageIdxs(newMsgIdx1)
           ),
-        List(newMsgIdx0) ->
+        MessageIdxs(newMsgIdx0) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0),
-            List(1)    -> List()
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1)    -> MessageIdxs()
           ),
-        List(newMsgIdx1) ->
+        MessageIdxs(newMsgIdx1) ->
           PatternBins(
-            List(0, 2) -> List(),
-            List(1)    -> List(newMsgIdx1)
+            PatternIdxs(0, 2) -> MessageIdxs(),
+            PatternIdxs(1)    -> MessageIdxs(newMsgIdx1)
           )
       )
     }
 
     assert {
       newTree2 == tree ++ MatchingTree(
-        List(newMsgIdx0, newMsgIdx1, newMsgIdx2) ->
+        MessageIdxs(newMsgIdx0, newMsgIdx1, newMsgIdx2) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0, newMsgIdx2),
-            List(1)    -> List(newMsgIdx1)
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0, newMsgIdx2),
+            PatternIdxs(1)    -> MessageIdxs(newMsgIdx1)
           ),
-        List(newMsgIdx0, newMsgIdx1) ->
+        MessageIdxs(newMsgIdx0, newMsgIdx1) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0),
-            List(1)    -> List(newMsgIdx1)
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1)    -> MessageIdxs(newMsgIdx1)
           ),
-        List(newMsgIdx0, newMsgIdx2) ->
+        MessageIdxs(newMsgIdx0, newMsgIdx2) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0, newMsgIdx2),
-            List(1)    -> List()
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0, newMsgIdx2),
+            PatternIdxs(1)    -> MessageIdxs()
           ),
-        List(newMsgIdx1, newMsgIdx2) ->
+        MessageIdxs(newMsgIdx1, newMsgIdx2) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx2),
-            List(1)    -> List(newMsgIdx1)
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx2),
+            PatternIdxs(1)    -> MessageIdxs(newMsgIdx1)
           ),
-        List(newMsgIdx0) ->
+        MessageIdxs(newMsgIdx0) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx0),
-            List(1)    -> List()
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx0),
+            PatternIdxs(1)    -> MessageIdxs()
           ),
-        List(newMsgIdx1) ->
+        MessageIdxs(newMsgIdx1) ->
           PatternBins(
-            List(0, 2) -> List(),
-            List(1)    -> List(newMsgIdx1)
+            PatternIdxs(0, 2) -> MessageIdxs(),
+            PatternIdxs(1)    -> MessageIdxs(newMsgIdx1)
           ),
-        List(newMsgIdx2) ->
+        MessageIdxs(newMsgIdx2) ->
           PatternBins(
-            List(0, 2) -> List(newMsgIdx2),
-            List(1)    -> List()
+            PatternIdxs(0, 2) -> MessageIdxs(newMsgIdx2),
+            PatternIdxs(1)    -> MessageIdxs()
           )
       )
     }
@@ -286,8 +286,8 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Find complete patterns in MatchingTree") {
     val mtree: MatchingTree = MatchingTree(
-      List(1, 2)    -> PatternBins(List(1, 2) -> List(1, 2)),
-      List(1, 2, 3) -> PatternBins(List(1, 2, 3) -> List(1, 2, 3))
+      MessageIdxs(1, 2)    -> PatternBins(PatternIdxs(1, 2) -> MessageIdxs(1, 2)),
+      MessageIdxs(1, 2, 3) -> PatternBins(PatternIdxs(1, 2, 3) -> MessageIdxs(1, 2, 3))
     )
 
     val patternSize = 3
@@ -295,7 +295,7 @@ class MatchingTreeTests extends AnyFunSuite:
     val result = findCompletePatterns(mtree, patternSize)
 
     val expected: MatchingTree = MatchingTree(
-      List(1, 2, 3) -> PatternBins(List(1, 2, 3) -> List(1, 2, 3))
+      MessageIdxs(1, 2, 3) -> PatternBins(PatternIdxs(1, 2, 3) -> MessageIdxs(1, 2, 3))
     )
 
     assert(result == expected)
@@ -310,8 +310,8 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Find complete patterns in MatchingTree -- No complete patterns of given size") {
     val mtree: MatchingTree = MatchingTree(
-      List(1, 2)       -> PatternBins(List(1, 2) -> List(1, 2)),
-      List(1, 2, 3, 4) -> PatternBins(List(1, 2, 3, 4) -> List(1, 2, 3, 4))
+      MessageIdxs(1, 2)       -> PatternBins(PatternIdxs(1, 2) -> MessageIdxs(1, 2)),
+      MessageIdxs(1, 2, 3, 4) -> PatternBins(PatternIdxs(1, 2, 3, 4) -> MessageIdxs(1, 2, 3, 4))
     )
     val patternSize = 3
     val result      = findCompletePatterns(mtree, patternSize)
@@ -320,8 +320,8 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Find complete patterns in MatchingTree -- Multiple complete patterns of given size") {
     val mtree: MatchingTree = MatchingTree(
-      List(1, 2, 3) -> PatternBins(List(1, 2, 3) -> List(1, 2, 3)),
-      List(4, 5, 6) -> PatternBins(List(4, 5, 6) -> List(4, 5, 6))
+      MessageIdxs(1, 2, 3) -> PatternBins(PatternIdxs(1, 2, 3) -> MessageIdxs(1, 2, 3)),
+      MessageIdxs(4, 5, 6) -> PatternBins(PatternIdxs(4, 5, 6) -> MessageIdxs(4, 5, 6))
     )
     val patternSize = 3
     val result      = findCompletePatterns(mtree, patternSize)
@@ -330,16 +330,16 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("removeNode should remove the specified node from the tree") {
     val mtree: MatchingTree = MatchingTree(
-      List(1, 2) -> PatternBins(List(1, 2) -> List(1, 2)),
-      List(3, 4) -> PatternBins(List(3, 4) -> List(3, 4))
+      MessageIdxs(1, 2) -> PatternBins(PatternIdxs(1, 2) -> MessageIdxs(1, 2)),
+      MessageIdxs(3, 4) -> PatternBins(PatternIdxs(3, 4) -> MessageIdxs(3, 4))
     )
 
-    val messageIdxsToRemove = List(1, 2)
+    val messageIdxsToRemove = MessageIdxs(1, 2)
 
     val result = removeNode(mtree, messageIdxsToRemove)
     assert(
       result == MatchingTree(
-        List(3, 4) -> PatternBins(List(3, 4) -> List(3, 4))
+        MessageIdxs(3, 4) -> PatternBins(PatternIdxs(3, 4) -> MessageIdxs(3, 4))
       )
     )
   }
@@ -348,44 +348,44 @@ class MatchingTreeTests extends AnyFunSuite:
     "Pruning a tree should remove nodes containing specified message indices -- Remove all nodes"
   ) {
 
-    val prunedTree = pruneTree(exampleTree, List(0, 1, 2))
+    val prunedTree = pruneTree(exampleTree, MessageIdxs(0, 1, 2))
 
     assert(prunedTree.size == 1)
-    assert(!prunedTree.contains(List(0)))
-    assert(!prunedTree.contains(List(1)))
-    assert(!prunedTree.contains(List(2)))
-    assert(!prunedTree.contains(List(0, 1)))
-    assert(!prunedTree.contains(List(0, 2)))
-    assert(!prunedTree.contains(List(1, 2)))
-    assert(!prunedTree.contains(List(0, 1, 2)))
+    assert(!prunedTree.contains(MessageIdxs(0)))
+    assert(!prunedTree.contains(MessageIdxs(1)))
+    assert(!prunedTree.contains(MessageIdxs(2)))
+    assert(!prunedTree.contains(MessageIdxs(0, 1)))
+    assert(!prunedTree.contains(MessageIdxs(0, 2)))
+    assert(!prunedTree.contains(MessageIdxs(1, 2)))
+    assert(!prunedTree.contains(MessageIdxs(0, 1, 2)))
   }
 
   test(
     "Pruning a tree should remove nodes containing specified message indices -- Remove some nodes"
   ) {
 
-    val prunedTree = pruneTree(exampleTree, List(0, 1))
+    val prunedTree = pruneTree(exampleTree, MessageIdxs(0, 1))
 
     assert(prunedTree.size == 2)
-    assert(prunedTree.contains(List()))
-    assert(prunedTree.contains(List(2)))
-    assert(!prunedTree.contains(List(0)))
-    assert(!prunedTree.contains(List(1)))
-    assert(!prunedTree.contains(List(0, 1)))
-    assert(!prunedTree.contains(List(0, 2)))
-    assert(!prunedTree.contains(List(1, 2)))
+    assert(prunedTree.contains(MessageIdxs()))
+    assert(prunedTree.contains(MessageIdxs(2)))
+    assert(!prunedTree.contains(MessageIdxs(0)))
+    assert(!prunedTree.contains(MessageIdxs(1)))
+    assert(!prunedTree.contains(MessageIdxs(0, 1)))
+    assert(!prunedTree.contains(MessageIdxs(0, 2)))
+    assert(!prunedTree.contains(MessageIdxs(1, 2)))
   }
 
   test("Remove node from tree given message indices") {
-    val updatedTree = removeNode(exampleTree, List(0, 1, 2))
+    val updatedTree = removeNode(exampleTree, MessageIdxs(0, 1, 2))
 
     assert(updatedTree.size == 7)
-    assert(!updatedTree.contains(List(0, 1, 2)))
-    assert(updatedTree.contains(List()))
-    assert(updatedTree.contains(List(0)))
-    assert(updatedTree.contains(List(1)))
-    assert(updatedTree.contains(List(2)))
-    assert(updatedTree.contains(List(0, 1)))
-    assert(updatedTree.contains(List(0, 2)))
-    assert(updatedTree.contains(List(1, 2)))
+    assert(!updatedTree.contains(MessageIdxs(0, 1, 2)))
+    assert(updatedTree.contains(MessageIdxs()))
+    assert(updatedTree.contains(MessageIdxs(0)))
+    assert(updatedTree.contains(MessageIdxs(1)))
+    assert(updatedTree.contains(MessageIdxs(2)))
+    assert(updatedTree.contains(MessageIdxs(0, 1)))
+    assert(updatedTree.contains(MessageIdxs(0, 2)))
+    assert(updatedTree.contains(MessageIdxs(1, 2)))
   }
