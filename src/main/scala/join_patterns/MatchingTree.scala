@@ -7,9 +7,9 @@ import math.Ordering.Implicits.infixOrderingOps
 import math.Ordering.Implicits.seqOrdering
 
 type MessageIdx  = Int
-type MessageIdxs = List[MessageIdx]
+type MessageIdxs = Queue[MessageIdx]
 object MessageIdxs:
-  def apply(elems: MessageIdx*): MessageIdxs = List(elems*)
+  def apply(elems: MessageIdx*): MessageIdxs = Queue(elems*)
 
 type PatternIdx  = Int
 type PatternIdxs = List[PatternIdx]
@@ -49,12 +49,12 @@ final case class PatternInfo[M, T](
 
 type PatternState[M, T] = ((JoinPattern[M, T], PatternIdx), (MatchingTree, PatternInfo[M, T]))
 
-given intListOrdering: Ordering[List[Int]] with
-  def compare(x: List[Int], y: List[Int]): Int =
+given messageIdxOrdering: Ordering[MessageIdxs] with
+  def compare(x: MessageIdxs, y: MessageIdxs): Int =
     val sizeComp = x.size.compareTo(y.size) // compare by size first
     if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
     else
-      x.zip(y).foldLeft(0) { // otherwise, compare each element pair
+      x.lazyZip(y).foldLeft(0) { // otherwise, compare each element pair
         case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
         case (_, (a, b)) => Ordering[Int].compare(a, b) // else, compare the elements
       }
@@ -145,7 +145,7 @@ def findValidPermutations[M, T](
     msgIdxs: MessageIdxs,
     patExtractors: PatternExtractors[M, T],
     patternBins: PatternBins
-): Iterator[List[(Int, M => LookupEnv)]] =
+): Iterator[Seq[(Int, M => LookupEnv)]] =
 
   // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
   val msgToPatternIndices = msgIdxsToFits(patternBins)
