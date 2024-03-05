@@ -509,7 +509,7 @@ private def generateCompositePattern[M, T](using quotes: Quotes, tm: Type[M], tt
                */
               combOc == typesInPattern
             )
-            .map(_.map(_._2))
+            .map(x => MessageIdxs(x.map(_._2)*))
           validCombs
 
       val candidateMatches = generateValidMsgCombs(typeNamesInMsgs)

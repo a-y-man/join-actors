@@ -67,7 +67,7 @@ trait Matcher[M, T] extends LazyLogging:
   def computeValidPermutations(
       msgIdxs: MessageIdxs,
       msgIdxToFits: Map[Int, PatternFits[M]]
-  ): Iterator[List[(Int, M => LookupEnv)]] =
+  ): Iterator[Seq[(Int, M => LookupEnv)]] =
     def isInPattern(msgIdx: Int, msgsInPat: Set[Int]): Boolean =
       msgsInPat.contains(msgIdx)
 
@@ -96,7 +96,7 @@ trait Matcher[M, T] extends LazyLogging:
 
   def computeSubsts(
       messages: ListBuffer[M],
-      possibleFit: List[(Int, M => LookupEnv)]
+      possibleFit: Seq[(Int, M => LookupEnv)]
   ) =
     possibleFit.foldLeft(LookupEnv.empty) { (substsAcc, msgData) =>
       val (msgIdx, extractField) = msgData
@@ -105,7 +105,7 @@ trait Matcher[M, T] extends LazyLogging:
     }
 
   def findBestMatch(
-      validPermutations: Iterator[List[(Int, M => LookupEnv)]],
+      validPermutations: Iterator[Seq[(Int, M => LookupEnv)]],
       messages: ListBuffer[M],
       pattern: JoinPattern[M, T]
   ) =
@@ -115,7 +115,7 @@ trait Matcher[M, T] extends LazyLogging:
       bestMatchSubsts = computeSubsts(messages, possibleFit)
       // logger.debug(s"Possible fit: ${possibleFit.map(_._1).mkString(", ")}\n")
       if pattern.guard(bestMatchSubsts) then
-        bestMatchIdxs = possibleFit.map(_._1)
+        bestMatchIdxs = MessageIdxs(possibleFit.map(_._1)*)
         true
       else false
     }
