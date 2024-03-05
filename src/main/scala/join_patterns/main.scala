@@ -34,18 +34,3 @@ def main(): Unit =
   // pingPongExample(4, MatchingAlgorithm.BruteForceAlgorithm)
   boundedBufferExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 10)
   // boundedBufferExample(MatchingAlgorithm.BruteForceAlgorithm, 10)
-
-// M = [ 3, 4, 5 ]  P = [ 0, 1, 2 ]
-
-// 3 -> { 0, 2 }
-// 4 -> { 1 }
-// 5 -> { 0, 2 }
-
-// { 3, 4, 5 } -> [{ 0, 2 } -> { 3, 5 }, { 1 } -> { 4 }]]
-// { 3, 4 }    -> [{ 0, 2 } -> { 3 },    { 1 } -> { 4 }]
-// { 3, 5 }    -> [{ 0, 2 } -> { 3, 5 }, { 1 } -> {   }]
-// { 4, 5 }    -> [{ 0, 2 } -> { 5 },    { 1 } -> { 4 }]
-// { 3 }       -> [{ 0, 2 } -> { 3 },    { 1 } -> {   }]
-// { 4 }       -> [{ 0, 2 } -> {   },    { 1 } -> { 4  }]
-// { 5 }       -> [{ 0, 2 } -> { 5 },    { 1 } -> {   }]
-// [{ }        -> [{ 0, 2 } -> {   },    { 1 } -> {   }]
