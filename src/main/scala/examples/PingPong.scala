@@ -13,8 +13,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
 
-import concurrent.ExecutionContext.Implicits.global
-
 type Ponger = ActorRef[Ping | Done]
 type Pinger = ActorRef[Pong | Done]
 

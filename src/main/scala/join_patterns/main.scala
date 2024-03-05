@@ -32,14 +32,14 @@ def main(): Unit =
   // nwptExample(MatchingAlgorithm.BruteForceAlgorithm)
   // pingPongExample(4, MatchingAlgorithm.StatefulTreeBasedAlgorithm)
   // pingPongExample(4, MatchingAlgorithm.BruteForceAlgorithm)
-  boundedBufferExample(MatchingAlgorithm.BruteForceAlgorithm, 10)
   boundedBufferExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 10)
+  // boundedBufferExample(MatchingAlgorithm.BruteForceAlgorithm, 10)
 
-// [{} -> [{0, 2} -> {}, {1} -> {}]
-// {0} -> [{0, 2} -> {}, {1} -> {}]
-// {1} -> [{0, 2} -> {}, {1} -> {}]
-// {2} -> [{0, 2} -> {}, {1} -> {}]
-// {1, 2} -> [{0, 2} -> {1}, {1} -> {}]
-// {0, 1} -> [{0, 2} -> {}, {1} -> {0}]
-// {0, 2} -> [{0, 2} -> {0}, {1} -> {}]
-// {0, 1, 2} -> [{0, 2} -> {0, 1}, {1} -> {0}]]
+// { 0, 1, 2 } -> [{ 0, 2 } -> { 0, 1 }, { 1 } -> { 2 }]]
+// { 0, 1 }    -> [{ 0, 2 } -> { 0, 1 }, { 1 } -> { }]
+// { 0, 2 }    -> [{ 0, 2 } -> { 0 },    { 1 } -> { 2 }]
+// { 1, 2 }    -> [{ 0, 2 } -> { 1 },    { 1 } -> { 2 }]
+// { 0 }       -> [{ 0, 2 } -> { 0 },    { 1 } -> {   }]
+// { 1 }       -> [{ 0, 2 } -> { 1 },    { 1 } -> {   }]
+// { 2 }       -> [{ 0, 2 } -> {   },    { 1 } -> { 1 }]
+// [{ }        -> [{ 0, 2 } -> {   },    { 1 } -> {   }]

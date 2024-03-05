@@ -10,7 +10,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
 
-import concurrent.ExecutionContext.Implicits.global
 sealed trait Msg
 case class A()                                      extends Msg
 case class B()                                      extends Msg

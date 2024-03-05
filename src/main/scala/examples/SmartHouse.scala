@@ -166,54 +166,45 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
     }(algorithm)
   }
 
-  def intercalateCorrectMsgs[A](
-      correctMsgs: Vector[A],
-      randomMsgs: Vector[A]
-  ): Iterator[A] =
-    val randomMsgsSize  = randomMsgs.size
-    val correctMsgsSize = correctMsgs.size
-    val groupSize       = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
+def intercalateCorrectMsgs[A](
+    correctMsgs: Vector[A],
+    randomMsgs: Vector[A]
+): Vector[A] =
+  val randomMsgsSize  = randomMsgs.size
+  val correctMsgsSize = correctMsgs.size
+  if randomMsgsSize >= correctMsgsSize then
+    val groupSize = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
+    randomMsgs
+      .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
+      .zipAll(correctMsgs, randomMsgs, randomMsgs.headOption.getOrElse(correctMsgs.last))
+      .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
+      .toVector
+  else randomMsgs ++ correctMsgs
 
-    if randomMsgsSize > 0 then
-      randomMsgs
-        .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
-        .zipAll(correctMsgs, Vector.empty, randomMsgs.headOption.getOrElse(correctMsgs.head))
-        .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
-    else correctMsgs.iterator
+def smartHouseMsgs(n: Int): Vector[Action] =
+  val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
+  val correctMsgs =
+    Random.nextInt(3) match
+      case 0 =>
+        // List of messages that trigger E1
+        Vector(
+          Motion(0, true, "bathroom"),
+          AmbientLight(0, 30, "bathroom"),
+          Light(0, false, "bathroom")
+        )
+      case 1 =>
+        // List of messages that trigger E5.1
+        Vector(
+          Motion(0, true, "front_door"),
+          Contact(0, true, "front_door"),
+          Motion(0, true, "entrance_hall")
+        )
+      case 2 =>
+        // List of messages that trigger E5.2
+        Vector(
+          Motion(0, true, "entrance_hall"),
+          Contact(0, true, "front_door"),
+          Motion(0, true, "front_door")
+        )
 
-  def smartHouseMsgs(n: Int): Iterator[Action] =
-    val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
-    val correctMsgs =
-      Random.nextInt(3) match
-        case 0 =>
-          // List of messages that trigger E1
-          Vector(
-            Motion(0, true, "bathroom"),
-            AmbientLight(0, 30, "bathroom"),
-            Light(0, false, "bathroom")
-          )
-        case 1 =>
-          // List of messages that trigger E5.1
-          Vector(
-            Motion(0, true, "front_door"),
-            Contact(0, true, "front_door"),
-            Motion(0, true, "entrance_hall")
-          )
-        case 2 =>
-          // List of messages that trigger E5.2
-          Vector(
-            Motion(0, true, "entrance_hall"),
-            Contact(0, true, "front_door"),
-            Motion(0, true, "front_door")
-          )
-
-    intercalateCorrectMsgs(correctMsgs, randomMsgs)
-
-  val (result, actorRef) = smartHouseActor.start()
-
-  val msgs = smartHouseMsgs(numberOfRandomMsgs)
-  msgs.foreach(actorRef ! _)
-
-  actorRef ! ShutOff()
-
-  Await.ready(result, Duration(2, "minutes"))
+  intercalateCorrectMsgs(correctMsgs, randomMsgs)
