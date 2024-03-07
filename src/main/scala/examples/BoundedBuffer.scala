@@ -6,76 +6,105 @@ import join_patterns.receive
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import javax.management.Query
-import scala.collection.immutable.LazyList.cons
-import scala.collection.mutable.ArrayBuffer as Buffer
+import java.util.function.Consumer
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-type ConsumerRef = ActorRef[Reply]
-
 sealed trait BoundedBuffer
 case class Put(x: Int)           extends BoundedBuffer
 case class Get(ref: ConsumerRef) extends BoundedBuffer
-case class Reply(x: Int)         extends BoundedBuffer
+case class Terminate()           extends BoundedBuffer
+// Internal events
+case class Free(x: Int) extends BoundedBuffer
+case class Full()       extends BoundedBuffer
+// Response to Get event
+case class Reply(x: Int) extends BoundedBuffer
+
+type BBEvent       = Put | Get | Free | Full | Terminate
+type ConsumerEvent = Reply | Terminate
+
+type ConsumerRef = ActorRef[ConsumerEvent]
+type BBRef       = ActorRef[BBEvent]
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(
     Executors.newVirtualThreadPerTaskExecutor()
   )
 
-def bbActor(bufferBound: Int, algorithm: MatchingAlgorithm): Actor[BoundedBuffer, String] =
-  val buffer = Buffer[Int](bufferBound)
-
-  Actor[BoundedBuffer, String] {
-    receive { (y: BoundedBuffer, selfRef: ActorRef[BoundedBuffer]) =>
+def bbActor(algorithm: MatchingAlgorithm): Actor[BBEvent, Unit] =
+  Actor[BBEvent, Unit] {
+    receive { (y: BBEvent, bbRef: BBRef) =>
       y match
-        case (Get(consumerRef), Put(x)) =>
+        case (Put(s), Free(c)) if c == 1 =>
+          // println(s"case 00: Put($s) & Free($c)")
+          bbRef ! Full()
+          bbRef ! Put(s)
+          Next()
+        case (Put(s), Free(c)) =>
+          // println(s"case 01: Put($s) & Free($c)")
+          bbRef ! Free(c - 1)
+          bbRef ! Put(s)
+          Next()
+        case (Get(consumerRef), Put(x), Full()) =>
+          // println(s"case 02: Get(consumerRef) & Put($x) & Full()")
+          bbRef ! Free(1)
           consumerRef ! Reply(x)
           Next()
-        case Put(x) =>
-          if buffer.size < bufferBound then
-            buffer.addOne(x)
-            Next()
-          else
-            println(s"Buffer is full, cannot add $x")
-            Next()
+        case (Get(consumerRef), Put(x), Free(c)) =>
+          // println(s"case 03: Get(consumerRef) & Put($x) & Free($c)")
+          bbRef ! Free(c + 1)
+          consumerRef ! Reply(x)
+          Next()
+        case Terminate() =>
+          // println("case 04: BB terminated")
+          Stop(())
     }(algorithm)
   }
 
 def boundedBufferExample(algorithm: MatchingAlgorithm, bufferBound: Int) =
-  val bb = bbActor(bufferBound, algorithm)
+  val bb = bbActor(algorithm)
 
-  val consumerActor = Actor[Reply, Unit] {
-    receive { (y: BoundedBuffer, selfRef: ActorRef[Reply]) =>
+  val consumerActor = Actor[Reply | Terminate, Unit] {
+    receive { (y: BoundedBuffer, selfRef: ConsumerRef) =>
       y match
         case Reply(x) =>
           println(s"Received: $x")
           Next()
-    }(MatchingAlgorithm.BruteForceAlgorithm)
+        case Terminate() =>
+          Stop(println("Consumer terminated"))
+    }(algorithm)
   }
 
   val (_, bbRef)              = bb.start()
   val (replyFut, consumerRef) = consumerActor.start()
 
-  val producer = Future(
+  bbRef ! Free(1)
+
+  val producer = Future {
     (1 to bufferBound) foreach { i =>
       Thread.sleep(200)
-      bbRef ! Put(i)
+      val p = Put(i)
+      bbRef ! p
+      println(s"$i -> $p")
       Thread.sleep(200)
     }
-  )
+    // println("Producer terminated")
+  }
 
   (1 to bufferBound) foreach { i =>
     Thread.sleep(200)
-    bbRef ! Get(consumerRef)
+    val g = Get(consumerRef)
+    bbRef ! g
+    println(s"$i <- $g")
     Thread.sleep(200)
   }
 
+  consumerRef ! Terminate()
   Await.ready(producer, Duration(1, TimeUnit.MINUTES))
   producer.onComplete(printResult)
 
+  bbRef ! Terminate()
   Await.ready(replyFut, Duration(1, TimeUnit.MINUTES))
   replyFut.onComplete(printResult)
