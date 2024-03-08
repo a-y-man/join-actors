@@ -1,5 +1,4 @@
-package join_patterns
-
+import join_patterns.MatchingAlgorithm
 import join_patterns.examples.*
 
 @main

@@ -1,30 +1,19 @@
-# Join-Patterns
+# Join Patterns in Scala
 
-Join-Patterns for the Actor Model in Scala 3 using Macros
+Author: [Ayman H.](https://github.com/a-y-man)
 
 ## Description
 
-This project aims to implement actor-based systems with Join Patterns to process messages in the Scala 3 programming language. This is done by leveraging the metaprogramming facilities of the language to extend the language using its new macro environment and reflection API. Metaprogramming enabled by macros relies on compile time logic to transform and generate code, that will provide a convenient integration into a codebase by leveraging the pattern-matching mechanism of the language.
+This library implements join patterns in Scala 3, a coordination mechanism for concurrent message-passing programs, first introduced in the join calculus. Join patterns allow to declaratively specify how to react and synchronize distributed computations.
 
+The library offers a convenient and safe method to define and utilize join patterns in Scala 3. It achieves this by leveraging Scala 3's metaprogramming capabilities, extending the language through the use of macros and the reflection API. We use the Scala 3 pattern matching syntax to define join patterns, and the library these into an internal representation using the aforementioned techniques.
 
-## Contributors
-The initial development of this project was started by [Antoine Sébert](https://github.com/AntoineSebert) as an MSc Thesis project at DTU supervised by [Alceste Scalas](https://github.com/alcestes) and co-supervised by [Philip Haller](https://www.csc.kth.se/~phaller/). This fork is a further development of the project as another MSc thesis project under the same supervisors.
+Additionally, the library uses the Actor model as a practical example to demonstrate the application of join patterns. At present, we are employing a simple homemade actor model implementation.
 
+### Build and Test
 
-## Built With
-The Scala 3 programming language
-```scala
-scalaVersion := "3.3.0"
-```
+The library can be compiled and run using [Scala 3.3.x](https://www.scala-lang.org) and [sbt 1.9.x](https://www.scala-sbt.org/).
 
-The [sbt](https://www.scala-sbt.org/) build tool
-```scala
-sbt.version := "1.9.1"
-```
+### Contributors
 
-
-## Usage
-To run the tests:
-```scala
-sbt test
-```
+The initial development of this library was started by [Antoine Sébert](https://github.com/AntoineSebert) as a MSc Thesis project at DTU supervised by [Alceste Scalas](https://github.com/alcestes) and co-supervised by [Philip Haller](https://www.csc.kth.se/~phaller/). This fork is a further development of the library.

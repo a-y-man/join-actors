@@ -1,6 +1,5 @@
-package test.benchmark
+package benchmarks
 
-import actor.OldActor
 import join_patterns.Matcher
 import join_patterns.MatchingAlgorithm
 import join_patterns.MatchingTree
@@ -15,9 +14,6 @@ import scala.concurrent.duration.FiniteDuration
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
-
-trait Benchmarkable[M, T] extends OldActor[M, T]:
-  def run_as_future: Future[Long]
 
 case class Measurement(time: FiniteDuration, matches: Int)
 object Measurement:

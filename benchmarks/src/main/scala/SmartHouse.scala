@@ -1,23 +1,16 @@
-package benchmark
+package benchmarks
 
 import actor.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
-import org.scalacheck.*
-import org.scalatest.run
-import test.benchmark.Benchmark
-import test.benchmark.BenchmarkPass
-import test.benchmark.Measurement
 
 import java.util.Date
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.*
+import scala.concurrent.Future
 
 sealed trait Action
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Action
@@ -28,61 +21,6 @@ case class Consumption(meter_id: Int, value: Int, timestamp: Date = Date())     
 case class HeatingF(id: Int, _type: String, timestamp: Date = Date())                extends Action
 case class DoorBell(id: Int, timestamp: Date = Date())                               extends Action
 case class ShutOff()                                                                 extends Action
-
-object GenerateActions:
-  // Set seed for the random generator
-  Random.setSeed(512)
-
-  private val genMotion: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.oneOf(true, false)
-    s <- Gen.alphaStr // .suchThat(s => s.length == 10)
-  yield Motion(i, b, s).asInstanceOf[Action]
-
-  private val genAmbientLight: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.choose(0, 100)
-    s <- Gen.alphaStr
-  yield AmbientLight(i, b, s).asInstanceOf[Action]
-
-  private val genLight: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.oneOf(true, false)
-    s <- Gen.alphaStr
-  yield Light(i, b, s).asInstanceOf[Action]
-
-  private val genContact: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.oneOf(true, false)
-    s <- Gen.alphaStr
-  yield Contact(i, b, s).asInstanceOf[Action]
-
-  private val genConsumption: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.choose(0, 100)
-  yield Consumption(i, b).asInstanceOf[Action]
-
-  private val genHeatingF: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    s <- Gen.alphaStr
-  yield HeatingF(i, s).asInstanceOf[Action]
-
-  private val genDoorBell: Gen[Action] =
-    for i <- Gen.choose(0, 100)
-    yield DoorBell(i).asInstanceOf[Action]
-
-  def genActionsOfSizeN(n: Int): Option[List[Action]] =
-    val pickAction =
-      Gen.oneOf(
-        genMotion,
-        genAmbientLight,
-        genLight,
-        genContact,
-        genConsumption,
-        genHeatingF,
-        genDoorBell
-      )
-    Gen.containerOfN[List, Action](n, pickAction).sample
 
 def smartHouseExample(algorithm: MatchingAlgorithm) =
   var lastNotification     = Date(0L)
@@ -177,21 +115,6 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     }(algorithm)
   }
 
-def intercalateCorrectMsgs[A](
-    correctMsgs: Vector[A],
-    randomMsgs: Vector[A]
-): Vector[A] =
-  val randomMsgsSize  = randomMsgs.size
-  val correctMsgsSize = correctMsgs.size
-  if randomMsgsSize >= correctMsgsSize then
-    val groupSize = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
-    randomMsgs
-      .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
-      .zipAll(correctMsgs, randomMsgs, randomMsgs.headOption.getOrElse(correctMsgs.last))
-      .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
-      .toVector
-  else randomMsgs ++ correctMsgs
-
 def smartHouseMsgs(n: Int): Vector[Action] =
   val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
 
@@ -226,9 +149,6 @@ def measureSmartHouse(
     msgs: Vector[Action],
     algorithm: MatchingAlgorithm
 ): Future[Measurement] =
-  implicit val ec: ExecutionContext =
-    ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
-
   val actor = smartHouseExample(algorithm)
 
   val (result, actorRef) = actor.start()
@@ -286,7 +206,7 @@ def runSmartHouseBenchmark() =
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    smartHouseBenchmark(smartHouseActions, rangeOfRandomMsgs, algorithm).run(true)
+    smartHouseBenchmark(smartHouseActions, rangeOfRandomMsgs, algorithm).run(false)
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )

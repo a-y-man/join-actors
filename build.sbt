@@ -1,21 +1,45 @@
-ThisBuild / version := "0.0.4"
+ThisBuild / organization := "dk.dtu.compute"
+ThisBuild / version      := "0.0.5"
+ThisBuild / scalaVersion := "3.3.3"
 
-ThisBuild / scalaVersion := "3.3.1"
+lazy val scalaTestVersion     = "3.2.18"
+lazy val scalaCheckVersion    = "1.17.0"
+lazy val scalaTestPlusVersion = "3.2.18.0"
+lazy val scalacticVersion     = "3.2.18"
+lazy val scalaLoggingVersion  = "3.9.5"
+lazy val logbackVersion       = "1.4.14"
+lazy val upickleVersion       = "3.2.0"
+lazy val sourcecodeVersion    = "0.3.1"
+lazy val osLibVersion         = "0.9.3"
+lazy val mainargsVersion      = "0.6.2"
 
-lazy val root = (project in file("."))
-  .settings(
-    name                                                := "join_patterns",
-    libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging"      % "3.9.5",
-    libraryDependencies += "ch.qos.logback"              % "logback-classic"    % "1.4.14",
-    libraryDependencies += "com.lihaoyi"                %% "sourcecode"         % "0.3.1",
-    libraryDependencies += "com.lihaoyi"                %% "upickle"            % "3.2.0",
-    libraryDependencies += "com.lihaoyi"                %% "os-lib"             % "0.9.3",
-    libraryDependencies += "com.lihaoyi"                %% "mainargs"           % "0.6.2",
-    libraryDependencies += "org.scalactic"              %% "scalactic"          % "3.2.18",
-    libraryDependencies += "org.scalacheck"             %% "scalacheck"         % "1.17.0",
-    libraryDependencies += "org.scalatestplus"          %% "scalacheck-1-17"    % "3.2.18.0",
-    libraryDependencies += "org.scalatest"              %% "scalatest"          % "3.2.18" % Test,
-    libraryDependencies += "org.scalatest"              %% "scalatest-funsuite" % "3.2.18" % Test
-  )
+lazy val commonSettings = Seq(
+  libraryDependencies += "ch.qos.logback"              % "logback-classic" % logbackVersion,
+  libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging"   % scalaLoggingVersion,
+  libraryDependencies += "com.lihaoyi"                %% "upickle"         % upickleVersion,
+  libraryDependencies += "com.lihaoyi"                %% "sourcecode"      % sourcecodeVersion,
+  libraryDependencies += "com.lihaoyi"                %% "os-lib"          % osLibVersion,
+  libraryDependencies += "com.lihaoyi"                %% "mainargs"        % mainargsVersion,
+  libraryDependencies += "org.scalacheck"             %% "scalacheck"      % scalaCheckVersion,
+  libraryDependencies += "org.scalactic"              %% "scalactic"       % scalacticVersion,
+  libraryDependencies += "org.scalatestplus"          %% "scalacheck-1-17" % scalaTestPlusVersion,
+  libraryDependencies += "org.scalatest" %% "scalatest"          % scalaTestVersion % Test,
+  libraryDependencies += "org.scalatest" %% "scalatest-funsuite" % scalaTestVersion % Test
+)
 
 scalacOptions ++= Seq("-deprecation", "-feature", "-Xcheck-macros")
+
+lazy val core =
+  (project in file("core"))
+    .settings(
+      name := "core",
+      commonSettings
+    )
+
+lazy val benchmarks =
+  (project in file("benchmarks"))
+    .dependsOn(core % "compile->compile;test->test")
+    .settings(
+      name := "benchmarks",
+      commonSettings
+    )

@@ -7,7 +7,7 @@
 
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/test.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/test.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -16,7 +16,7 @@
 
     <appender name="CodeGenLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/CodeGenLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/CodeGenLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -25,7 +25,7 @@
 
     <appender name="TreeMatcherLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/TreeMatcherLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/TreeMatcherLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -34,7 +34,7 @@
 
     <appender name="BruteForceMatcherLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/BruteForceMatcherLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/BruteForceMatcherLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -43,7 +43,7 @@
 
     <appender name="MatchingTreeLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/MatchingTreeLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/MatchingTreeLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -73,7 +73,7 @@
 
     <appender name="CodeGenLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/CodeGenLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/CodeGenLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -82,7 +82,7 @@
 
     <appender name="TreeMatcherLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/TreeMatcherLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/TreeMatcherLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -91,7 +91,7 @@
 
     <appender name="BruteForceMatcherLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/BruteForceMatcherLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/BruteForceMatcherLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -100,7 +100,7 @@
 
     <appender name="MatchingTreeLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/MatchingTreeLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/MatchingTreeLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
@@ -109,7 +109,7 @@
 
     <appender name="CandidateMatchesLog" class="ch.qos.logback.core.FileAppender">
         <!-- path to your log file, where you want to store logs -->
-        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/logs/CandidateMatchesLog.log</file>
+        <file>/home/ayhu/Documents/JoinPatterns/join-patterns/core/logs/CandidateMatchesLog.log</file>
         <append>false</append>
         <encoder>
             <pattern>%date %-5level %logger{36} - %msg%n</pattern>
