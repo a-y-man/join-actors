@@ -7,10 +7,10 @@ import join_patterns.receive
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.*
-import scala.concurrent.Future
 
 sealed trait Action
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Action
@@ -189,20 +189,23 @@ def smartHouseBenchmark(
     }
   )
 
-@main
-def runSmartHouseBenchmark() =
-  val statefulTreeAlgorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
-  val bruteForceAlgorithm   = MatchingAlgorithm.BruteForceAlgorithm
-
-  val smartHouseActions = 5 // Successful matches per benchmark repetition
-  val maxRandomMsgs     = 18
-  val rndMsgsStep       = 3
+def runSmartHouseBenchmark(
+    smartHouseActions: Int,
+    maxRandomMsgs: Int,
+    rndMsgsStep: Int,
+    writeToFile: Boolean = false,
+    algorithms: List[MatchingAlgorithm] =
+      List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+) =
+  // val smartHouseActions = 5 // Successful matches per benchmark repetition
+  // val maxRandomMsgs     = 18
+  // val rndMsgsStep       = 3
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
       (smartHouseMsgs(n), n)
     }
 
-  List(statefulTreeAlgorithm, bruteForceAlgorithm) foreach { algorithm =>
+  algorithms foreach { algorithm =>
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
