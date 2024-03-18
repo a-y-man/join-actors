@@ -16,9 +16,19 @@ type PatternIdxs = List[PatternIdx]
 object PatternIdxs:
   def apply(elems: PatternIdx*): PatternIdxs = List(elems*)
 
-type PatternBins = Map[PatternIdxs, MessageIdxs]
+given patternIdxOrdering: Ordering[PatternIdxs] with
+  def compare(x: PatternIdxs, y: PatternIdxs): Int =
+    val sizeComp = x.size.compareTo(y.size) // compare by size first
+    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
+    else
+      x.lazyZip(y).foldLeft(0) { // otherwise, compare each element pair
+        case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
+        case (_, (a, b)) => Ordering[Int].compare(a, b) // else, compare the elements
+      }
+type PatternBins = TreeMap[PatternIdxs, MessageIdxs]
 object PatternBins:
-  def apply(elems: (PatternIdxs, MessageIdxs)*) = Map[PatternIdxs, MessageIdxs](elems*)
+  def apply(elems: (PatternIdxs, MessageIdxs)*) =
+    TreeMap[PatternIdxs, MessageIdxs](elems*)(patternIdxOrdering)
 
 def ppPatternBins(patternBins: PatternBins): String =
   patternBins
@@ -29,12 +39,12 @@ def ppPatternBins(patternBins: PatternBins): String =
     }
     .mkString(", ")
 
-type PatternExtractors[M, T] = Map[PatternIdx, (M => Boolean, M => LookupEnv)]
+type PatternExtractors[M] = Map[PatternIdx, (M => Boolean, M => LookupEnv)]
 object PatternExtractors:
-  def apply[M, T](elems: (PatternIdx, (M => Boolean, M => LookupEnv))*): PatternExtractors[M, T] =
+  def apply[M](elems: (PatternIdx, (M => Boolean, M => LookupEnv))*): PatternExtractors[M] =
     Map[PatternIdx, (M => Boolean, M => LookupEnv)](elems*)
 
-def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M, T]): String =
+def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M]): String =
   patternExtractors
     .map { case (patternIdx, (checkMsgType, fieldExtractor)) =>
       val patternIdxStr = Console.YELLOW + patternIdx.toString + Console.RESET
@@ -42,12 +52,12 @@ def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M, T]): Strin
     }
     .mkString(", ")
 
-final case class PatternInfo[M, T](
+final case class PatternInfo[M](
     val patternBins: PatternBins,
-    val patternExtractors: PatternExtractors[M, T]
+    val patternExtractors: PatternExtractors[M]
 )
 
-type PatternState[M, T] = ((JoinPattern[M, T], PatternIdx), (MatchingTree, PatternInfo[M, T]))
+type PatternState[M, T] = ((JoinPattern[M, T], Int), (MatchingTree, PatternInfo[M]))
 
 given messageIdxOrdering: Ordering[MessageIdxs] with
   def compare(x: MessageIdxs, y: MessageIdxs): Int =
@@ -62,7 +72,7 @@ given messageIdxOrdering: Ordering[MessageIdxs] with
 type MatchingTree = TreeMap[MessageIdxs, PatternBins]
 object MatchingTree:
   def apply(elems: (MessageIdxs, PatternBins)*): TreeMap[MessageIdxs, PatternBins] =
-    TreeMap[MessageIdxs, PatternBins](elems*)
+    TreeMap[MessageIdxs, PatternBins](elems*)(messageIdxOrdering)
 
 def ppTree(mtree: MatchingTree): String =
   mtree
@@ -131,43 +141,6 @@ def findCompletePatterns(mtree: MatchingTree, patternSize: Int): MatchingTree =
       patternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
     }
     .to(TreeMap)
-
-def msgIdxsToFits(patternBins: PatternBins): Map[MessageIdx, PatternIdxs] =
-  // patternBins: [[3, 5] -> [0, 2], [4] -> [1]]
-  // msgIdxsToFits: [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
-  patternBins.flatMap { case (patternShape, messageIdxs) =>
-    messageIdxs.map { messageIdx =>
-      (messageIdx, patternShape)
-    }
-  }
-
-def findValidPermutations[M, T](
-    msgIdxs: MessageIdxs,
-    patExtractors: PatternExtractors[M, T],
-    patternBins: PatternBins
-): Iterator[Seq[(Int, M => LookupEnv)]] =
-
-  // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
-  val msgToPatternIndices = msgIdxsToFits(patternBins)
-
-  def isValidPermutation(permutation: MessageIdxs): Boolean =
-    permutation.zipWithIndex.forall { (msgIdx, permIdx) =>
-      // P  [0, 1, 2]
-      // M  [3, 4, 5] || [5, 4, 3]
-      msgToPatternIndices(msgIdx).contains(permIdx)
-    }
-
-  val validPermutations =
-    msgIdxs.permutations.collect {
-      case permutation if isValidPermutation(permutation) =>
-        permutation.map { msgIdx =>
-          val validPatternIdxs  = msgToPatternIndices(msgIdx)
-          val i                 = permutation.indexOf(msgIdx)
-          val (_, extractField) = patExtractors(validPatternIdxs.find(_ == i).get)
-          (msgIdx, extractField)
-        }
-    }
-  validPermutations
 
 def processMessages(
     mtree: MatchingTree,

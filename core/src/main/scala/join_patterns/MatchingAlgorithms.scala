@@ -1,11 +1,15 @@
 package join_patterns
 
 import actor.ActorRef
+import cats.*
+import cats.data.*
+import cats.syntax.all.*
 import com.typesafe.scalalogging.*
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.Console
+import scala.collection.immutable.Queue
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.Map as MutMap
@@ -50,49 +54,46 @@ object CandidateMatches extends LazyLogging:
 trait Matcher[M, T] extends LazyLogging:
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
-  def mapIdxsToFits(
-      msgIdxsQ: MessageIdxs,
-      patternInfo: PatternFits[M],
-      messages: ListBuffer[M]
+  def computeAllCombsPBins(patternBins: PatternBins) =
+    patternBins
+      .flatMap((patternShape, messageIdxs) =>
+        val combs = messageIdxs.combinations(patternShape.size).toList
+        TreeMap(patternShape -> combs)(patternIdxOrdering)
+      )
+
+  def computeValidCombinations(
+      patternBins: PatternBins,
+      patternSize: Int
   ) =
-    msgIdxsQ.foldLeft(Map[Int, PatternFits[M]]()) { (msgIdxsToFits, msgIdx) =>
-      val m = messages(msgIdx)
-      val msgIdxToFits = patternInfo.filter { info =>
-        val ((checkMsgType, _), _) = info
-        checkMsgType(m)
-      }
-      msgIdxsToFits.updated(msgIdx, msgIdxToFits)
+    val combs = computeAllCombsPBins(patternBins).view.mapValues { messageIdxs =>
+      messageIdxs.map(_.permutations.to(LazyList))
     }
 
-  def computeValidPermutations(
-      msgIdxs: MessageIdxs,
-      msgIdxToFits: Map[Int, PatternFits[M]]
-  ): Iterator[Seq[(Int, M => LookupEnv)]] =
-    def isInPattern(msgIdx: Int, msgsInPat: Set[Int]): Boolean =
-      msgsInPat.contains(msgIdx)
+    val patternShapes = combs.keys.to(LazyList)
+    val prod          = combs.values.to(LazyList).sequence
 
-    def isValidPermutation(permutation: MessageIdxs): Boolean =
-      permutation.zipWithIndex.forall { (msgIdx, permIdx) =>
-        val patIdxs = msgIdxToFits(msgIdx).map(_._2)
-        // [3 -> [0, 2], 4 -> [1], 5 -> [0, 2]]
+    val validCombs = prod map { patternShapes.zip(_) } map { l =>
+      l.map { case (patternShape, messageIdxs) =>
+        messageIdxs.map(patternShape zip _)
+      }.sequence[LazyList, List[(PatternIdx, MessageIdx)]]
+    }
 
-        // P  [0, 1, 2]
-        // M  [3, 4, 5] || [5, 4, 3]
-        isInPattern(permIdx, patIdxs)
-      }
+    validCombs.combineAll.map(_.flatten.sortBy(_._1))
 
-    def allPermutations = msgIdxs.permutations
-    val validPermutations =
-      allPermutations.collect {
-        case permutation if isValidPermutation(permutation) =>
-          permutation.map { msgIdx =>
-            val possibleFits = msgIdxToFits(msgIdx)
-            val ((_, extractField), _) =
-              possibleFits.find(pat => pat._2 == permutation.indexOf(msgIdx)).get
-            (msgIdx, extractField)
-          }
-      }
-    validPermutations
+  def findValidPermutations[M, T](
+      patExtractors: PatternExtractors[M],
+      patternBins: PatternBins,
+      patternSize: Int
+  ): LazyList[LazyList[(Int, M => Map[String, Any])]] =
+    val validCombinations = computeValidCombinations(patternBins, patternSize)
+
+    // println(s"Valid Combinations: \n${validCombinations.mkString("\n")}")
+
+    for validCombination <- validCombinations
+    yield validCombination.map { case (pidx, msgIdx) =>
+      val (_, extractField) = patExtractors(pidx)
+      (msgIdx, extractField)
+    }
 
   def computeSubsts(
       messages: ListBuffer[M],
@@ -105,7 +106,7 @@ trait Matcher[M, T] extends LazyLogging:
     }
 
   def findBestMatch(
-      validPermutations: Iterator[Seq[(Int, M => LookupEnv)]],
+      validPermutations: LazyList[LazyList[(Int, M => LookupEnv)]],
       messages: ListBuffer[M],
       pattern: JoinPattern[M, T]
   ) =
@@ -153,22 +154,23 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
           (candidateMatchesAcc, patternWithIdx) =>
             val (pattern, patternIdx) = patternWithIdx
             if messages.size >= pattern.size then
-              val possibleMatches = pattern.extract(messages.toList)
-              possibleMatches match
-                case Some((candidateIdxsQ, patternInfo)) =>
-                  val bestMatch = candidateIdxsQ
-                    .map { candidateI =>
-                      val msgIdxsToFits =
-                        mapIdxsToFits(candidateI, patternInfo, messages)
+              val patternBinsOpt = pattern.extract(messages.toList)
+              patternBinsOpt match
+                case Some(patternBins) =>
+                  val validPermutations: LazyList[LazyList[(Int, M => Map[String, Any])]] =
+                    findValidPermutations[M, T](
+                      pattern.getPatternInfo.patternExtractors,
+                      patternBins,
+                      pattern.size
+                    )
 
-                      val validPermutations = computeValidPermutations(candidateI, msgIdxsToFits)
-                      findBestMatch(validPermutations, messages, pattern)
-                    }
-                    .collectFirst { case Some(_bestMatch) => _bestMatch }
+                  val bestMatchOpt = findBestMatch(validPermutations, messages, pattern)
 
-                  bestMatch match
+                  bestMatchOpt match
                     case Some((bestMatchIdxs, bestMatchSubsts)) =>
-                      // println(s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: $bestMatchSubsts")
+                      // println(
+                      //   s"bestMatchIdxs: $bestMatchIdxs -- bestMatchSubsts: ${ppLookupEnv(bestMatchSubsts)}"
+                      // )
                       val selectedMatch =
                         (
                           bestMatchSubsts,
@@ -236,8 +238,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
           .map { (msgIdxs, patternBins) =>
 
             val validPermutations =
-              findValidPermutations[M, T](msgIdxs, patInfo.patternExtractors, patternBins)
-
+              findValidPermutations[M, T](patInfo.patternExtractors, patternBins, pattern.size)
             val bestMatchOpt = findBestMatch(validPermutations, messages.map(_._1), pattern)
 
             // Some((msgIdxs, matchOpt))
