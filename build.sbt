@@ -23,6 +23,7 @@ lazy val commonSettings = Seq(
   libraryDependencies += "org.scalacheck"             %% "scalacheck"      % scalaCheckVersion,
   libraryDependencies += "org.scalactic"              %% "scalactic"       % scalacticVersion,
   libraryDependencies += "org.scalatestplus"          %% "scalacheck-1-17" % scalaTestPlusVersion,
+  libraryDependencies += "org.typelevel"              %% "cats-core"       % "2.10.0",
   libraryDependencies += "org.scalatest" %% "scalatest"          % scalaTestVersion % Test,
   libraryDependencies += "org.scalatest" %% "scalatest-funsuite" % scalaTestVersion % Test
 )
