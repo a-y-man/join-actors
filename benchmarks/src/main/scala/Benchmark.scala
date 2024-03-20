@@ -64,7 +64,7 @@ class Benchmark(
     private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
 ):
-  def displayResults(results: List[(String, Seq[Measurement])]) =
+  private def displayResults(results: List[(String, Seq[Measurement])]) =
     import Console.{GREEN, RED, RESET}
 
     val (nullName, nullPassMeasurements) = results.head
@@ -98,27 +98,7 @@ class Benchmark(
           "\n\t" + f"pass speed related to null pass: $delta_formatted " + '%'
       )
 
-  def toFile(results: List[(String, Seq[Measurement])]) =
-    import java.util.Date
-    import java.io.{File, PrintWriter}
-    import java.text.SimpleDateFormat
-
-    val folder    = "/home/ayhu/Documents/JoinPatterns/experiment_results/data"
-    val sep       = ";"
-    val timestamp = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Date())
-    val file      = PrintWriter(File(f"$folder/${timestamp}_${name}_${algorithm}.csv"))
-
-    file.write(
-      results
-        .map((name, measurements) =>
-          val times = measurements.map(Measurement.time).map(_.toMillis)
-          s"${name.toInt} $sep ${times.mkString(sep)}"
-        )
-        .mkString("\n")
-    )
-    file.close
-
-  def run(writeToFile: Boolean): Unit =
+  def run(): List[(String, Seq[Measurement])] =
     println(
       f"Benchmark $name BEGIN (iterations: $iterations, warmup iterations: $warmupIterations)"
     )
@@ -132,4 +112,38 @@ class Benchmark(
 
     displayResults(results)
 
-    if writeToFile then toFile(results.tail)
+    results
+
+def toFile(
+    benchmarkName: String,
+    algorithm: MatchingAlgorithm,
+    results: List[(String, Seq[Measurement])]
+) =
+  import java.util.Date
+  import java.text.SimpleDateFormat
+  import os.*
+
+  val data       = os.home / "Documents" / "JoinPatterns" / "experiment_results" / "data"
+  val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
+  val folderFile = data / timestamp
+  os.makeDir.all(folderFile)
+
+  val file = folderFile / f"${benchmarkName}_${algorithm}.csv"
+
+  val sep = ";"
+
+  write(
+    file,
+    results
+      .map((name, measurements) =>
+        val times = measurements.map(Measurement.time).map(_.toMillis)
+        s"${name.toInt} $sep ${times.mkString(sep)}" // FIXME: name.toInt is a hack
+      )
+      .mkString("\n")
+  )
+
+def saveToFile(
+    name: String,
+    results: List[(MatchingAlgorithm, List[(String, Seq[Measurement])])]
+) =
+  results foreach { (algorithm, m) => toFile(name, algorithm, m.tail) }

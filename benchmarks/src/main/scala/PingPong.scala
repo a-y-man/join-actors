@@ -94,15 +94,18 @@ def pingPongBenchmark(maxHits: Int, algorithm: MatchingAlgorithm) =
   )
 
 def runPingPongBenchmark(maxHits: Int, writeToFile: Boolean = false) =
-  val statefulTreeAlgorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
-  val bruteForceAlgorithm   = MatchingAlgorithm.BruteForceAlgorithm
+  val algorithms: List[MatchingAlgorithm] =
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
 
-  List(bruteForceAlgorithm, statefulTreeAlgorithm) foreach { algorithm =>
+  val measurements = algorithms map { algorithm =>
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    pingPongBenchmark(maxHits, algorithm).run(writeToFile)
+    val measurement = pingPongBenchmark(maxHits, algorithm).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
+    (algorithm, measurement)
   }
+
+  if writeToFile then saveToFile("PingPong", measurements)

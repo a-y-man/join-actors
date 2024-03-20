@@ -3,6 +3,7 @@ package benchmarks
 import actor.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
+import os.*
 
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -193,24 +194,26 @@ def runSmartHouseBenchmark(
     smartHouseActions: Int,
     maxRandomMsgs: Int,
     rndMsgsStep: Int,
-    writeToFile: Boolean = false,
-    algorithms: List[MatchingAlgorithm] =
-      List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+    writeToFile: Boolean = false
 ) =
-  // val smartHouseActions = 5 // Successful matches per benchmark repetition
-  // val maxRandomMsgs     = 18
-  // val rndMsgsStep       = 3
+  val algorithms: List[MatchingAlgorithm] =
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
       (smartHouseMsgs(n), n)
     }
 
-  algorithms foreach { algorithm =>
+  val measurements = algorithms map { algorithm =>
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    smartHouseBenchmark(smartHouseActions, rangeOfRandomMsgs, algorithm).run(false)
+    val m = smartHouseBenchmark(smartHouseActions, rangeOfRandomMsgs, algorithm).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
+
+    (algorithm, m)
   }
+
+  if writeToFile then saveToFile("SmartHouse", measurements)

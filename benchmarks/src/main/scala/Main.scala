@@ -25,6 +25,11 @@ lazy val benchmarks = Seq(
 
 object Main extends App:
   // def run(args: Array[String]): Unit =
-  // runSmartHouseBenchmark(5, 18, 3)
+  runSmartHouseBenchmark(
+    smartHouseActions = 10,
+    maxRandomMsgs = 32,
+    rndMsgsStep = 4,
+    writeToFile = true
+  )
   // runPingPongBenchmark(10)
-  runSizeBenchmark(1000)
+  // runSizeBenchmark(1000)
