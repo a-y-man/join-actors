@@ -2,7 +2,7 @@ package join_patterns
 
 import actor.ActorRef
 import cats.*
-import cats.data.*
+import cats.implicits.*
 import cats.syntax.all.*
 import com.typesafe.scalalogging.*
 
@@ -12,7 +12,6 @@ import scala.Console
 import scala.collection.immutable.Queue
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.Map as MutMap
 
 type RHSFnClosure[M, T] = (LookupEnv, ActorRef[M]) => T
 
@@ -57,47 +56,50 @@ trait Matcher[M, T] extends LazyLogging:
   def computeAllCombsPBins(patternBins: PatternBins) =
     patternBins
       .flatMap((patternShape, messageIdxs) =>
-        val combs = messageIdxs.combinations(patternShape.size).toList
+        val combs = messageIdxs.combinations(patternShape.size)
         TreeMap(patternShape -> combs)(patternIdxOrdering)
       )
 
   def computeValidCombinations(
-      patternBins: PatternBins,
-      patternSize: Int
+      patternBins: PatternBins
   ) =
-    val combs = computeAllCombsPBins(patternBins).view.mapValues { messageIdxs =>
-      messageIdxs.map(_.permutations.to(LazyList))
-    }
+    val combs = computeAllCombsPBins(patternBins).view
+      .flatMap { case (patternShape, messageIdxs) =>
+        TreeMap(
+          patternShape -> messageIdxs
+            .map(_.permutations.to(LazyList))
+            .to(LazyList)
+        )
+      }
+      .flatMap { case (patternShape, messageIdxs) =>
+        TreeMap(
+          patternShape -> (messageIdxs map (l => l.map(patternShape zip _)))
+        )
+      }
 
-    val patternShapes = combs.keys.to(LazyList)
-    val prod          = combs.values.to(LazyList).sequence
-
-    val validCombs = prod map { patternShapes.zip(_) } map { l =>
-      l.map { case (patternShape, messageIdxs) =>
-        messageIdxs.map(patternShape zip _)
-      }.sequence[LazyList, List[(PatternIdx, MessageIdx)]]
-    }
-
-    validCombs.combineAll.map(_.flatten.sortBy(_._1))
+    combs
+      .map(_._2)
+      .to(LazyList)
+      .sequence[LazyList, LazyList[List[(Int, Int)]]]
+      .flatMap(_.sequence)
+      .map(_.flatten)
 
   def findValidPermutations[M, T](
       patExtractors: PatternExtractors[M],
-      patternBins: PatternBins,
-      patternSize: Int
-  ): LazyList[LazyList[(Int, M => Map[String, Any])]] =
-    val validCombinations = computeValidCombinations(patternBins, patternSize)
-
-    // println(s"Valid Combinations: \n${validCombinations.mkString("\n")}")
-
-    for validCombination <- validCombinations
+      patternBins: PatternBins
+  ): LazyList[List[(Int, M => Map[String, Any])]] =
+    val validCombinations = computeValidCombinations(patternBins)
+    for
+      combination <- validCombinations
+      validCombination = combination.sortBy(_._1)
     yield validCombination.map { case (pidx, msgIdx) =>
       val (_, extractField) = patExtractors(pidx)
       (msgIdx, extractField)
-    }
+    }.toList
 
   def computeSubsts(
       messages: ListBuffer[M],
-      possibleFit: Seq[(Int, M => LookupEnv)]
+      possibleFit: List[(Int, M => LookupEnv)]
   ) =
     possibleFit.foldLeft(LookupEnv.empty) { (substsAcc, msgData) =>
       val (msgIdx, extractField) = msgData
@@ -106,7 +108,7 @@ trait Matcher[M, T] extends LazyLogging:
     }
 
   def findBestMatch(
-      validPermutations: LazyList[LazyList[(Int, M => LookupEnv)]],
+      validPermutations: LazyList[List[(Int, M => LookupEnv)]],
       messages: ListBuffer[M],
       pattern: JoinPattern[M, T]
   ) =
@@ -114,7 +116,7 @@ trait Matcher[M, T] extends LazyLogging:
     var bestMatchIdxs: MessageIdxs = null
     validPermutations.find { possibleFit =>
       bestMatchSubsts = computeSubsts(messages, possibleFit)
-      // logger.debug(s"Possible fit: ${possibleFit.map(_._1).mkString(", ")}\n")
+      // println(s"Possible fit: ${possibleFit.map(_._1).mkString(", ")}\n")
       if pattern.guard(bestMatchSubsts) then
         bestMatchIdxs = MessageIdxs(possibleFit.map(_._1)*)
         true
@@ -157,11 +159,10 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
               val patternBinsOpt = pattern.extract(messages.toList)
               patternBinsOpt match
                 case Some(patternBins) =>
-                  val validPermutations: LazyList[LazyList[(Int, M => Map[String, Any])]] =
+                  val validPermutations: LazyList[List[(Int, M => Map[String, Any])]] =
                     findValidPermutations[M, T](
                       pattern.getPatternInfo.patternExtractors,
-                      patternBins,
-                      pattern.size
+                      patternBins
                     )
 
                   val bestMatchOpt = findBestMatch(validPermutations, messages, pattern)
@@ -185,7 +186,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
         }
       if candidateMatches.nonEmpty then
         // CandidateMatches.logCandidateMatches(candidateMatches)
-        val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
+        val ((candidateQidxs, _), (substs, rhsFn)) = candidateMatches.head
 
         result = Some(rhsFn(substs, selfRef))
 
@@ -200,12 +201,12 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
-  val messages                 = ListBuffer[(M, Int)]()
+  private val messages         = ListBuffer[(M, Int)]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
 
-  var patternsWithMatchingTrees: List[PatternState[M, T]] = patternsWithIdxs
+  private var patternsWithMatchingTrees: List[PatternState[M, T]] = patternsWithIdxs
     .map { case p @ (pattern, _) =>
       val patInfo                          = pattern.getPatternInfo
       val (initPatternBins, patExtractors) = (patInfo._1, patInfo._2)
@@ -214,7 +215,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       (p, (initMatchingTree, patInfo))
     }
 
-  def findMatch(
+  private def findMatch(
       newMsg: (M, Int),
       patternState: PatternState[M, T]
   ): (PatternState[M, T], CandidateMatch[M, T]) =
@@ -236,12 +237,9 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
 
         val possibleMatches = completePatterns.iterator
           .map { (msgIdxs, patternBins) =>
-
             val validPermutations =
-              findValidPermutations[M, T](patInfo.patternExtractors, patternBins, pattern.size)
+              findValidPermutations[M, T](patInfo.patternExtractors, patternBins)
             val bestMatchOpt = findBestMatch(validPermutations, messages.map(_._1), pattern)
-
-            // Some((msgIdxs, matchOpt))
             bestMatchOpt
           }
           .collectFirst { case Some(_bestMatch) => _bestMatch }
@@ -255,7 +253,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
               )
 
             val removedNonMatchingNodes =
-              updatedMTree.removedAll(completePatterns.removed(bestMatchIdxs.sorted).keySet)
+              updatedMTree.removedAll(completePatterns.removed(bestMatchIdxs).keySet)
             // logger.info(
             //   s"Some(${bestMatchIdxs}) -- Removed non-matching nodes: \n${ppTree(removedNonMatchingNodes)}"
             // )
@@ -272,7 +270,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
 
       case None => (patternState, None)
 
-  def collectCandidateMatches(
+  private def collectCandidateMatches(
       newMsg: (M, Int),
       patternStates: List[PatternState[M, T]]
   ): List[(PatternState[M, T], CandidateMatch[M, T])] =
@@ -280,7 +278,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       List(findMatch(newMsg, patternState))
     }
 
-  var mQidx = -1
+  private var mQidx = -1
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     import scala.jdk.CollectionConverters.*
 
@@ -306,19 +304,10 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
           case (acc, None) => acc
         }
 
-      // val ppTrees = updatedPatternStates map { (pState: PatternState[M, T]) =>
-      //   val (joinPat, currentMTree) = pState
-      //   currentMTree.ppTree
-      // }
-
-      // logger.debug(ppTrees.mkString("\n"))
-
       if candidateMatches.nonEmpty then
-        // CandidateMatches.logCandidateMatches(candidateMatches)
         val ((candidateQidxs, patIdx), (substs, rhsFn)) = candidateMatches.head
         result = Some(rhsFn(substs, selfRef))
 
-        // logger.info(s"Result: $result")
         // Prune tree
         patternsWithMatchingTrees = patternsWithMatchingTrees.map {
           case (joinPat, (currentMTree, pBins)) =>
@@ -326,18 +315,9 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
             (joinPat, (prunedTree, pBins))
         }
 
-        // patternsWithMatchingTrees foreach { (joinPat, prunedTree) =>
-        //   logMapping(
-        //     ppTree(prunedTree._1),
-        //     s" Matching Tree for JP ${joinPat._2} after pruning ${candidateQidxs.mkString("{", ", ", "}")} "
-        //   )
-        // }
-
       if result.isEmpty then
         mQ = q.take()
         mQidx += 1
         messages.append((mQ, mQidx))
-      // logger.info(
-      //   s"Queue: \n${messages.map((m, i) => (m.getClass().getSimpleName(), i)).mkString("\n")}"
-      // )
+
     result.get
