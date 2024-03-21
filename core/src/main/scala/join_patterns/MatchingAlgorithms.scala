@@ -84,10 +84,10 @@ trait Matcher[M, T] extends LazyLogging:
       )
     // combs.values = [[[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]], [[ (1, 4) ]]]
     // crossProduct = [[ (0, 3), (2, 5), (1, 4) ], [ (0, 5), (2, 3), (1, 4) ]]
-
+    // println(combs.map(_._2).to(List).flatten.map(_.toList))
     crossProduct(
-      combs.map(_._2).to(LazyList).flatten
-    ).map(_.flatten)
+      combs.map(_._2).to(LazyList)
+    ).flatMap(crossProduct(_)).map(_.flatten)
 
   def findValidPermutations[M, T](
       patExtractors: PatternExtractors[M],
