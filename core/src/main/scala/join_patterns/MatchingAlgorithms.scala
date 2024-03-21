@@ -1,14 +1,12 @@
 package join_patterns
 
 import actor.ActorRef
-import cats.*
-import cats.implicits.*
-import cats.syntax.all.*
 import com.typesafe.scalalogging.*
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.Console
+import scala.collection.immutable.Iterable
 import scala.collection.immutable.Queue
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ListBuffer
@@ -53,42 +51,49 @@ object CandidateMatches extends LazyLogging:
 trait Matcher[M, T] extends LazyLogging:
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
-  def computeAllCombsPBins(patternBins: PatternBins) =
-    patternBins
-      .flatMap((patternShape, messageIdxs) =>
-        val combs = messageIdxs.combinations(patternShape.size)
-        TreeMap(patternShape -> combs)(patternIdxOrdering)
-      )
+  def crossProduct[T](
+      list: LazyList[LazyList[T]]
+  ): LazyList[LazyList[T]] =
+    /** The following `crossProduct` method is adapted from the following Stack Overflow answer:
+      * https://stackoverflow.com/a/54333046/
+      */
+    list match
+      case LazyList()       => LazyList()
+      case x #:: LazyList() => x.map(LazyList(_))
+      case x #:: xs =>
+        val tail = crossProduct(xs)
+        for
+          i <- x
+          j <- tail
+        yield LazyList(i) #::: j
 
   def computeValidCombinations(
       patternBins: PatternBins
   ) =
-    val combs = computeAllCombsPBins(patternBins).view
-      .flatMap { case (patternShape, messageIdxs) =>
-        TreeMap(
-          patternShape -> messageIdxs
-            .map(_.permutations.to(LazyList))
-            .to(LazyList)
-        )
-      }
-      .flatMap { case (patternShape, messageIdxs) =>
-        TreeMap(
-          patternShape -> (messageIdxs map (l => l.map(patternShape zip _)))
-        )
-      }
+    val combs = patternBins.view
+      .flatMap((patternShape, messageIdxs) => // [ { 0, 2 } -> { 3, 5 }, { 1 } -> { 4 } ]
+        val msgsPermutation = messageIdxs // [ 3, 5 ] or [ 4 ]
+          .combinations(patternShape.size) // [ 3, 5 ] or [ 4 ]
+          .map(_.permutations)             // [[ 3, 5 ], [ 5, 3 ]] or [[ 4 ]]
+          .map(l =>
+            l.map(patternShape zip _).to(LazyList)
+          ) // [[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]] or [[ (1, 4) ]]
+        TreeMap(patternShape -> msgsPermutation.to(LazyList))(
+          patternIdxOrdering
+        ) // { [ 0, 2 ] -> [[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]] } or { [ 1 ] -> [[ (1, 4) ]] }
+      )
+    // combs.values = [[[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]], [[ (1, 4) ]]]
+    // crossProduct = [[ (0, 3), (2, 5), (1, 4) ], [ (0, 5), (2, 3), (1, 4) ]]
 
-    combs
-      .map(_._2)
-      .to(LazyList)
-      .sequence[LazyList, LazyList[List[(Int, Int)]]]
-      .flatMap(_.sequence)
-      .map(_.flatten)
+    crossProduct(
+      combs.map(_._2).to(LazyList).flatten
+    ).map(_.flatten)
 
   def findValidPermutations[M, T](
       patExtractors: PatternExtractors[M],
       patternBins: PatternBins
-  ): LazyList[List[(Int, M => Map[String, Any])]] =
-    val validCombinations = computeValidCombinations(patternBins)
+  ): Iterator[List[(Int, M => Map[String, Any])]] =
+    val validCombinations = computeValidCombinations(patternBins).iterator
     for
       combination <- validCombinations
       validCombination = combination.sortBy(_._1)
@@ -108,7 +113,7 @@ trait Matcher[M, T] extends LazyLogging:
     }
 
   def findBestMatch(
-      validPermutations: LazyList[List[(Int, M => LookupEnv)]],
+      validPermutations: Iterator[List[(Int, M => LookupEnv)]],
       messages: ListBuffer[M],
       pattern: JoinPattern[M, T]
   ) =
@@ -159,7 +164,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
               val patternBinsOpt = pattern.extract(messages.toList)
               patternBinsOpt match
                 case Some(patternBins) =>
-                  val validPermutations: LazyList[List[(Int, M => Map[String, Any])]] =
+                  val validPermutations =
                     findValidPermutations[M, T](
                       pattern.getPatternInfo.patternExtractors,
                       patternBins
