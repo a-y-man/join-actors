@@ -7,7 +7,6 @@ import org.scalacheck.*
 import org.scalatest.run
 
 import java.util.concurrent.TimeUnit
-import scala.compiletime.ops.int
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration

@@ -166,6 +166,16 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
     }(algorithm)
   }
 
+  val msgs = smartHouseMsgs(numberOfRandomMsgs)
+
+  val (actFut, act) = smartHouseActor.start()
+  msgs.foreach(act ! _)
+
+  act ! ShutOff()
+  val result = Await.ready(actFut, Duration.Inf)
+
+  result.onComplete(printResult)
+
 def intercalateCorrectMsgs[A](
     correctMsgs: Vector[A],
     randomMsgs: Vector[A]
