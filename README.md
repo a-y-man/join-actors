@@ -6,7 +6,7 @@ Author: [Ayman H.](https://github.com/a-y-man)
 
 This library implements join patterns in Scala 3, a coordination mechanism for concurrent message-passing programs, first introduced in the join calculus. Join patterns allow to declaratively specify how to react and synchronize distributed computations.
 
-The library offers a convenient and safe method to define and utilize join patterns in Scala 3. It achieves this by leveraging Scala 3's metaprogramming capabilities, extending the language through the use of macros and the reflection API. We use the Scala 3 pattern matching syntax to define join patterns, and the library these into an internal representation using the aforementioned techniques.
+The library offers a convenient and safe method to define and utilize join patterns in Scala 3. It achieves this by leveraging Scala 3's metaprogramming capabilities, extending the language through the use of macros and the reflection API. We use the Scala 3 pattern matching syntax to define join patterns, and the library converts these into an internal representation using the aforementioned techniques.
 
 Additionally, the library uses the Actor model as a practical example to demonstrate the application of join patterns. At present, we are employing a simple homemade actor model implementation.
 
