@@ -15,13 +15,6 @@ import scala.quoted.Varargs
 
 val logger = Logger("CodeGenMacros")
 
-// Bind("b",
-//   TypedOrTest(Unapply(Select(Ident("Bid"), "unapply"), Nil,
-//   List(Bind("bidName", Typed(Wildcard(), TypeIdent("String"))),
-//        Bind("bidPrice", Typed(Wildcard(), TypeIdent("Int"))),
-//        Bind("bidVal", Typed(Wildcard(), TypeIdent("Int"))),
-//        Bind("bidder", Typed(Wildcard(), TypeIdent("String"))))), Inferred()))
-
 /** Extracts a type's name and representation from a `Tree`.
   *
   * @param t
@@ -40,6 +33,7 @@ private def extractInner(using quotes: Quotes)(
     case b @ Bind(n, typed @ Typed(Wildcard(), Applied(_, _))) =>
       (n, typed.tpt.tpe.dealias.simplified)
     case Bind(n, w @ Wildcard()) => (n, w.tpe.dealias.simplified)
+    case w @ Wildcard()          => ("_", w.tpe.dealias.simplified)
     // add support for binding patterns clauses using @
     // case Bind(binderName, Bind(boundName, typed @ Typed(_, TypeIdent(_)))) =>
     //   (binderName, typed.tpt.tpe.dealias.simplified)
@@ -103,37 +97,6 @@ private def generateExtractor(using
       }
       ('{ LookupEnv(${ Varargs[(String, Any)](args) }*) }).asTerm
   )
-// substitute(
-
-//     Block(
-
-//        stmt1
-
-//        stmt2
-
-//        val x = x + 1
-
-//        stmt3
-
-//        stmt4
-
-//     ), x, expr)
-
-// =
-
-// Block(
-
-//     substitute(stmt1, x, expr)
-
-//     substitute(stmt2, x, expr)
-
-//     val x = substitute(x+1, x, expr)
-
-//     stmt3
-
-//     stmt4
-
-// )
 
 private def substitute(using quotes: Quotes)(
     rhs: quotes.reflect.Term,
@@ -143,56 +106,9 @@ private def substitute(using quotes: Quotes)(
   import quotes.reflect.*
 
   val transform = new TreeMap:
-    // override def transformStatement(stat: Statement)(owner: Symbol): Statement =
-    //   if isShadowed then
-    //     // println(s"Skipping ${Printer.TreeShortCode.show(stat)}")
-    //     stat
-    //   else
-    //     stat match
-    //       case t: ValDef if t.name == identToBeReplaced =>
-    //         isShadowed = true
-    //         val tpt1 = super.transformTypeTree(t.tpt)(t.symbol.owner)
-    //         val rhs1 = t.rhs.map(x =>
-    //           substitute(x, identToBeReplaced, replacementExpr)(t.symbol.owner)
-    //         ) // Do substitution only on the RHS
-    //         ValDef.copy(t)(t.name, tpt1, rhs1)
-    //       // case t: DefDef =>
-    //       //   val paramss1 = t.paramss.map {
-    //       //     case TypeParamClause(params) =>
-    //       //       TypeParamClause(transformSubTrees(params)(owner))
-    //       //     case TermParamClause(params) =>
-    //       //       TermParamClause {
-    //       //         isShadowed = params.exists {
-    //       //           case ValDef(name, _, _) if name == identToBeReplaced => true
-    //       //           case _                                               => false
-    //       //         }
-    //       //         params
-    //       //       }
-    //       //   }
-    //       //   if isShadowed then
-    //       //     isShadowed = false
-    //       //     println(s"Skipping ${Printer.TreeShortCode.show(t)}")
-    //       //     transformStatement(t)(owner)
-    //       //   else super.transformStatement(t)(owner)
-    //       case x =>
-    //         super.transformStatement(x)(owner)
-
-    // override def transformStats(stats: List[Statement])(
-    //     owner: Symbol
-    // ): List[Statement] =
-    //   super.transformStats(stats)(owner).map(transformStatement(_)(owner))
-
     override def transformTerm(term: Term)(owner: Symbol): Term =
       term match
-        // case Block(stats, expr) =>
-        //   val wasShadowed = isShadowed
-        //   isShadowed = false
-        //   val stats1 = transformStats(stats)(owner)
-        //   val expr1  = transformTerm(expr)(owner)
-        //   isShadowed = wasShadowed
-        //   Block.copy(term)(stats1, expr1)
         case t: Ident if identToBeReplaced == t.name =>
-          // println(s"Replacing ${t.name} with ${Printer.TreeShortCode.show(replacementExpr)}")
           replacementExpr.changeOwner(owner)
         case x =>
           super.transformTerm(x)(owner)
