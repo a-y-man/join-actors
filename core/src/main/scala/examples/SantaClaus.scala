@@ -1,12 +1,15 @@
-package examples
+package join_patterns.examples
 
 import actor.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
+import java.util.concurrent.Executors
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 type SantaClausRef = ActorRef[NeedHelp | IsBack | Rest]
 type ReindeerRef   = ActorRef[CanLeave | Rest]
@@ -21,7 +24,9 @@ case class Rest()                            extends SAction
 
 val N_REINDEERS = 9
 
-def santaClausActor(elvesNumber: Int, algorithm: MatchingAlgorithm) =
+val N_ELVES = 3
+
+def santaClausActor(algorithm: MatchingAlgorithm) =
   val actor = Actor[SAction, Unit] {
     receive { (y: SAction, selfRef: SantaClausRef) =>
       y match
@@ -37,7 +42,7 @@ def santaClausActor(elvesNumber: Int, algorithm: MatchingAlgorithm) =
               IsBack(reindeerRef8)
             ) =>
           val reinDeerRefs =
-            List(
+            Array(
               reindeerRef0,
               reindeerRef1,
               reindeerRef2,
@@ -48,70 +53,90 @@ def santaClausActor(elvesNumber: Int, algorithm: MatchingAlgorithm) =
               reindeerRef7,
               reindeerRef8
             )
-          // println("awake")
-          // println("delivering presents")
-          // reinDeerRefs.foreach(_.get.send(CanLeave()))
+          println(
+            s"${Console.RED}Ho Ho Ho! Let's prepare the sleigh for the reindeers!${Console.RESET}"
+          )
           reinDeerRefs.foreach(_ ! CanLeave(selfRef))
-          // println("sleeping")
-          selfRef ! Rest()
           Next()
         case (NeedHelp(elfRef0), NeedHelp(elfRef1), NeedHelp(elfRef2)) =>
-          // println("awake")
-          // println(f"fixing difficulties of $n0, $n1, $n2")
+          println(s"${Console.RED}Ho Ho Ho! Let's help the elves!${Console.RESET}")
           val elfRefs = List(elfRef0, elfRef1, elfRef2)
           elfRefs.foreach(_ ! Helped(selfRef))
-          // println("sleeping")
           Next()
         case Rest() =>
-          Stop(print("Santa is resting"))
+          Stop(())
     }(algorithm)
   }
 
   actor
 
-def reindeerActor(algorithm: MatchingAlgorithm) =
-  var onHoliday = true
-  val isBack    = () => !onHoliday
+def reindeerActor() = Actor[SAction, Unit] {
+  receive { (y: SAction, _: ReindeerRef) =>
+    y match
+      case CanLeave(_) =>
+        println(s"${Console.YELLOW}Going on holiday${Console.RESET}")
+        Next()
+      case Rest() =>
+        Stop(())
+  }(MatchingAlgorithm.BruteForceAlgorithm)
+}
 
-  val actor = Actor[SAction, Unit] {
-    receive { (y: SAction, _: ReindeerRef) =>
-      y match
-        case CanLeave(santaRef) =>
-          // println("Going on holiday")
-          onHoliday = false
-          Next()
-        case Rest() =>
-          onHoliday = true
-          Stop(print("Reindeer is resting"))
-    }(algorithm)
+def elfActor() = Actor[SAction, Unit] {
+  receive { (y: SAction, _: ElfRef) =>
+    y match
+      case Helped(_) =>
+        println(s"${Console.GREEN}Has been helped${Console.RESET}")
+        Next()
+      case Rest() =>
+        Stop(())
+  }(MatchingAlgorithm.BruteForceAlgorithm)
+}
+
+def santaClausExample(algorithm: MatchingAlgorithm) =
+  implicit val ec = ExecutionContext.fromExecutorService(
+    Executors.newVirtualThreadPerTaskExecutor()
+  )
+
+  val reindeers = (0 to N_REINDEERS - 1).map { i =>
+    reindeerActor().start()
+  }.toArray
+
+  val elves = (0 to N_ELVES - 1).map { i =>
+    elfActor().start()
+  }.toArray
+
+  val santa = santaClausActor(algorithm)
+
+  val (santaActs, santaRef) = santa.start()
+
+  val elfRefs = elves map { e =>
+    e._2
   }
 
-  // def comesBack() =
-  //   onHoliday = false
-  //   // println("Came back")
-  //   santaRef.foreach(_ ! IsBack(reindeerRef))
-
-  actor
-
-def elfActor(algorithm: MatchingAlgorithm) =
-  var needHelp  = false
-  var _needHelp = () => needHelp
-
-  val actor = Actor[SAction, Unit] {
-    receive { (y: SAction, _: ElfRef) =>
-      y match
-        case Helped(santaRef) =>
-          needHelp = false
-          // println("Has been helped")
-          Next()
-        case Rest() =>
-          Stop(print("Elf is resting"))
-    }(algorithm)
+  val reindeerRefs = reindeers map { r =>
+    r._2
   }
 
-  // def askForHelp() =
-  //   needHelp = true
-  //   // println("Needs help")
-  //   santaRef.foreach(_ ! NeedHelp(elfRef))
+  Future {
+    elfRefs foreach { e =>
+      santaRef ! NeedHelp(e)
+    }
+  }
 
-  actor
+  Future {
+    reindeerRefs foreach { r =>
+      santaRef ! IsBack(r)
+    }
+  }
+
+  santaRef ! Rest()
+
+  Await.ready(santaActs, Duration.Inf)
+
+  reindeerRefs foreach { r =>
+    r ! Rest()
+  }
+
+  elfRefs foreach { e =>
+    e ! Rest()
+  }
