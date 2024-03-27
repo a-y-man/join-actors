@@ -10,6 +10,11 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.*
 
+implicit val ec: ExecutionContext =
+  ExecutionContext.fromExecutorService(
+    Executors.newVirtualThreadPerTaskExecutor()
+  )
+
 sealed trait Result[T]
 case class Stop[T](value: T) extends Result[T]
 case class Next[T]()         extends Result[T]
@@ -43,11 +48,9 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   val self                        = ActorRef(mailbox)
 
   def start(): (Future[T], ActorRef[M]) =
-    val promise         = Promise[T]
-    val executorService = Executors.newVirtualThreadPerTaskExecutor()
-    val eCtx            = ExecutionContext.fromExecutorService(executorService)
+    val promise = Promise[T]
 
-    eCtx.execute(() => run(promise))
+    ec.execute(() => run(promise))
 
     (promise.future, self)
 
@@ -56,13 +59,3 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
     matcher(mailbox)(self) match
       case Next()      => run(promise)
       case Stop(value) => promise.success(value)
-
-abstract class OldActor[M, T] extends Runnable:
-  protected val q: Mailbox[M] = Mailbox[M]
-  val ref: ActorRef[M]        = ActorRef(q)
-  protected val matcher: Matcher[M, T]
-
-abstract class DynamicActor[M, T] extends Runnable:
-  protected val q: Mailbox[M] = Mailbox[M]
-  val ref: ActorRef[M]        = ActorRef(q)
-  protected var matcher: Matcher[M, T]
