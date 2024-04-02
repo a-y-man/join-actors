@@ -92,7 +92,7 @@ def elfActor() = Actor[SAction, Unit] {
   }(MatchingAlgorithm.BruteForceAlgorithm)
 }
 
-def santaClausExample(algorithm: MatchingAlgorithm) =
+def santaClausExample(algorithm: MatchingAlgorithm, santaActions: Int) =
   implicit val ec = ExecutionContext.fromExecutorService(
     Executors.newVirtualThreadPerTaskExecutor()
   )
@@ -117,26 +117,28 @@ def santaClausExample(algorithm: MatchingAlgorithm) =
     r._2
   }
 
-  Future {
+  for _ <- 1 to santaActions do
     elfRefs foreach { e =>
+      Thread.sleep(200)
       santaRef ! NeedHelp(e)
     }
-  }
+
+    reindeerRefs foreach { r =>
+      Thread.sleep(200)
+      santaRef ! IsBack(r)
+    }
 
   Future {
+    Thread.sleep(200)
     reindeerRefs foreach { r =>
-      santaRef ! IsBack(r)
+      r ! Rest()
+    }
+
+    elfRefs foreach { e =>
+      e ! Rest()
     }
   }
 
   santaRef ! Rest()
 
-  Await.ready(santaActs, Duration.Inf)
-
-  reindeerRefs foreach { r =>
-    r ! Rest()
-  }
-
-  elfRefs foreach { e =>
-    e ! Rest()
-  }
+  Await.result(santaActs, Duration.Inf)

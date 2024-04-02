@@ -1,67 +1,142 @@
-// package test.benchmark.santaClaus
+package benchmarks
 
-// import test.ALGORITHM
-// import test.benchmark.Benchmark
-// import test.benchmark.BenchmarkPass
-// import test.classes.Msg
-// import test.classes.santaClaus.Elf
-// import test.classes.santaClaus.Reindeer
-// import test.classes.santaClaus.SantaClaus
+import actor.*
+import join_patterns.MatchingAlgorithm
+import join_patterns.receive
 
-// import scala.concurrent.Await
+import java.util.concurrent.Executors
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
-// def setup(
-//     reindeerNumber: Int,
-//     reindeerActions: Int,
-//     elvesNumber: Int,
-//     elvesActions: Int,
-//     santaActions: Int
-// ): (Array[Elf], Array[Reindeer], SantaClaus) =
-//   val santa = SantaClaus(elvesNumber, santaActions)
-//   val elves = (0 to elvesNumber - 1).map { i =>
-//     val e = Elf(i, elvesActions)
-//     santa.elvesRefs.update(i, Some(e.ref))
-//     e.santaRef = Some(santa.ref)
-//     e
-//   }.toArray
-//   val reindeers = (0 to reindeerNumber - 1).map { i =>
-//     val r = Reindeer(i, reindeerActions)
-//     santa.reinDeerRefs.update(i, Some(r.ref))
-//     r.santaRef = Some(santa.ref)
-//     r
-//   }.toArray
+type SantaClausRef = ActorRef[NeedHelp | IsBack | Rest]
+type ReindeerRef   = ActorRef[CanLeave | Rest]
+type ElfRef        = ActorRef[Helped | Rest]
 
-//   (elves, reindeers, santa)
+sealed trait SAction
+case class IsBack(reindeerRef: ReindeerRef)  extends SAction
+case class CanLeave(santaRef: SantaClausRef) extends SAction
+case class Helped(santaRef: SantaClausRef)   extends SAction
+case class NeedHelp(elfRef: ElfRef)          extends SAction
+case class Rest()                            extends SAction
 
-// @main
-// def santaClausBenchmark =
-//   val reindeerNumber  = 9 // constant
-//   val reindeerActions = 15
-//   val elvesNumber     = 6 // multiple of 3
-//   val elvesActions    = 15
-//   val santaActions    = reindeerActions + ((elvesNumber * elvesActions) / 3)
-//   Benchmark(
-//     "Santa Claus",
-//     10,
-//     100,
-//     BenchmarkPass(
-//       "Control",
-//       () =>
-//         val (elves, reindeers, santa) =
-//           setup(reindeerNumber, reindeerActions, elvesNumber, elvesActions, santaActions)
-//         elves.foreach(_.run_as_future)
-//         reindeers.foreach(_.run_as_future)
-//         santa.run_as_future
-//     ),
-//     List(
-//       BenchmarkPass(
-//         s"Macro using ${ALGORITHM.toString()}",
-//         () =>
-//           val (elves, reindeers, santa) =
-//             setup(reindeerNumber, reindeerActions, elvesNumber, elvesActions, santaActions)
-//           elves.foreach(_.run_as_future)
-//           reindeers.foreach(_.run_as_future)
-//           santa.run_as_future
-//       )
-//     )
-//   ).run
+val N_REINDEERS = 9
+
+val N_ELVES = 3
+
+def santaClausActor(algorithm: MatchingAlgorithm) =
+  var actions = 0
+
+  val actor = Actor[SAction, (Long, Int)] {
+    receive { (y: SAction, selfRef: SantaClausRef) =>
+      y match
+        case (
+              IsBack(reindeerRef0),
+              IsBack(reindeerRef1),
+              IsBack(reindeerRef2),
+              IsBack(reindeerRef3),
+              IsBack(reindeerRef4),
+              IsBack(reindeerRef5),
+              IsBack(reindeerRef6),
+              IsBack(reindeerRef7),
+              IsBack(reindeerRef8)
+            ) =>
+          reindeerRef0 ! CanLeave(selfRef)
+          reindeerRef1 ! CanLeave(selfRef)
+          reindeerRef2 ! CanLeave(selfRef)
+          reindeerRef3 ! CanLeave(selfRef)
+          reindeerRef4 ! CanLeave(selfRef)
+          reindeerRef5 ! CanLeave(selfRef)
+          reindeerRef6 ! CanLeave(selfRef)
+          reindeerRef7 ! CanLeave(selfRef)
+          reindeerRef8 ! CanLeave(selfRef)
+          actions += 1
+          Next()
+        case (NeedHelp(elfRef0), NeedHelp(elfRef1), NeedHelp(elfRef2)) =>
+          elfRef0 ! Helped(selfRef)
+          elfRef1 ! Helped(selfRef)
+          elfRef2 ! Helped(selfRef)
+          actions += 1
+          Next()
+        case Rest() =>
+          Stop((System.currentTimeMillis(), actions))
+    }(algorithm)
+  }
+
+  actor
+
+def reindeerActor() =
+  var actions = 0
+  Actor[SAction, (Long, Int)] {
+    receive { (y: SAction, _: ReindeerRef) =>
+      y match
+        case CanLeave(_) =>
+          actions += 1
+          Next()
+        case Rest() =>
+          Stop((System.currentTimeMillis(), actions))
+    }(MatchingAlgorithm.BruteForceAlgorithm)
+  }
+
+def elfActor() =
+  var actions = 0
+  Actor[SAction, (Long, Int)] {
+    receive { (y: SAction, _: ElfRef) =>
+      y match
+        case Helped(santaRef) =>
+          actions += 1
+          Next()
+        case Rest() =>
+          Stop((System.currentTimeMillis(), actions))
+    }(MatchingAlgorithm.BruteForceAlgorithm)
+  }
+
+def measureSantaClaus(santaClauseActions: Int, algorithm: MatchingAlgorithm): Future[Measurement] =
+  val reindeers = (0 to N_REINDEERS - 1).map { i =>
+    reindeerActor().start()
+  }.toArray
+
+  val elves = (0 to N_ELVES - 1).map { i =>
+    elfActor().start()
+  }.toArray
+
+  val santa = santaClausActor(algorithm)
+
+  val (santaActs, santaRef) = santa.start()
+
+  val elfRefs = elves map { e =>
+    e._2
+  }
+
+  val reindeerRefs = reindeers map { r =>
+    r._2
+  }
+
+  Future {
+    val startTime = System.currentTimeMillis()
+
+    for _ <- 1 to santaClauseActions do
+      elfRefs foreach { e =>
+        santaRef ! NeedHelp(e)
+      }
+
+      reindeerRefs foreach { r =>
+        santaRef ! IsBack(r)
+      }
+
+    santaRef ! Rest()
+
+    reindeerRefs foreach { r =>
+      r ! Rest()
+    }
+
+    elfRefs foreach { e =>
+      e ! Rest()
+    }
+
+    val (endTime, matches) = Await.result(santaActs, Duration.Inf)
+
+    Measurement(endTime - startTime, matches)
+  }
