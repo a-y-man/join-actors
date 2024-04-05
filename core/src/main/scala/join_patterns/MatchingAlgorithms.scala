@@ -51,9 +51,9 @@ object CandidateMatches extends LazyLogging:
 trait Matcher[M, T] extends LazyLogging:
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
-  def crossProduct[T](
-      list: LazyList[LazyList[T]]
-  ): LazyList[LazyList[T]] =
+  def crossProduct[A](
+      list: LazyList[LazyList[A]]
+  ): LazyList[LazyList[A]] =
     /** The following `crossProduct` method is adapted from the following Stack Overflow answer:
       * https://stackoverflow.com/a/54333046/
       */
@@ -71,25 +71,20 @@ trait Matcher[M, T] extends LazyLogging:
       patternBins: PatternBins
   ) =
     val combs = patternBins.view
-      .flatMap((patternShape, messageIdxs) => // [ { 0, 2 } -> { 3, 5 }, { 1 } -> { 4 } ]
-        val msgsPermutation = messageIdxs // [ 3, 5 ] or [ 4 ]
-          .combinations(patternShape.size) // [ 3, 5 ] or [ 4 ]
-          .map(_.permutations)             // [[ 3, 5 ], [ 5, 3 ]] or [[ 4 ]]
-          .map(l =>
-            l.map(patternShape zip _).to(LazyList)
-          ) // [[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]] or [[ (1, 4) ]]
+      .flatMap((patternShape, messageIdxs) =>
+        val msgsPermutation = messageIdxs
+          .combinations(patternShape.size)
+          .map(_.permutations)
+          .map(l => l.map(patternShape zip _).to(LazyList))
         TreeMap(patternShape -> msgsPermutation.to(LazyList))(
           patternIdxOrdering
-        ) // { [ 0, 2 ] -> [[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]] } or { [ 1 ] -> [[ (1, 4) ]] }
+        )
       )
-    // combs.values = [[[ (0, 3), (2, 5) ], [ (0, 5), (2, 3) ]], [[ (1, 4) ]]]
-    // crossProduct = [[ (0, 3), (2, 5), (1, 4) ], [ (0, 5), (2, 3), (1, 4) ]]
-    // println(combs.map(_._2).to(List).flatten.map(_.toList))
     crossProduct(
       combs.map(_._2).to(LazyList)
     ).flatMap(crossProduct(_)).map(_.flatten)
 
-  def findValidPermutations[M, T](
+  def findValidPermutations[M](
       patExtractors: PatternExtractors[M],
       patternBins: PatternBins
   ): Iterator[List[(Int, M => Map[String, Any])]] =
@@ -165,7 +160,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
               patternBinsOpt match
                 case Some(patternBins) =>
                   val validPermutations =
-                    findValidPermutations[M, T](
+                    findValidPermutations(
                       pattern.getPatternInfo.patternExtractors,
                       patternBins
                     )
@@ -243,7 +238,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
         val possibleMatches = completePatterns.iterator
           .map { (msgIdxs, patternBins) =>
             val validPermutations =
-              findValidPermutations[M, T](patInfo.patternExtractors, patternBins)
+              findValidPermutations(patInfo.patternExtractors, patternBins)
             val bestMatchOpt = findBestMatch(validPermutations, messages.map(_._1), pattern)
             bestMatchOpt
           }

@@ -2,6 +2,7 @@ package join_patterns
 
 import actor.Actor
 import actor.ActorRef
+import actor.Result
 import com.typesafe.scalalogging.Logger
 
 import scala.collection.immutable.*
@@ -217,9 +218,6 @@ private def generateRhs[M, T](using
         val lookupEnv   = params.head.asInstanceOf[Ident]
         val actorRefObj = params(1).asExprOf[ActorRef[M]].asTerm
         val rhsWithSelf = substitute(rhs, selfRef, actorRefObj)(sym)
-        // report.info(
-        //   s"RHS': ${Printer.TreeShortCode.show(rhsWithSelf)}"
-        // )
         val transform = new TreeMap:
           override def transformTerm(term: Term)(owner: Symbol): Term = term match
             case Ident(n) if inners.exists(_._1 == n) =>
@@ -305,8 +303,6 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
       val size = 1
 
       val partialExtract = '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
-        // val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-        // val extractField = _extractors.head._2
         val patInfo            = ${ patternInfo }
         val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
         val checkMsgType       = patExtractors(0)._1
@@ -575,36 +571,34 @@ private def getCases[M, T](
     expr: Expr[(M, ActorRef[M]) => T]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
-  // report.info(
-  //   f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
-  // )
   expr.asTerm match
     case Inlined(_, _, Block(_, Block(stmts, _))) =>
       stmts.head match
         case DefDef(_, List(TermParamClause(params)), _, Some(Block(_, Match(_, cases)))) =>
-          // report.info(
-          //   s"${Printer.TreeStructure.show(params(1))}  --- ${params(1).tpt.tpe.dealias}"
-          // )
           val selfRef = params(1).name
-          // params.map { param =>
-          //   Printer.TreeStructure.show(param)
-          // }
-
           cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
-        // code
         case default =>
           errorTree("Unsupported code", default)
           List()
-    // case Inlined(_, _, Block(stmts, _)) =>
-    //   stmts.head match
-    //     case DefDef(_, _, _, Some(Match(_, cases))) =>
-    //       cases.flatMap(generateJoinPattern[M, T](_))
-    //     // report.info(
-    //     //   f"Inspect: ${expr.asTerm.show(using Printer.TreeStructure)}"
-    //     // )
-    //     case default =>
-    //       errorTree("Unsupported code", default)
-    //       List()
+    case default =>
+      errorTree("Unsupported expression", default)
+      List()
+
+private def getCases_[M, T](
+    expr: Expr[ActorRef[M] => PartialFunction[Any, T]]
+)(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
+  import quotes.reflect.*
+  expr.asTerm match
+    case Inlined(_, _, Block(_, Block(stmts, _))) =>
+      stmts.head match
+        case DefDef(_, List(TermParamClause(params)), _, Some(Block(_, Block(body, _)))) =>
+          body.head match
+            case DefDef(_, _, _, Some(Match(_, cases))) =>
+              val selfRef = params.head.name
+              cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
+        case default =>
+          errorTree("Unsupported code", default)
+          List()
     case default =>
       errorTree("Unsupported expression", default)
       List()
@@ -622,15 +616,22 @@ private def receiveCodegen[M, T](
   SelectMatcher[M, T](algorithm, ${ Expr.ofList(getCases(expr)) })
 }
 
-// private def receiveCodegen_[M, T](
-//     expr: Expr[PartialFunction[Any, T]]
-// )(using tm: Type[M], tt: Type[T], quotes: Quotes): Expr[MatchingAlgorithm => Matcher[M, T]] = '{
-//   (algorithm: MatchingAlgorithm) =>
-//     SelectMatcher[M, T](
-//       algorithm,
-//       ${ Expr.ofList(getCases(expr.asInstanceOf[Expr[PartialFunction[M, T]]])) }
-//     )
-// }
+private def receiveCodegen_[M, T](
+    expr: Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]
+)(using
+    tm: Type[M],
+    tt: Type[T],
+    quotes: Quotes
+): Expr[MatchingAlgorithm => Matcher[M, Result[T]]] = '{ (algorithm: MatchingAlgorithm) =>
+  SelectMatcher[M, Result[T]](
+    algorithm,
+    ${
+      Expr.ofList(
+        getCases_(expr.asInstanceOf[Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]])
+      )
+    }
+  )
+}
 
 /** Entry point of the `receive` macro.
   *
@@ -643,5 +644,7 @@ private def receiveCodegen[M, T](
 inline def receive[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
 
-// inline def receive_[M, T](inline f: PartialFunction[Any, T]): MatchingAlgorithm => Matcher[M, T] =
-//   ${ receiveCodegen('f) }
+inline def receive_[M, T](
+    inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])
+): MatchingAlgorithm => Matcher[M, Result[T]] =
+  ${ receiveCodegen_('f) }
