@@ -118,12 +118,12 @@ def measureSantaClaus(santaClauseActions: Int, algorithm: MatchingAlgorithm): Fu
     val startTime = System.currentTimeMillis()
 
     for _ <- 1 to santaClauseActions do
-      elfRefs foreach { e =>
-        santaRef ! NeedHelp(e)
-      }
-
       reindeerRefs foreach { r =>
         santaRef ! IsBack(r)
+      }
+
+      elfRefs foreach { e =>
+        santaRef ! NeedHelp(e)
       }
 
     santaRef ! Rest()
@@ -136,7 +136,46 @@ def measureSantaClaus(santaClauseActions: Int, algorithm: MatchingAlgorithm): Fu
       e ! Rest()
     }
 
+    Await.ready(Future.sequence(reindeers.map(_._1) ++ elves.map(_._1)), Duration.Inf)
+
     val (endTime, matches) = Await.result(santaActs, Duration.Inf)
 
     Measurement(endTime - startTime, matches)
   }
+
+def santaClausBenchmark(santaClauseActions: Int, algorithm: MatchingAlgorithm) =
+  val nullPass = measureSantaClaus(santaClauseActions, algorithm)
+  Benchmark(
+    name = "Santa Claus",
+    algorithm = algorithm,
+    warmupIterations = 5,
+    iterations = 10,
+    nullPass = BenchmarkPass(
+      "Null Pass",
+      () => nullPass
+    ),
+    passes = List(
+      BenchmarkPass(
+        "Santa Claus",
+        () => measureSantaClaus(santaClauseActions, algorithm)
+      )
+    )
+  )
+
+def runSantaClausBenchmark(santaClauseActions: Int, writeToFile: Boolean = false) =
+  val algorithms: List[MatchingAlgorithm] =
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+
+  val measurements = algorithms map { algorithm =>
+    println(
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+    )
+    val measurement = santaClausBenchmark(santaClauseActions, algorithm).run()
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+    )
+
+    (algorithm, measurement)
+  }
+
+  if writeToFile then saveToFile("SantaClaus", measurements)
