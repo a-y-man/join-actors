@@ -28,24 +28,24 @@ class BenchmarkPass(
     val name: String,
     private val mainFn: () => Future[Measurement]
 ):
-  def warmup(warmupIterations: Int): Unit =
+  def warmup(warmupRepititions: Int): Unit =
     Await.ready(
-      Future.sequence((1 to warmupIterations).map(_ => mainFn())),
-      Duration(20, TimeUnit.MINUTES)
+      Future.sequence((1 to warmupRepititions).map(_ => mainFn())),
+      Duration.Inf
     )
 
-  def benchmark(iterations: Int): Seq[Measurement] =
+  def benchmark(repititions: Int): Seq[Measurement] =
     Await
       .result(
-        Future.sequence((1 to iterations).map(_ => mainFn())),
-        Duration(90, TimeUnit.MINUTES)
+        Future.sequence((1 to repititions).map(_ => mainFn())),
+        Duration.Inf
       )
 
-  def run(warmupIterations: Int, iterations: Int): Seq[Measurement] =
+  def run(warmupRepititions: Int, iterations: Int): Seq[Measurement] =
     println(f"-- Pass $name")
 
     println(Console.YELLOW + "\tstart warmup" + Console.RESET)
-    warmup(warmupIterations)
+    warmup(warmupRepititions)
     println(Console.YELLOW + "\tend warmup" + Console.RESET)
 
     println(Console.GREEN + "\tstart benchmark" + Console.RESET)
@@ -59,8 +59,8 @@ class BenchmarkPass(
 class Benchmark(
     private val name: String,
     private val algorithm: MatchingAlgorithm,
-    val warmupIterations: Int,
-    val iterations: Int,
+    val warmupRepititions: Int,
+    val repititons: Int,
     private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
 ):
@@ -71,13 +71,13 @@ class Benchmark(
 
     val nullPassElapsed = nullPassMeasurements.map(Measurement.time).reduce(_ + _)
     val nullPassMatches = nullPassMeasurements.map(Measurement.matches).sum
-    val nullPassAverage = nullPassElapsed / warmupIterations
+    val nullPassAverage = nullPassElapsed / warmupRepititions
 
     println(
       Console.YELLOW + f"Null Pass $nullName" + Console.RESET +
         "\n\t" + f"total matches : $nullPassMatches" +
-        "\n\t" + f"elapsed time : ${Console.GREEN}${nullPassElapsed}" + Console.RESET +
-        "\n\t" + f"average time per iteration : ${Console.GREEN}$nullPassAverage" + Console.RESET + '\n'
+        "\n\t" + f"total elapsed time : ${Console.GREEN}${nullPassElapsed}" + Console.RESET +
+        "\n\t" + f"average time per pass : ${Console.GREEN}${nullPassAverage}" + Console.RESET + '\n'
     )
 
     val passes = results.tail
@@ -85,7 +85,7 @@ class Benchmark(
     for (passName, passRuntimes) <- passes do
       val totalMatches     = passRuntimes.map(Measurement.matches).sum
       val totalElapsedPass = passRuntimes.map(Measurement.time).reduce(_ + _)
-      val passAverage      = totalElapsedPass / iterations
+      val passAverage      = totalElapsedPass / repititons
       val delta            = ((passAverage - nullPassAverage) * 100.0) / nullPassAverage
       val delta_formatted =
         (if delta < 0 then s"${GREEN}" else s"${RED}") + "%.2f".format(delta) + s"${RESET}"
@@ -93,19 +93,19 @@ class Benchmark(
       println(
         f"Pass $passName" +
           "\n\t" + f"total matches : $totalMatches" +
-          "\n\t" + f"elapsed time : ${totalElapsedPass}" +
-          "\n\t" + f"average time per iteration : $passAverage" +
+          "\n\t" + f"total elapsed time : ${totalElapsedPass}" +
+          "\n\t" + f"average time per pass : ${passAverage}" +
           "\n\t" + f"pass speed related to null pass: $delta_formatted " + '%'
       )
 
   def run(): List[(String, Seq[Measurement])] =
     println(
-      f"Benchmark $name BEGIN (iterations: $iterations, warmup iterations: $warmupIterations)"
+      f"Benchmark $name BEGIN (iterations: $repititons, warmup iterations: $warmupRepititions)"
     )
 
     val results: List[(String, Seq[Measurement])] =
-      List((nullPass.name, nullPass.run(warmupIterations, iterations))).concat(
-        passes.map(p => (p.name, p.run(warmupIterations, iterations)))
+      List((nullPass.name, nullPass.run(warmupRepititions, repititons))).concat(
+        passes.map(p => (p.name, p.run(warmupRepititions, repititons)))
       )
 
     println(f"Benchmark $name END")

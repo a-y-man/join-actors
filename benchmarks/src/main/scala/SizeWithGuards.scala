@@ -271,8 +271,8 @@ def sizeWithGuardsBenchmark(matches: Int, isShuffled: Boolean, algorithm: Matchi
   Benchmark(
     name = "Pattern Size with Guards",
     algorithm = algorithm,
-    warmupIterations = 5,
-    iterations = 10,
+    warmupRepititions = 5,
+    repititons = 5,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass

@@ -1,13 +1,11 @@
-package join_patterns.examples
+package benchmarks
 
 import actor.*
 import benchmarks.Benchmark
 import benchmarks.BenchmarkPass
 import benchmarks.Measurement
 import benchmarks.saveToFile
-import cats.data.Writer
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive
 import join_patterns.receive_
 
 import java.util.concurrent.Executors
@@ -17,13 +15,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-implicit val ec: ExecutionContext =
-  ExecutionContext.fromExecutorService(
-    Executors.newVirtualThreadPerTaskExecutor()
-  )
-
 // Termination message to stop the actors
-case class Terminate()
+case class TerminateActors()
 
 // Bounded buffer events
 enum BoundedBuffer:
@@ -44,12 +37,12 @@ enum ConsumerEvent:
 enum ProducerEvent:
   case PReply(bbRef: BBRef)
 
-type CEvent  = ConsumerEvent | Terminate
-type PEvent  = ProducerEvent | Terminate
-type BBEvent = BoundedBuffer | InternalEvent | ConsumerEvent | Terminate
+type CEvent  = ConsumerEvent | TerminateActors
+type PEvent  = ProducerEvent | TerminateActors
+type BBEvent = BoundedBuffer | InternalEvent | ConsumerEvent | TerminateActors
 
-type ProducerRef = ActorRef[ProducerEvent | Terminate]
-type ConsumerRef = ActorRef[ConsumerEvent | Terminate]
+type ProducerRef = ActorRef[ProducerEvent | TerminateActors]
+type ConsumerRef = ActorRef[ConsumerEvent | TerminateActors]
 type BBRef       = ActorRef[BBEvent]
 
 case class BBConfig(
@@ -83,7 +76,7 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
           consumerRef ! CReply(bbRef, x)
           matches += 1
           Next()
-        case Terminate() =>
+        case TerminateActors() =>
           Stop((System.currentTimeMillis(), matches))
       }
     }(algorithm)
@@ -100,7 +93,7 @@ def consumer(bbRef: BBRef, maxCount: Int) =
           cnt += 1
           bbRef ! Get(selfRef)
           Next()
-        case Terminate() if cnt == maxCount =>
+        case TerminateActors() if cnt == maxCount =>
           Stop(())
       }
     }(MatchingAlgorithm.BruteForceAlgorithm)
@@ -117,7 +110,7 @@ def producer(bbRef: BBRef, maxCount: Int) =
           cnt += 1
           bbRef ! Put(selfRef, cnt)
           Next()
-        case Terminate() if cnt == maxCount =>
+        case TerminateActors() if cnt == maxCount =>
           Stop(())
       }
     }(MatchingAlgorithm.BruteForceAlgorithm)
@@ -140,7 +133,7 @@ def coordinator(
 
       // This will only be consumed when the actor has
       // reached a maximum count of pre-configured value
-      p ! Terminate()
+      p ! TerminateActors()
   }
 
   Future {
@@ -149,7 +142,7 @@ def coordinator(
 
       // This will only be consumed when the actor has
       // reached a maximum count of pre-configured value
-      c ! Terminate()
+      c ! TerminateActors()
   }
 
   // Wait for all producers and consumers to finish
@@ -176,7 +169,7 @@ def measureBB(bbConfig: BBConfig) =
     coordinator(bbRef, prods, cons) // This blocks until all producers and consumers are done
 
     // Terminate the bounded buffer actor
-    bbRef ! Terminate()
+    bbRef ! TerminateActors()
 
     val (endTime, finalMatchCount) = Await.result(bbFut, Duration.Inf)
 
@@ -199,8 +192,8 @@ def boundedBufferBenchmark(
   Benchmark(
     name = "Bounded Buffer",
     algorithm = algorithm,
-    warmupIterations = 5,
-    iterations = 10,
+    warmupRepititions = 5,
+    repititons = 5,
     nullPass = BenchmarkPass(
       s"Null Pass ${algorithm}",
       () => measureBB(warmupConfig)

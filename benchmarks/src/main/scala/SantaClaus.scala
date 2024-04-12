@@ -148,8 +148,8 @@ def santaClausBenchmark(santaClauseActions: Int, algorithm: MatchingAlgorithm) =
   Benchmark(
     name = "Santa Claus",
     algorithm = algorithm,
-    warmupIterations = 5,
-    iterations = 10,
+    warmupRepititions = 5,
+    repititons = 5,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass

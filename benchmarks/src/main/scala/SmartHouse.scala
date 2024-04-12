@@ -176,8 +176,8 @@ def smartHouseBenchmark(
   Benchmark(
     name = "SmartHouse",
     algorithm = algorithm,
-    warmupIterations = 5,
-    iterations = 10,
+    warmupRepititions = 5,
+    repititons = 5,
     nullPass = BenchmarkPass(
       s"Null Pass ${algorithm}",
       () => measureSmartHouse(smartHouseActions, nullPassMsgs, algorithm)

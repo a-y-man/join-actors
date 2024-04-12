@@ -1,13 +1,8 @@
 package benchmarks
 
 import actor.*
-import ch.qos.logback.core.pattern.parser.Parser
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive_
-import mainargs.Flag
-import mainargs.ParserForMethods
-import mainargs.arg
-import mainargs.main
 import org.scalacheck.Gen
 
 import scala.concurrent.Await
@@ -182,7 +177,7 @@ def generateSizeMsgs(n: Int): Vector[SizeMsg] =
   val msgs = Vector(A(), B(), C(), D(), E(), F(), G(), H(), I(), J())
   msgs.take(n)
 
-lazy val sizeBenchmarks = Seq(
+val sizeBenchmarks = Seq(
   ("1-ary join pattern", size1, genNMatchingMsgSeqs(1)(generateSizeMsgs)),
   ("2-ary join pattern", size2, genNMatchingMsgSeqs(2)(generateSizeMsgs)),
   ("3-ary join pattern", size3, genNMatchingMsgSeqs(3)(generateSizeMsgs)),
@@ -203,6 +198,8 @@ def measureSize(
 ) =
   val actor              = sizeAct(algorithm)
   val (result, actorRef) = actor.start()
+
+  // println(s"Sending $msgs messages to actor")
 
   Future {
     val startTime = System.currentTimeMillis()
@@ -227,8 +224,8 @@ def sizeBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorith
   Benchmark(
     name = "Pattern Size without Guards",
     algorithm = algorithm,
-    warmupIterations = 5,
-    iterations = 10,
+    warmupRepititions = 5,
+    repititons = 5,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
