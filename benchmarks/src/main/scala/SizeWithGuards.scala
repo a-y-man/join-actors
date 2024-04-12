@@ -311,7 +311,7 @@ def runSizeWithGuardsBenchmark(
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    val measurement = sizeBenchmark(matches, withShuffle, algorithm).run()
+    val measurement = sizeWithGuardsBenchmark(matches, withShuffle, algorithm).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
