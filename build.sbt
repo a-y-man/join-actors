@@ -1,4 +1,3 @@
-ThisBuild / organization := "dk.dtu.compute"
 ThisBuild / version      := "0.0.5"
 ThisBuild / scalaVersion := "3.3.3"
 
@@ -11,7 +10,7 @@ lazy val logbackVersion       = "1.4.14"
 lazy val upickleVersion       = "3.2.0"
 lazy val sourcecodeVersion    = "0.3.1"
 lazy val osLibVersion         = "0.9.3"
-lazy val mainargsVersion      = "0.6.2"
+lazy val mainargsVersion      = "0.6.3"
 
 lazy val commonSettings = Seq(
   libraryDependencies += "ch.qos.logback"              % "logback-classic" % logbackVersion,
