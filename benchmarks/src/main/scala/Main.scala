@@ -1,6 +1,10 @@
 package benchmarks
 
 import join_patterns.MatchingAlgorithm
+import join_patterns.examples.runBBBenchmark
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 case class BenchmarkConfig(
     val benchmarkName: String,
@@ -24,12 +28,28 @@ lazy val benchmarks = Seq(
 )
 
 object Main extends App:
-  // def run(args: Array[String]): Unit =
+  val writeToFile = true
+
   runSmartHouseBenchmark(
-    smartHouseActions = 10,
-    maxRandomMsgs = 32,
+    smartHouseActions = 4,
+    maxRandomMsgs = 64,
     rndMsgsStep = 4,
-    writeToFile = true
+    writeToFile = writeToFile
   )
-  // runPingPongBenchmark(10)
-  // runSizeBenchmark(1000)
+
+  runPingPongBenchmark(maxHits = 10000, writeToFile = writeToFile)
+
+  runSizeBenchmark(matches = 1000, withShuffle = true, writeToFile = writeToFile)
+
+  runSizeWithGuardsBenchmark(
+    matches = 10000,
+    withShuffle = true,
+    writeToFile = writeToFile
+  )
+
+  runBBBenchmark(
+    bufferBound = 1000,
+    nProdsCons = 100,
+    stepBy = 5,
+    writeToFile = writeToFile
+  )

@@ -178,35 +178,21 @@ def size10(algorithm: MatchingAlgorithm) =
     }(algorithm)
   }
 
-def generateSizeMsgs(n: Int, isShuffled: Boolean = false): Vector[SizeMsg] =
-  val msgs  = Vector(A(), B(), C(), D(), E(), F(), G(), H(), I(), J())
-  val nMsgs = msgs.take(n)
-  if isShuffled then Random.shuffle(nMsgs) else nMsgs
+def generateSizeMsgs(n: Int): Vector[SizeMsg] =
+  val msgs = Vector(A(), B(), C(), D(), E(), F(), G(), H(), I(), J())
+  msgs.take(n)
 
 lazy val sizeBenchmarks = Seq(
-  ("1-ary join pattern", size1, generateSizeMsgs(1)),
-  ("2-ary join pattern", size2, generateSizeMsgs(2)),
-  ("3-ary join pattern", size3, generateSizeMsgs(3)),
-  ("4-ary join pattern", size4, generateSizeMsgs(4)),
-  ("5-ary join pattern", size5, generateSizeMsgs(5)),
-  ("6-ary join pattern", size6, generateSizeMsgs(6)),
-  ("7-ary join pattern", size7, generateSizeMsgs(7)),
-  ("8-ary join pattern", size8, generateSizeMsgs(8)),
-  ("9-ary join pattern", size9, generateSizeMsgs(9)),
-  ("10-ary join pattern", size10, generateSizeMsgs(10))
-)
-
-lazy val sizeBenchmarksShuffledMsgs = Seq(
-  ("1-ary join pattern", size1, generateSizeMsgs(1, true)),
-  ("2-ary join pattern", size2, generateSizeMsgs(2, true)),
-  ("3-ary join pattern", size3, generateSizeMsgs(3, true)),
-  ("4-ary join pattern", size4, generateSizeMsgs(4, true)),
-  ("5-ary join pattern", size5, generateSizeMsgs(5, true)),
-  ("6-ary join pattern", size6, generateSizeMsgs(6, true)),
-  ("7-ary join pattern", size7, generateSizeMsgs(7, true)),
-  ("8-ary join pattern", size8, generateSizeMsgs(8, true)),
-  ("9-ary join pattern", size9, generateSizeMsgs(9, true)),
-  ("10-ary join pattern", size10, generateSizeMsgs(10, true))
+  ("1-ary join pattern", size1, genNMatchingMsgSeqs(1)(generateSizeMsgs)),
+  ("2-ary join pattern", size2, genNMatchingMsgSeqs(2)(generateSizeMsgs)),
+  ("3-ary join pattern", size3, genNMatchingMsgSeqs(3)(generateSizeMsgs)),
+  ("4-ary join pattern", size4, genNMatchingMsgSeqs(4)(generateSizeMsgs)),
+  ("5-ary join pattern", size5, genNMatchingMsgSeqs(5)(generateSizeMsgs)),
+  ("6-ary join pattern", size6, genNMatchingMsgSeqs(6)(generateSizeMsgs)),
+  ("7-ary join pattern", size7, genNMatchingMsgSeqs(7)(generateSizeMsgs)),
+  ("8-ary join pattern", size8, genNMatchingMsgSeqs(8)(generateSizeMsgs)),
+  ("9-ary join pattern", size9, genNMatchingMsgSeqs(9)(generateSizeMsgs)),
+  ("10-ary join pattern", size10, genNMatchingMsgSeqs(10)(generateSizeMsgs))
 )
 
 def measureSize(
@@ -221,7 +207,7 @@ def measureSize(
   Future {
     val startTime = System.currentTimeMillis()
 
-    for _ <- 1 to matches do msgs.foreach(actorRef ! _)
+    msgs.foreach(actorRef ! _)
 
     actorRef ! Terminate()
 
@@ -232,7 +218,12 @@ def measureSize(
 
 def sizeBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorithm) =
 
-  val nullPass = measureSize(matches, generateSizeMsgs(5, isShuffled), size5, algorithm)
+  val nullPass = measureSize(
+    matches,
+    genNMatchingMsgSeqs(5)(generateSizeMsgs)(matches)(isShuffled),
+    size5,
+    algorithm
+  )
   Benchmark(
     name = "Pattern Size without Guards",
     algorithm = algorithm,
@@ -242,21 +233,12 @@ def sizeBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorith
       "Null Pass",
       () => nullPass
     ),
-    passes =
-      if isShuffled then
-        sizeBenchmarksShuffledMsgs.map { case (name, sizeAct, msgs) =>
-          BenchmarkPass(
-            name,
-            () => measureSize(matches, msgs, sizeAct, algorithm)
-          )
-        }
-      else
-        sizeBenchmarks.map { case (name, sizeAct, msgs) =>
-          BenchmarkPass(
-            name,
-            () => measureSize(matches, msgs, sizeAct, algorithm)
-          )
-        }
+    passes = sizeBenchmarks.map { case (name, sizeAct, msgs) =>
+      BenchmarkPass(
+        name,
+        () => measureSize(matches, msgs(matches)(isShuffled), sizeAct, algorithm)
+      )
+    }
   )
 
 def runSizeBenchmark(
@@ -279,7 +261,9 @@ def runSizeBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("Size", measurements)
+  if writeToFile then
+    if withShuffle then saveToFile("SizeWithShuffle", measurements)
+    else saveToFile("Size", measurements)
 
 // object SizeBenchmark:
 //   @main

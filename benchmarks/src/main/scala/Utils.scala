@@ -132,3 +132,10 @@ object GenerateGuardedSizeMsgs:
       case 9  => genAABBCCDDEEFFGGHHII.sample
       case 10 => genAABBCCDDEEFFGGHHIIJJ.sample
       case _  => None
+
+def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int)(
+    isShuffled: Boolean
+) =
+  val nMatchingMsgsSeqs = LazyList.fill(nMatches)(generator(patSize)).flatten
+  if isShuffled then Random.shuffle(nMatchingMsgsSeqs)
+  else nMatchingMsgsSeqs

@@ -64,8 +64,8 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
   import BoundedBuffer.*, InternalEvent.*, ConsumerEvent.*, ProducerEvent.*
   var matches = 0
   Actor[BBEvent, (Long, Int)] {
-    receive { (y: BBEvent, bbRef: BBRef) =>
-      y match
+    receive_ { (bbRef: BBRef) =>
+      {
         case (Put(producerRef, x), Free(c)) =>
           if c == 1 then bbRef ! Full()
           else bbRef ! Free(c - 1)
@@ -85,6 +85,7 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
           Next()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
+      }
     }(algorithm)
   }
 
@@ -93,14 +94,15 @@ def consumer(bbRef: BBRef, maxCount: Int) =
 
   var cnt = 0
   Actor[CEvent, Unit] {
-    receive { (y: CEvent, selfRef: ConsumerRef) =>
-      y match
+    receive_ { (selfRef: ConsumerRef) =>
+      {
         case CReply(bbRef, x) if cnt < maxCount =>
           cnt += 1
           bbRef ! Get(selfRef)
           Next()
         case Terminate() if cnt == maxCount =>
           Stop(())
+      }
     }(MatchingAlgorithm.BruteForceAlgorithm)
   }
 
@@ -109,14 +111,15 @@ def producer(bbRef: BBRef, maxCount: Int) =
 
   var cnt = 0
   Actor[PEvent, Unit] {
-    receive { (y: PEvent, selfRef: ProducerRef) =>
-      y match
+    receive_ { (selfRef: ProducerRef) =>
+      {
         case PReply(bbRef) if cnt < maxCount =>
           cnt += 1
           bbRef ! Put(selfRef, cnt)
           Next()
         case Terminate() if cnt == maxCount =>
           Stop(())
+      }
     }(MatchingAlgorithm.BruteForceAlgorithm)
   }
 

@@ -183,62 +183,57 @@ def generateSizeMsgsWithPayloads(n: Int): Vector[GuardedSizeMsg] =
   import GenerateGuardedSizeMsgs.*
   genGuardedSizeMsgsOfSizeN(n).get
 
-def genNMatchingMsgSeqs(patSize: Int)(nMatches: Int)(isShuffled: Boolean) =
-  val nMatchingMsgsSeqs = LazyList.fill(nMatches)(generateSizeMsgsWithPayloads(patSize)).flatten
-  if isShuffled then Random.shuffle(nMatchingMsgsSeqs)
-  else nMatchingMsgsSeqs
-
 lazy val sizeBenchmarkWithPayloadData =
   Seq(
     (
       "1-ary conditional join pattern",
       guardedSize1,
-      genNMatchingMsgSeqs(1)
+      genNMatchingMsgSeqs(1)(generateSizeMsgsWithPayloads)
     ),
     (
       "2-ary conditional join pattern",
       guardedSize2,
-      genNMatchingMsgSeqs(2)
+      genNMatchingMsgSeqs(2)(generateSizeMsgsWithPayloads)
     ),
     (
       "3-ary conditional join pattern",
       guardedSize3,
-      genNMatchingMsgSeqs(3)
+      genNMatchingMsgSeqs(3)(generateSizeMsgsWithPayloads)
     ),
     (
       "4-ary conditional join pattern",
       guardedSize4,
-      genNMatchingMsgSeqs(4)
+      genNMatchingMsgSeqs(4)(generateSizeMsgsWithPayloads)
     ),
     (
       "5-ary conditional join pattern",
       guardedSize5,
-      genNMatchingMsgSeqs(5)
+      genNMatchingMsgSeqs(5)(generateSizeMsgsWithPayloads)
     ),
     (
       "6-ary conditional join pattern",
       guardedSize6,
-      genNMatchingMsgSeqs(6)
+      genNMatchingMsgSeqs(6)(generateSizeMsgsWithPayloads)
     ),
     (
       "7-ary conditional join pattern",
       guardedSize7,
-      genNMatchingMsgSeqs(7)
+      genNMatchingMsgSeqs(7)(generateSizeMsgsWithPayloads)
     ),
     (
       "8-ary conditional join pattern",
       guardedSize8,
-      genNMatchingMsgSeqs(8)
+      genNMatchingMsgSeqs(8)(generateSizeMsgsWithPayloads)
     ),
     (
       "9-ary conditional join pattern",
       guardedSize9,
-      genNMatchingMsgSeqs(9)
+      genNMatchingMsgSeqs(9)(generateSizeMsgsWithPayloads)
     ),
     (
       "10-ary conditional join pattern",
       guardedSize1,
-      genNMatchingMsgSeqs(10)
+      genNMatchingMsgSeqs(10)(generateSizeMsgsWithPayloads)
     )
   )
 
@@ -269,7 +264,7 @@ def sizeWithGuardsBenchmark(matches: Int, isShuffled: Boolean, algorithm: Matchi
   val nullPass =
     measureSizeWithGuards(
       matches,
-      genNMatchingMsgSeqs(5)(matches)(isShuffled),
+      genNMatchingMsgSeqs(5)(generateSizeMsgsWithPayloads)(matches)(isShuffled),
       guardedSize5,
       algorithm
     )
@@ -282,21 +277,12 @@ def sizeWithGuardsBenchmark(matches: Int, isShuffled: Boolean, algorithm: Matchi
       "Null Pass",
       () => nullPass
     ),
-    passes =
-      if isShuffled then
-        sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
-          BenchmarkPass(
-            name,
-            () => measureSizeWithGuards(matches, msgs(matches)(isShuffled), sizeAct, algorithm)
-          )
-        }
-      else
-        sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
-          BenchmarkPass(
-            name,
-            () => measureSizeWithGuards(matches, msgs(matches)(isShuffled), sizeAct, algorithm)
-          )
-        }
+    passes = sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
+      BenchmarkPass(
+        name,
+        () => measureSizeWithGuards(matches, msgs(matches)(isShuffled), sizeAct, algorithm)
+      )
+    }
   )
 
 def runSizeWithGuardsBenchmark(
@@ -319,4 +305,6 @@ def runSizeWithGuardsBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("SizeWithGuards", measurements)
+  if writeToFile then
+    if withShuffle then saveToFile("SizeWithGuardsWithShuffle", measurements)
+    else saveToFile("SizeWithGuards", measurements)
