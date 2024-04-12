@@ -123,9 +123,11 @@ def toFile(
   import java.text.SimpleDateFormat
   import os.*
 
-  val data       = os.home / "Documents" / "JoinPatterns" / "experiment_results" / "data"
+  val data = os.pwd / "benchmarks" / "data"
+
+  // val data       = os.home / "Documents" / "JoinPatterns" / "experiment_results" / "data"
   val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
-  val folderFile = data / timestamp
+  val folderFile = data / s"${timestamp}_${benchmarkName}"
   os.makeDir.all(folderFile)
 
   val file = folderFile / f"${benchmarkName}_${algorithm}.csv"
@@ -137,7 +139,7 @@ def toFile(
     results
       .map((name, measurements) =>
         val times = measurements.map(Measurement.time).map(_.toMillis)
-        s"${name.toInt} $sep ${times.mkString(sep)}" // FIXME: name.toInt is a hack
+        s"${name} $sep ${times.mkString(sep)}"
       )
       .mkString("\n")
   )
