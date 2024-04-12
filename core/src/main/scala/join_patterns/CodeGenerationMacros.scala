@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.Logger
 
 import scala.collection.immutable.*
 import scala.collection.immutable.TreeMap as MTree
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Map as MutMap
 import scala.quoted.Expr
 import scala.quoted.Quotes
@@ -290,7 +290,7 @@ private def generateSingletonPattern[M, T](using quotes: Quotes, tm: Type[M], tt
           val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
           val checkMsgType       = patExtractors(0)._1
           val extractField       = patExtractors(0)._2
-          val messages           = ListBuffer.from(m.zipWithIndex)
+          val messages           = ArrayBuffer.from(m.zipWithIndex)
           val (mQ, mQidx)        = messages.last // Take the newest msg from the queue
 
           if checkMsgType(mQ) then Some(PatternBins(PatternIdxs(0) -> MessageIdxs(mQidx)))

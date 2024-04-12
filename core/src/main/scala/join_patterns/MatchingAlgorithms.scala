@@ -10,6 +10,7 @@ import scala.collection.immutable.Iterable
 import scala.collection.immutable.Queue
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.ArrayBuffer
 
 type RHSFnClosure[M, T] = (LookupEnv, ActorRef[M]) => T
 
@@ -98,7 +99,7 @@ trait Matcher[M, T] extends LazyLogging:
     }.toList
 
   def computeSubsts(
-      messages: ListBuffer[M],
+      messages: ArrayBuffer[M],
       possibleFit: List[(Int, M => LookupEnv)]
   ) =
     possibleFit.foldLeft(LookupEnv.empty) { (substsAcc, msgData) =>
@@ -109,7 +110,7 @@ trait Matcher[M, T] extends LazyLogging:
 
   def findBestMatch(
       validPermutations: Iterator[List[(Int, M => LookupEnv)]],
-      messages: ListBuffer[M],
+      messages: ArrayBuffer[M],
       pattern: JoinPattern[M, T]
   ) =
     var bestMatchSubsts: LookupEnv = null
@@ -126,7 +127,7 @@ trait Matcher[M, T] extends LazyLogging:
     else None
 
   // remove all messages from the queue that have been processed
-  def removeProcessedMsgs(messages: ListBuffer[(M, Int)], processedMsgs: MessageIdxs) =
+  def removeProcessedMsgs(messages: ArrayBuffer[(M, Int)], processedMsgs: MessageIdxs) =
     messages.filterNot((_, idx) => processedMsgs.contains(idx))
 
 object SelectMatcher:
@@ -137,7 +138,7 @@ object SelectMatcher:
 
 class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private val messages         = ListBuffer[M]()
+  private val messages         = ArrayBuffer[M]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
@@ -201,7 +202,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private val messages         = ListBuffer[(M, Int)]()
+  private val messages         = ArrayBuffer[(M, Int)]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
@@ -223,7 +224,6 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     val (mQ, mQidx)                               = newMsg
     val ((pattern, patternIdx), (mTree, patInfo)) = patternState
     val updatedMatchingTree                       = pattern.partialExtract((mQ, mQidx), mTree)
-    val messages_                                 = messages.map(_._1).toList
 
     updatedMatchingTree match
       case Some(updatedMTree) =>
