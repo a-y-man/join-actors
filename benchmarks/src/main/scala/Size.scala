@@ -10,30 +10,31 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.Random
 
-sealed trait SizeMsg
-case class A()         extends SizeMsg
-case class B()         extends SizeMsg
-case class C()         extends SizeMsg
-case class D()         extends SizeMsg
-case class E()         extends SizeMsg
-case class F()         extends SizeMsg
-case class G()         extends SizeMsg
-case class H()         extends SizeMsg
-case class I()         extends SizeMsg
-case class J()         extends SizeMsg
-case class NoiseA()    extends SizeMsg
-case class NoiseB()    extends SizeMsg
-case class NoiseC()    extends SizeMsg
-case class NoiseD()    extends SizeMsg
-case class NoiseE()    extends SizeMsg
-case class NoiseF()    extends SizeMsg
-case class NoiseG()    extends SizeMsg
-case class NoiseH()    extends SizeMsg
-case class NoiseI()    extends SizeMsg
-case class NoiseJ()    extends SizeMsg
-case class Terminate() extends SizeMsg
+enum SizeMsg:
+  case A()
+  case B()
+  case C()
+  case D()
+  case E()
+  case F()
+  case G()
+  case H()
+  case I()
+  case J()
+  case NoiseA()
+  case NoiseB()
+  case NoiseC()
+  case NoiseD()
+  case NoiseE()
+  case NoiseF()
+  case NoiseG()
+  case NoiseH()
+  case NoiseI()
+  case NoiseJ()
+  case Terminate()
 
 def size1(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -48,6 +49,7 @@ def size1(algorithm: MatchingAlgorithm) =
   }
 
 def size2(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -62,6 +64,7 @@ def size2(algorithm: MatchingAlgorithm) =
   }
 
 def size3(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -76,6 +79,7 @@ def size3(algorithm: MatchingAlgorithm) =
   }
 
 def size4(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -90,6 +94,7 @@ def size4(algorithm: MatchingAlgorithm) =
   }
 
 def size5(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -104,6 +109,7 @@ def size5(algorithm: MatchingAlgorithm) =
   }
 
 def size6(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -118,6 +124,7 @@ def size6(algorithm: MatchingAlgorithm) =
   }
 
 def size7(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -132,6 +139,7 @@ def size7(algorithm: MatchingAlgorithm) =
   }
 
 def size8(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -146,6 +154,7 @@ def size8(algorithm: MatchingAlgorithm) =
   }
 
 def size9(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -160,6 +169,7 @@ def size9(algorithm: MatchingAlgorithm) =
   }
 
 def size10(algorithm: MatchingAlgorithm) =
+  import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
     receive_ { (_: ActorRef[SizeMsg]) =>
@@ -174,6 +184,7 @@ def size10(algorithm: MatchingAlgorithm) =
   }
 
 def generateSizeMsgs(n: Int): Vector[SizeMsg] =
+  import SizeMsg.*
   val msgs = Vector(A(), B(), C(), D(), E(), F(), G(), H(), I(), J())
   msgs.take(n)
 
@@ -196,6 +207,7 @@ def measureSize(
     sizeAct: MatchingAlgorithm => Actor[SizeMsg, (Long, Int)],
     algorithm: MatchingAlgorithm
 ) =
+  import SizeMsg.*
   val actor              = sizeAct(algorithm)
   val (result, actorRef) = actor.start()
 
@@ -213,19 +225,25 @@ def measureSize(
     Measurement(endTime - startTime, numMatches)
   }
 
-def sizeBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorithm) =
+def sizeBenchmark(
+    matches: Int,
+    withShuffle: Boolean,
+    algorithm: MatchingAlgorithm,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
+) =
 
   val nullPass = measureSize(
     matches,
-    genNMatchingMsgSeqs(5)(generateSizeMsgs)(matches)(isShuffled),
+    genNMatchingMsgSeqs(5)(generateSizeMsgs)(matches)(withShuffle),
     size5,
     algorithm
   )
   Benchmark(
     name = "Pattern Size without Guards",
     algorithm = algorithm,
-    warmupRepititions = 5,
-    repititons = 5,
+    warmupRepititions = warmupRepititions,
+    repititons = repititons,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -233,7 +251,7 @@ def sizeBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorith
     passes = sizeBenchmarks.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSize(matches, msgs(matches)(isShuffled), sizeAct, algorithm)
+        () => measureSize(matches, msgs(matches)(withShuffle), sizeAct, algorithm)
       )
     }
   )
@@ -241,7 +259,9 @@ def sizeBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorith
 def runSizeBenchmark(
     matches: Int,
     withShuffle: Boolean = false,
-    writeToFile: Boolean = false
+    writeToFile: Boolean = false,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -250,7 +270,8 @@ def runSizeBenchmark(
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    val measurement = sizeBenchmark(matches, withShuffle, algorithm).run()
+    val measurement =
+      sizeBenchmark(matches, withShuffle, algorithm, warmupRepititions, repititons).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )

@@ -232,7 +232,7 @@ lazy val sizeBenchmarkWithPayloadData =
     ),
     (
       "10-ary conditional join pattern",
-      guardedSize1,
+      guardedSize10,
       genNMatchingMsgSeqs(10)(generateSizeMsgsWithPayloads)
     )
   )
@@ -259,20 +259,26 @@ def measureSizeWithGuards(
     Measurement(endTime - startTime, numMatches)
   }
 
-def sizeWithGuardsBenchmark(matches: Int, isShuffled: Boolean, algorithm: MatchingAlgorithm) =
+def sizeWithGuardsBenchmark(
+    matches: Int,
+    withShuffle: Boolean,
+    algorithm: MatchingAlgorithm,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
+) =
 
   val nullPass =
     measureSizeWithGuards(
       matches,
-      genNMatchingMsgSeqs(5)(generateSizeMsgsWithPayloads)(matches)(isShuffled),
+      genNMatchingMsgSeqs(5)(generateSizeMsgsWithPayloads)(matches)(withShuffle),
       guardedSize5,
       algorithm
     )
   Benchmark(
     name = "Pattern Size with Guards",
     algorithm = algorithm,
-    warmupRepititions = 5,
-    repititons = 5,
+    warmupRepititions = warmupRepititions,
+    repititons = repititons,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -280,7 +286,7 @@ def sizeWithGuardsBenchmark(matches: Int, isShuffled: Boolean, algorithm: Matchi
     passes = sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSizeWithGuards(matches, msgs(matches)(isShuffled), sizeAct, algorithm)
+        () => measureSizeWithGuards(matches, msgs(matches)(withShuffle), sizeAct, algorithm)
       )
     }
   )
@@ -288,7 +294,9 @@ def sizeWithGuardsBenchmark(matches: Int, isShuffled: Boolean, algorithm: Matchi
 def runSizeWithGuardsBenchmark(
     matches: Int,
     withShuffle: Boolean = false,
-    writeToFile: Boolean = false
+    writeToFile: Boolean = false,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -297,7 +305,8 @@ def runSizeWithGuardsBenchmark(
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    val measurement = sizeWithGuardsBenchmark(matches, withShuffle, algorithm).run()
+    val measurement =
+      sizeWithGuardsBenchmark(matches, withShuffle, algorithm, warmupRepititions, repititons).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
