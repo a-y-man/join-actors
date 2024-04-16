@@ -1,8 +1,8 @@
 package benchmarks
 
 import actor.*
+import benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive
 import join_patterns.receive_
 import org.scalacheck.Gen
 
@@ -22,6 +22,7 @@ enum GuardedSizeMsg:
   case H(x: Int)
   case I(x: Int)
   case J(x: Int)
+  case XX()
   case Terminate()
 
 def guardedSize1(algorithm: MatchingAlgorithm) =
@@ -115,131 +116,161 @@ def guardedSize6(algorithm: MatchingAlgorithm) =
     }(algorithm)
   }
 
-def guardedSize7(algorithm: MatchingAlgorithm) =
-  import GuardedSizeMsg.*
-  var matches = 0
-  Actor[GuardedSizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[GuardedSizeMsg]) =>
-      {
-        case (A(x), B(y), C(z), D(w), E(a), F(b), G(c))
-            if x == y && y == z && z == w && w == a && a == b && b == c =>
-          matches += 1
-          Next()
-        case Terminate() =>
-          Stop((System.currentTimeMillis(), matches))
-      }
-    }(algorithm)
-  }
-
-def guardedSize8(algorithm: MatchingAlgorithm) =
-  import GuardedSizeMsg.*
-  var matches = 0
-  Actor[GuardedSizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[GuardedSizeMsg]) =>
-      {
-        case (A(x), B(y), C(z), D(w), E(a), F(b), G(c), H(d))
-            if x == y && y == z && z == w && w == a && a == b && b == c && c == d =>
-          matches += 1
-          Next()
-        case Terminate() =>
-          Stop((System.currentTimeMillis(), matches))
-      }
-    }(algorithm)
-  }
-
-def guardedSize9(algorithm: MatchingAlgorithm) =
-  import GuardedSizeMsg.*
-  var matches = 0
-  Actor[GuardedSizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[GuardedSizeMsg]) =>
-      {
-        case (A(x), B(y), C(z), D(w), E(a), F(b), G(c), H(d), I(e))
-            if x == y && y == z && z == w && w == a && a == b && b == c && c == d && d == e =>
-          matches += 1
-          Next()
-        case Terminate() =>
-          Stop((System.currentTimeMillis(), matches))
-      }
-    }(algorithm)
-  }
-
-def guardedSize10(algorithm: MatchingAlgorithm) =
-  import GuardedSizeMsg.*
-  var matches = 0
-  Actor[GuardedSizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[GuardedSizeMsg]) =>
-      {
-        case (A(x), B(y), C(z), D(w), E(a), F(b), G(c), H(d), I(e), J(f))
-            if x == y && y == z && z == w && w == a && a == b && b == c && c == d && d == e && e == f =>
-          matches += 1
-          Next()
-        case Terminate() =>
-          Stop((System.currentTimeMillis(), matches))
-      }
-    }(algorithm)
-  }
-
-def generateSizeMsgsWithPayloads(n: Int): Vector[GuardedSizeMsg] =
+def generateCorrectSizeMsgsWithPayloads(n: Int): Vector[GuardedSizeMsg] =
   import GenerateGuardedSizeMsgs.*
   genGuardedSizeMsgsOfSizeN(n).get
 
-lazy val sizeBenchmarkWithPayloadData =
+def genSizeMsgsWithPayloadWithNonMatchingPayload(patSize: Int)(nRandomMsgs: Int)(
+    correctMsgsGen: Int => Vector[GuardedSizeMsg]
+)(wrongMsgsGen: Int => Vector[GuardedSizeMsg])(
+    matches: Int
+) =
+  import GuardedSizeMsg.*
+  val badMsgs                    = wrongMsgsGen(nRandomMsgs)
+  val correctMsgs                = correctMsgsGen(patSize)
+  val matchingAndNonMatchingSeqs = intercalateCorrectMsgs(correctMsgs, badMsgs)
+  Vector.fill(matches)(matchingAndNonMatchingSeqs).flatten
+
+def genMsgsWithPayloadWithNoise(patSize: Int)(nRandomMsgs: Int)(
+    correctMsgsGen: Int => Vector[GuardedSizeMsg]
+)(matches: Int) =
+  import GuardedSizeMsg.*
+  val noise                    = Vector.fill(nRandomMsgs)(XX())
+  val correctMsgs              = correctMsgsGen(patSize)
+  val matchingMsgsAndNoiseSeqs = intercalateCorrectMsgs(correctMsgs, noise)
+  Vector.fill(matches)(matchingMsgsAndNoiseSeqs).flatten
+
+val N_NOISE_MSGS        = 100
+val N_NON_MATCHING_MSGS = 10
+
+val sizeBenchmarkWithPayloadData =
   Seq(
     (
       "1-ary conditional join pattern",
       guardedSize1,
-      genNMatchingMsgSeqs(1)(generateSizeMsgsWithPayloads)
+      genNMatchingMsgSeqs(1)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
       "2-ary conditional join pattern",
       guardedSize2,
-      genNMatchingMsgSeqs(2)(generateSizeMsgsWithPayloads)
+      genNMatchingMsgSeqs(2)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
       "3-ary conditional join pattern",
       guardedSize3,
-      genNMatchingMsgSeqs(3)(generateSizeMsgsWithPayloads)
+      genNMatchingMsgSeqs(3)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
       "4-ary conditional join pattern",
       guardedSize4,
-      genNMatchingMsgSeqs(4)(generateSizeMsgsWithPayloads)
+      genNMatchingMsgSeqs(4)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
       "5-ary conditional join pattern",
       guardedSize5,
-      genNMatchingMsgSeqs(5)(generateSizeMsgsWithPayloads)
+      genNMatchingMsgSeqs(5)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
       "6-ary conditional join pattern",
       guardedSize6,
-      genNMatchingMsgSeqs(6)(generateSizeMsgsWithPayloads)
+      genNMatchingMsgSeqs(6)(generateCorrectSizeMsgsWithPayloads)
+    )
+  )
+
+val sizeBenchmarkWithNoisyPayloadData =
+  Seq(
+    (
+      "1-ary conditional join pattern",
+      guardedSize1,
+      genMsgsWithPayloadWithNoise(1)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
-      "7-ary conditional join pattern",
-      guardedSize7,
-      genNMatchingMsgSeqs(7)(generateSizeMsgsWithPayloads)
+      "2-ary conditional join pattern",
+      guardedSize2,
+      genMsgsWithPayloadWithNoise(2)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
-      "8-ary conditional join pattern",
-      guardedSize8,
-      genNMatchingMsgSeqs(8)(generateSizeMsgsWithPayloads)
+      "3-ary conditional join pattern",
+      guardedSize3,
+      genMsgsWithPayloadWithNoise(3)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
-      "9-ary conditional join pattern",
-      guardedSize9,
-      genNMatchingMsgSeqs(9)(generateSizeMsgsWithPayloads)
+      "4-ary conditional join pattern",
+      guardedSize4,
+      genMsgsWithPayloadWithNoise(4)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
     ),
     (
-      "10-ary conditional join pattern",
-      guardedSize10,
-      genNMatchingMsgSeqs(10)(generateSizeMsgsWithPayloads)
+      "5-ary conditional join pattern",
+      guardedSize5,
+      genMsgsWithPayloadWithNoise(5)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
+    ),
+    (
+      "6-ary conditional join pattern",
+      guardedSize6,
+      genMsgsWithPayloadWithNoise(6)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
+    )
+  )
+
+val sizeBenchmarkWithNonMatchingPayloadData =
+  Seq(
+    (
+      "1-ary conditional join pattern",
+      guardedSize1,
+      genSizeMsgsWithPayloadWithNonMatchingPayload(1)(N_NON_MATCHING_MSGS)(
+        generateCorrectSizeMsgsWithPayloads
+      )(
+        genNNonMatchingMsgs(1)
+      )
+    ),
+    (
+      "2-ary conditional join pattern",
+      guardedSize2,
+      genSizeMsgsWithPayloadWithNonMatchingPayload(2)(N_NON_MATCHING_MSGS)(
+        generateCorrectSizeMsgsWithPayloads
+      )(
+        genNNonMatchingMsgs(2)
+      )
+    ),
+    (
+      "3-ary conditional join pattern",
+      guardedSize3,
+      genSizeMsgsWithPayloadWithNonMatchingPayload(3)(N_NON_MATCHING_MSGS)(
+        generateCorrectSizeMsgsWithPayloads
+      )(
+        genNNonMatchingMsgs(3)
+      )
+    ),
+    (
+      "4-ary conditional join pattern",
+      guardedSize4,
+      genSizeMsgsWithPayloadWithNonMatchingPayload(4)(N_NON_MATCHING_MSGS)(
+        generateCorrectSizeMsgsWithPayloads
+      )(
+        genNNonMatchingMsgs(4)
+      )
+    ),
+    (
+      "5-ary conditional join pattern",
+      guardedSize5,
+      genSizeMsgsWithPayloadWithNonMatchingPayload(5)(N_NON_MATCHING_MSGS)(
+        generateCorrectSizeMsgsWithPayloads
+      )(
+        genNNonMatchingMsgs(5)
+      )
+    ),
+    (
+      "6-ary conditional join pattern",
+      guardedSize6,
+      genSizeMsgsWithPayloadWithNonMatchingPayload(6)(N_NON_MATCHING_MSGS)(
+        generateCorrectSizeMsgsWithPayloads
+      )(
+        genNNonMatchingMsgs(6)
+      )
     )
   )
 
 def measureSizeWithGuards(
-    matches: Int,
-    msgs: Seq[GuardedSizeMsg],
+    msgs: Vector[GuardedSizeMsg],
     sizeAct: MatchingAlgorithm => Actor[GuardedSizeMsg, (Long, Int)],
     algorithm: MatchingAlgorithm
 ) =
@@ -269,9 +300,8 @@ def sizeWithGuardsBenchmark(
 
   val nullPass =
     measureSizeWithGuards(
-      matches,
-      genNMatchingMsgSeqs(5)(generateSizeMsgsWithPayloads)(matches)(withShuffle),
-      guardedSize5,
+      genNMatchingMsgSeqs(3)(generateCorrectSizeMsgsWithPayloads)(matches)(withShuffle),
+      guardedSize3,
       algorithm
     )
   Benchmark(
@@ -286,7 +316,69 @@ def sizeWithGuardsBenchmark(
     passes = sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSizeWithGuards(matches, msgs(matches)(withShuffle), sizeAct, algorithm)
+        () => measureSizeWithGuards(msgs(matches)(withShuffle), sizeAct, algorithm)
+      )
+    }
+  )
+
+def sizeWithGuardsWithNoiseBenchmark(
+    matches: Int,
+    algorithm: MatchingAlgorithm,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
+) =
+
+  val nullPass =
+    measureSizeWithGuards(
+      genMsgsWithPayloadWithNoise(3)(10)(generateCorrectSizeMsgsWithPayloads)(matches),
+      guardedSize3,
+      algorithm
+    )
+  Benchmark(
+    name = "Pattern Size with Guards with Noise",
+    algorithm = algorithm,
+    warmupRepititions = warmupRepititions,
+    repititons = repititons,
+    nullPass = BenchmarkPass(
+      "Null Pass",
+      () => nullPass
+    ),
+    passes = sizeBenchmarkWithNoisyPayloadData.map { case (name, sizeAct, msgs) =>
+      BenchmarkPass(
+        name,
+        () => measureSizeWithGuards(msgs(matches), sizeAct, algorithm)
+      )
+    }
+  )
+
+def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
+    matches: Int,
+    algorithm: MatchingAlgorithm,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
+) =
+
+  val nullPass =
+    measureSizeWithGuards(
+      genSizeMsgsWithPayloadWithNonMatchingPayload(3)(10)(generateCorrectSizeMsgsWithPayloads)(
+        genNNonMatchingMsgs(3)
+      )(matches),
+      guardedSize3,
+      algorithm
+    )
+  Benchmark(
+    name = "Pattern Size with Guards with Non-matching Payload",
+    algorithm = algorithm,
+    warmupRepititions = warmupRepititions,
+    repititons = repititons,
+    nullPass = BenchmarkPass(
+      "Null Pass",
+      () => nullPass
+    ),
+    passes = sizeBenchmarkWithNonMatchingPayloadData.map { case (name, sizeAct, msgs) =>
+      BenchmarkPass(
+        name,
+        () => measureSizeWithGuards(msgs(matches), sizeAct, algorithm)
       )
     }
   )
@@ -317,3 +409,60 @@ def runSizeWithGuardsBenchmark(
   if writeToFile then
     if withShuffle then saveToFile("SizeWithGuardsWithShuffle", measurements)
     else saveToFile("SizeWithGuards", measurements)
+
+def runSizeWithGuardsWithNoiseBenchmark(
+    matches: Int,
+    withShuffle: Boolean = false,
+    writeToFile: Boolean = false,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
+) =
+  val algorithms: List[MatchingAlgorithm] =
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+
+  val measurements = algorithms map { algorithm =>
+    println(
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+    )
+    val measurement =
+      sizeWithGuardsWithNoiseBenchmark(matches, algorithm, warmupRepititions, repititons)
+        .run()
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+    )
+
+    (algorithm, measurement)
+  }
+
+  if writeToFile then saveToFile("SizeWithGuardsWithNoise", measurements)
+
+def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
+    matches: Int,
+    withShuffle: Boolean = false,
+    writeToFile: Boolean = false,
+    warmupRepititions: Int = 5,
+    repititons: Int = 10
+) =
+  val algorithms: List[MatchingAlgorithm] =
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+
+  val measurements = algorithms map { algorithm =>
+    println(
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+    )
+    val measurement =
+      sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
+        matches,
+        algorithm,
+        warmupRepititions,
+        repititons
+      )
+        .run()
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+    )
+
+    (algorithm, measurement)
+  }
+
+  if writeToFile then saveToFile("SizeWithGuardsWithNonMatchingPayload", measurements)

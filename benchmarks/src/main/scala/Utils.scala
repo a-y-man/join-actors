@@ -75,6 +75,47 @@ object GenerateActions:
 
 object GenerateGuardedSizeMsgs:
   import GuardedSizeMsg.*
+
+  private val genA: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield A(x)
+
+  private val genB: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield B(x)
+
+  private val genC: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield C(x)
+
+  private val genD: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield D(x)
+
+  private val genE: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield E(x)
+
+  private val genF: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield F(x)
+
+  private val genG: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield G(x)
+
+  private val genH: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield H(x)
+
+  private val genI: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield I(x)
+
+  private val genJ: Gen[GuardedSizeMsg] =
+    for x <- Gen.choose(101, 200)
+    yield J(x)
+
   private val genAA: Gen[Vector[GuardedSizeMsg]] =
     for x <- Gen.choose(0, 100)
     yield Vector(A(x)).asInstanceOf[Vector[GuardedSizeMsg]]
@@ -119,6 +160,11 @@ object GenerateGuardedSizeMsgs:
     yield Vector(A(x), B(x), C(x), D(x), E(x), F(x), G(x), H(x), I(x), J(x))
       .asInstanceOf[Vector[GuardedSizeMsg]]
 
+  def genNNonMatchingMsgs(patSize: Int)(n: Int): Vector[GuardedSizeMsg] =
+    val allGens = Vector(genA, genB, genC, genD, genE, genF, genG, genH, genI, genJ)
+    val patMsgs = Gen.oneOf(allGens.take(patSize)).flatMap(identity)
+    Gen.containerOfN[Vector, GuardedSizeMsg](n, patMsgs).sample.getOrElse(Vector.empty)
+
   def genGuardedSizeMsgsOfSizeN(n: Int): Option[Vector[GuardedSizeMsg]] =
     n match
       case 1  => genAA.sample
@@ -136,6 +182,6 @@ object GenerateGuardedSizeMsgs:
 def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int)(
     isShuffled: Boolean
 ) =
-  val nMatchingMsgsSeqs = List.fill(nMatches)(generator(patSize)).flatten
+  val nMatchingMsgsSeqs = Vector.fill(nMatches)(generator(patSize)).flatten
   if isShuffled then Random.shuffle(nMatchingMsgsSeqs)
   else nMatchingMsgsSeqs

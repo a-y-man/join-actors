@@ -159,14 +159,15 @@ def measureBB(bbConfig: BBConfig) =
   def startProds(bbRef: BBRef) =
     (1 to bbConfig.producers).map(_ => producer(bbRef, bbConfig.cnt).start()).toArray
 
-  lazy val cons  = startConsumers(bbRef)
-  lazy val prods = startProds(bbRef)
-
   Future {
     val startTime = System.currentTimeMillis()
 
     bbRef ! Free(bbConfig.bufferBound)
-    coordinator(bbRef, prods, cons) // This blocks until all producers and consumers are done
+    coordinator(
+      bbRef,
+      startProds(bbRef),
+      startConsumers(bbRef)
+    ) // This blocks until all producers and consumers are done
 
     // Terminate the bounded buffer actor
     bbRef ! TerminateActors()
