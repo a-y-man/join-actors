@@ -30,11 +30,11 @@ case class JoinPattern[M, T](
     guard: LookupEnv => Boolean,
     rhs: (LookupEnv, ActorRef[M]) => T,
     size: Int,
-    partialExtract: (
+    updateMTree: (
         Tuple2[M, Int],
         MatchingTree
     ) => Option[MatchingTree],
-    getPatternInfo: PatternInfo[M] // (PatternBins, PatternExtractors[M, T])
+    getPatternInfo: PatternInfo[M]
 )
 
 enum MatchingAlgorithm:
