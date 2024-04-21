@@ -112,7 +112,7 @@ def pruneTree(mtree: MatchingTree, messageIdxsToRemove: MessageIdxs): MatchingTr
 def removeNode(mtree: MatchingTree, messageIdxsToRemove: MessageIdxs): MatchingTree =
   mtree - messageIdxsToRemove
 
-def logMapping(ppTree: String, ident: String): Unit =
+def logMTree(ppTree: String, ident: String): Unit =
   logger.info(
     s"\n\n************$ident****************\n${ppTree}\n***************$ident*************\n"
   )
@@ -126,11 +126,3 @@ def findCompletePatterns(mtree: MatchingTree, patternSize: Int): MatchingTree =
       patternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
     }
     .to(TreeMap)
-
-def processMessages(
-    mtree: MatchingTree,
-    messageIdxWithFits: List[(MessageIdx, PatternIdxs)]
-): MatchingTree =
-  messageIdxWithFits.foldLeft(mtree) { case (accMTree, (messageIdx, patternShape)) =>
-    updateMTree(accMTree, messageIdx, patternShape)
-  }
