@@ -60,18 +60,10 @@ object GenerateActions:
     for i <- Gen.choose(0, 100)
     yield DoorBell(i).asInstanceOf[Action]
 
-  def genActionsOfSizeN(n: Int): Option[List[Action]] =
+  def genActionsOfSizeN(n: Int): Vector[Action] =
     val pickAction =
-      Gen.oneOf(
-        genMotion,
-        genAmbientLight,
-        genLight,
-        genContact,
-        genConsumption,
-        genHeatingF,
-        genDoorBell
-      )
-    Gen.containerOfN[List, Action](n, pickAction).sample
+      Gen.oneOf(genMotion, genAmbientLight, genLight, genContact, genConsumption, genHeatingF)
+    Gen.containerOfN[Vector, Action](n, pickAction).sample.get
 
 object GenerateGuardedSizeMsgs:
   import GuardedSizeMsg.*
@@ -179,9 +171,5 @@ object GenerateGuardedSizeMsgs:
       case 10 => genAABBCCDDEEFFGGHHIIJJ.sample
       case _  => None
 
-def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int)(
-    isShuffled: Boolean
-) =
-  val nMatchingMsgsSeqs = Vector.fill(nMatches)(generator(patSize)).flatten
-  if isShuffled then Random.shuffle(nMatchingMsgsSeqs)
-  else nMatchingMsgsSeqs
+def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int) =
+  Vector.fill(nMatches)(generator(patSize)).flatten

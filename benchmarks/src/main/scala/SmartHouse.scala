@@ -116,8 +116,8 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     }(algorithm)
   }
 
-def smartHouseMsgs(n: Int): Vector[Action] =
-  val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
+def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
+  val randomMsgs = generator(n)
 
   val correctMsgs =
     Random.nextInt(3) match
@@ -174,7 +174,7 @@ def smartHouseBenchmark(
     repititons: Int = 10
 ) =
 
-  val nullPassMsgs = smartHouseMsgs(5)
+  val nullPassMsgs = smartHouseMsgs(5)(GenerateActions.genActionsOfSizeN)
   Benchmark(
     name = "SmartHouse",
     algorithm = algorithm,
@@ -186,7 +186,7 @@ def smartHouseBenchmark(
     ),
     passes = rangeOfRandomMsgs map { case (msgs, n) =>
       BenchmarkPass(
-        s"$n",
+        s"Processing $n number of random messages per match.",
         () => measureSmartHouse(smartHouseActions, msgs, algorithm)
       )
     }
@@ -205,7 +205,7 @@ def runSmartHouseBenchmark(
 
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
-      (smartHouseMsgs(n), n)
+      (smartHouseMsgs(n)(GenerateActions.genActionsOfSizeN), n)
     }
 
   val measurements = algorithms map { algorithm =>

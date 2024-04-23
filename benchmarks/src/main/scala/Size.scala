@@ -114,66 +114,6 @@ def size6(algorithm: MatchingAlgorithm) =
     }(algorithm)
   }
 
-// def size7(algorithm: MatchingAlgorithm) =
-//   import SizeMsg.*
-//   var matches = 0
-//   Actor[SizeMsg, (Long, Int)] {
-//     receive_ { (_: ActorRef[SizeMsg]) =>
-//       {
-//         case (A(), B(), C(), D(), E(), F(), G()) =>
-//           matches += 1
-//           Next()
-//         case Terminate() =>
-//           Stop((System.currentTimeMillis(), matches))
-//       }
-//     }(algorithm)
-//   }
-
-// def size8(algorithm: MatchingAlgorithm) =
-//   import SizeMsg.*
-//   var matches = 0
-//   Actor[SizeMsg, (Long, Int)] {
-//     receive_ { (_: ActorRef[SizeMsg]) =>
-//       {
-//         case (A(), B(), C(), D(), E(), F(), G(), H()) =>
-//           matches += 1
-//           Next()
-//         case Terminate() =>
-//           Stop((System.currentTimeMillis(), matches))
-//       }
-//     }(algorithm)
-//   }
-
-// def size9(algorithm: MatchingAlgorithm) =
-//   import SizeMsg.*
-//   var matches = 0
-//   Actor[SizeMsg, (Long, Int)] {
-//     receive_ { (_: ActorRef[SizeMsg]) =>
-//       {
-//         case (A(), B(), C(), D(), E(), F(), G(), H(), I()) =>
-//           matches += 1
-//           Next()
-//         case Terminate() =>
-//           Stop((System.currentTimeMillis(), matches))
-//       }
-//     }(algorithm)
-//   }
-
-// def size10(algorithm: MatchingAlgorithm) =
-//   import SizeMsg.*
-//   var matches = 0
-//   Actor[SizeMsg, (Long, Int)] {
-//     receive_ { (_: ActorRef[SizeMsg]) =>
-//       {
-//         case (A(), B(), C(), D(), E(), F(), G(), H(), I(), J()) =>
-//           matches += 1
-//           Next()
-//         case Terminate() =>
-//           Stop((System.currentTimeMillis(), matches))
-//       }
-//     }(algorithm)
-//   }
-
 def generateSizeMsgs(n: Int): Vector[SizeMsg] =
   import SizeMsg.*
   val msgs = Vector(A(), B(), C(), D(), E(), F(), G(), H(), I(), J())
@@ -195,10 +135,6 @@ val sizeBenchmarks = Seq(
   ("4-ary join pattern", size4, genNMatchingMsgSeqs(4)(generateSizeMsgs)),
   ("5-ary join pattern", size5, genNMatchingMsgSeqs(5)(generateSizeMsgs)),
   ("6-ary join pattern", size6, genNMatchingMsgSeqs(6)(generateSizeMsgs))
-  // ("7-ary join pattern", size7, genNMatchingMsgSeqs(7)(generateSizeMsgs)),
-  // ("8-ary join pattern", size8, genNMatchingMsgSeqs(8)(generateSizeMsgs)),
-  // ("9-ary join pattern", size9, genNMatchingMsgSeqs(9)(generateSizeMsgs)),
-  // ("10-ary join pattern", size10, genNMatchingMsgSeqs(10)(generateSizeMsgs))
 )
 
 val sizeBenchmarksWithNoise = Seq(
@@ -208,10 +144,6 @@ val sizeBenchmarksWithNoise = Seq(
   ("4-ary join pattern", size4, genMsgsNoPayloadWithNoise(4)(100)(generateSizeMsgs)),
   ("5-ary join pattern", size5, genMsgsNoPayloadWithNoise(5)(100)(generateSizeMsgs)),
   ("6-ary join pattern", size6, genMsgsNoPayloadWithNoise(6)(100)(generateSizeMsgs))
-  // ("7-ary join pattern", size7, genNMatchingMsgSeqs(7)(generateSizeMsgs)),
-  // ("8-ary join pattern", size8, genNMatchingMsgSeqs(8)(generateSizeMsgs)),
-  // ("9-ary join pattern", size9, genNMatchingMsgSeqs(9)(generateSizeMsgs)),
-  // ("10-ary join pattern", size10, genNMatchingMsgSeqs(10)(generateSizeMsgs))
 )
 
 def measureSize(
@@ -223,8 +155,6 @@ def measureSize(
   import SizeMsg.*
   val actor              = sizeAct(algorithm)
   val (result, actorRef) = actor.start()
-
-  // println(s"Sending $msgs messages to actor")
 
   Future {
     val startTime = System.currentTimeMillis()
@@ -261,7 +191,6 @@ def measureSizeWithNoise(
 
 def sizeBenchmark(
     matches: Int,
-    withShuffle: Boolean,
     algorithm: MatchingAlgorithm,
     warmupRepititions: Int = 5,
     repititons: Int = 10
@@ -269,7 +198,7 @@ def sizeBenchmark(
 
   val nullPass = measureSize(
     matches,
-    genNMatchingMsgSeqs(5)(generateSizeMsgs)(matches)(withShuffle),
+    genNMatchingMsgSeqs(5)(generateSizeMsgs)(matches),
     size5,
     algorithm
   )
@@ -285,7 +214,7 @@ def sizeBenchmark(
     passes = sizeBenchmarks.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSize(matches, msgs(matches)(withShuffle), sizeAct, algorithm)
+        () => measureSize(matches, msgs(matches), sizeAct, algorithm)
       )
     }
   )
@@ -322,7 +251,6 @@ def sizeWithNoiseBenchmark(
 
 def runSizeBenchmark(
     matches: Int,
-    withShuffle: Boolean = false,
     writeToFile: Boolean = false,
     warmupRepititions: Int = 5,
     repititons: Int = 10
@@ -335,7 +263,7 @@ def runSizeBenchmark(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
     val measurement =
-      sizeBenchmark(matches, withShuffle, algorithm, warmupRepititions, repititons).run()
+      sizeBenchmark(matches, algorithm, warmupRepititions, repititons).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
@@ -343,13 +271,10 @@ def runSizeBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then
-    if withShuffle then saveToFile("SizeWithShuffle", measurements)
-    else saveToFile("Size", measurements)
+  if writeToFile then saveToFile("Size", measurements)
 
 def runSizeWithNoiseBenchmark(
     matches: Int,
-    withShuffle: Boolean = false,
     writeToFile: Boolean = false,
     warmupRepititions: Int = 5,
     repititons: Int = 10

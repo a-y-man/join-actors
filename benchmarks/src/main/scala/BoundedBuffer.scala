@@ -213,22 +213,20 @@ def boundedBufferBenchmark(
 def runBBBenchmark(
     bufferBound: Int,
     nProdsCons: Int,
-    stepBy: Int,
     writeToFile: Boolean,
     warmupRepititions: Int = 5,
     repititons: Int = 10
 ) =
   val bbConfigs =
-    Array((1 to nProdsCons by stepBy).map(n => (bufferBound, n))*).map {
-      case (bufferBound, nProdsCons) =>
-        (algo: MatchingAlgorithm) =>
-          BBConfig(
-            bufferBound = bufferBound,
-            producers = nProdsCons,
-            consumers = nProdsCons,
-            cnt = bufferBound,
-            algorithm = algo
-          )
+    Array((1 to nProdsCons).map(n => (bufferBound, n))*).map { case (bufferBound, nProdsCons) =>
+      (algo: MatchingAlgorithm) =>
+        BBConfig(
+          bufferBound = bufferBound,
+          producers = nProdsCons,
+          consumers = nProdsCons,
+          cnt = bufferBound,
+          algorithm = algo
+        )
     }
 
   val algorithms: List[MatchingAlgorithm] =

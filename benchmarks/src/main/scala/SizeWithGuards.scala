@@ -292,7 +292,6 @@ def measureSizeWithGuards(
 
 def sizeWithGuardsBenchmark(
     matches: Int,
-    withShuffle: Boolean,
     algorithm: MatchingAlgorithm,
     warmupRepititions: Int = 5,
     repititons: Int = 10
@@ -300,7 +299,7 @@ def sizeWithGuardsBenchmark(
 
   val nullPass =
     measureSizeWithGuards(
-      genNMatchingMsgSeqs(3)(generateCorrectSizeMsgsWithPayloads)(matches)(withShuffle),
+      genNMatchingMsgSeqs(3)(generateCorrectSizeMsgsWithPayloads)(matches),
       guardedSize3,
       algorithm
     )
@@ -316,7 +315,7 @@ def sizeWithGuardsBenchmark(
     passes = sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSizeWithGuards(msgs(matches)(withShuffle), sizeAct, algorithm)
+        () => measureSizeWithGuards(msgs(matches), sizeAct, algorithm)
       )
     }
   )
@@ -385,7 +384,6 @@ def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
 
 def runSizeWithGuardsBenchmark(
     matches: Int,
-    withShuffle: Boolean = false,
     writeToFile: Boolean = false,
     warmupRepititions: Int = 5,
     repititons: Int = 10
@@ -398,7 +396,7 @@ def runSizeWithGuardsBenchmark(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
     val measurement =
-      sizeWithGuardsBenchmark(matches, withShuffle, algorithm, warmupRepititions, repititons).run()
+      sizeWithGuardsBenchmark(matches, algorithm, warmupRepititions, repititons).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
@@ -406,13 +404,10 @@ def runSizeWithGuardsBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then
-    if withShuffle then saveToFile("SizeWithGuardsWithShuffle", measurements)
-    else saveToFile("SizeWithGuards", measurements)
+  if writeToFile then saveToFile("SizeWithGuards", measurements)
 
 def runSizeWithGuardsWithNoiseBenchmark(
     matches: Int,
-    withShuffle: Boolean = false,
     writeToFile: Boolean = false,
     warmupRepititions: Int = 5,
     repititons: Int = 10
@@ -438,7 +433,6 @@ def runSizeWithGuardsWithNoiseBenchmark(
 
 def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
     matches: Int,
-    withShuffle: Boolean = false,
     writeToFile: Boolean = false,
     warmupRepititions: Int = 5,
     repititons: Int = 10
