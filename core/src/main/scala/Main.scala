@@ -3,60 +3,69 @@ package core
 import actor.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.examples.*
-import join_patterns.receive
+import mainargs.Flag
+import mainargs.ParserForClass
+import mainargs.ParserForMethods
+import mainargs.TokensReader
+import mainargs.arg
+import mainargs.main
 
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import scala.util.Random
 
-object Main extends App:
-  // demo(MatchingAlgorithm.BruteForceAlgorithm)
-  // demo(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
+object Main:
+  implicit object MatchingAlgorithmParser extends TokensReader.Simple[MatchingAlgorithm]:
+    def shortName: String = "algorithm"
+    def read(tokens: Seq[String]) =
+      tokens.headOption match
+        case Some("brute")    => Right(MatchingAlgorithm.BruteForceAlgorithm)
+        case Some("stateful") => Right(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
+        case _                => Left("Invalid algorithm")
 
-  // test01(MatchingAlgorithm.BruteForceAlgorithm)
-  // test01(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test02(MatchingAlgorithm.BruteForceAlgorithm)
-  // test02(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test03(MatchingAlgorithm.BruteForceAlgorithm)
-  // test03(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test04(MatchingAlgorithm.BruteForceAlgorithm)
-  // test04(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test05(MatchingAlgorithm.BruteForceAlgorithm)
-  // test05(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test06(MatchingAlgorithm.BruteForceAlgorithm)
-  // test06(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test07(MatchingAlgorithm.BruteForceAlgorithm)
-  // test07(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // test08(MatchingAlgorithm.BruteForceAlgorithm)
-  // test08(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // randomMsgTesting(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // randomMsgTesting(MatchingAlgorithm.BruteForceAlgorithm)
+  @main
+  def boundedBuffer(
+      @arg(short = 'b', doc = "The buffer bound")
+      bufferBound: Int = 100,
+      @arg(
+        short = 'p',
+        doc = "The maximum number of producers and consumers"
+      )
+      nProdsCons: Int = 50,
+      @arg(doc = "The join pattern matching algorithm to use")
+      algorithm: MatchingAlgorithm
+  ) =
+    val bbConfig = BBConfig(
+      bufferBound = bufferBound,
+      producers = nProdsCons,
+      consumers = nProdsCons,
+      cnt = bufferBound,
+      algorithm = algorithm
+    )
+    runBB(bbConfig)
 
-  // smartHouseExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 10)
-  // smartHouseExample(MatchingAlgorithm.BruteForceAlgorithm, 10)
-  // nwptExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // nwptExample(MatchingAlgorithm.BruteForceAlgorithm)
-  // pingPongExample(4, MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-  // pingPongExample(4, MatchingAlgorithm.BruteForceAlgorithm)
+  @main
+  def chameneos(
+      @arg(short = 'm', doc = "The maximum number of meetings")
+      maxNumberOfMeetings: Int = 100,
+      @arg(
+        short = 'c',
+        doc = "The maximum number of chameneos"
+      )
+      nChameneos: Int = 50,
+      @arg(doc = "The join pattern matching algorithm to use")
+      algorithm: MatchingAlgorithm
+  ) =
+    val chameneosConfig = ChameneosConfig(
+      maxNumberOfMeetings = maxNumberOfMeetings,
+      numberOfChameneos = nChameneos,
+      algorithm = algorithm
+    )
 
-  // val bbConfig = BBConfig(
-  //   bufferBound = 2,
-  //   producers = 4,
-  //   consumers = 4,
-  //   cnt = 2,
-  //   algorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
-  // )
-  // runBB(bbConfig)
+    chameneosExample(
+      chameneosConfig
+    )
 
-  santaClausExample(MatchingAlgorithm.StatefulTreeBasedAlgorithm, 4)
-  santaClausExample(MatchingAlgorithm.BruteForceAlgorithm, 4)
-
-  // chameneosExample(
-  //   maxNumberOfMeetings = 5,
-  //   numberOfChameneos = 5,
-  //   algorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm
-  // )
-  // chameneosExample(
-  //   maxNumberOfMeetings = 5,
-  //   numberOfChameneos = 5,
-  //   algorithm = MatchingAlgorithm.BruteForceAlgorithm
-  // )
+  def main(args: Array[String]): Unit =
+    ParserForMethods(this).runOrExit(args)

@@ -5,6 +5,7 @@ import join_patterns.*
 import org.scalacheck.Gen
 
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 enum ChameneoColor:
@@ -33,6 +34,12 @@ enum ChameneosMsg:
   case MeetMsg(ref: ChameneoRef, color: ChameneoColor)
   case Exit()
 
+case class ChameneosConfig(
+    maxNumberOfMeetings: Int,
+    numberOfChameneos: Int,
+    algorithm: MatchingAlgorithm
+)
+
 def chameneoActor(
     initColor: ChameneoColor,
     mall: MeetingPlace,
@@ -41,8 +48,8 @@ def chameneoActor(
   import ChameneoColor.*, ChameneosMsg.*
   val color = initColor
   Actor[ChameneosMsg, Unit] {
-    receive { (x: ChameneosMsg, thisChameneo: ChameneoRef) =>
-      x match
+    receive_ { (thisChameneo: ChameneoRef) =>
+      {
         case Start() =>
           mall ! MeetMsg(thisChameneo, color)
           Next()
@@ -54,57 +61,66 @@ def chameneoActor(
           Next()
         case Exit() =>
           Stop(())
+      }
     }(algorithm)
   }
 
 def mallActor(maxNumberOfMeetings: Int, algorithm: MatchingAlgorithm) =
   import ChameneoColor.*, ChameneosMsg.*
   var meetings = 0
-
   Actor[ChameneosMsg, Int] {
-    receive { (x: ChameneosMsg, mallRef: MeetingPlace) =>
-      x match
-        case (MeetMsg(ch1, c1), MeetMsg(ch2, c2)) if ch1 != ch2 =>
-          if meetings < maxNumberOfMeetings then
-            println(s"Meeting: $c1, $c2 --- $meetings")
-            ch1 ! MeetMsg(ch2, c2)
-            meetings += 1
-            Next()
-          else
-            ch1 ! Exit()
-            ch2 ! Exit()
-            mallRef ! Exit()
-            Next()
-        case Exit() =>
+    receive_ { (mallRef: MeetingPlace) =>
+      {
+        case (MeetMsg(ch1, c1), MeetMsg(ch2, c2)) if c1 != c2 && meetings < maxNumberOfMeetings =>
+          println(s"Meeting: $c1, $c2 --- $meetings")
+          ch1 ! MeetMsg(ch2, c2)
+          meetings += 1
+          if meetings >= maxNumberOfMeetings then mallRef ! Exit()
+          println(s"meetings: $meetings")
+          Next()
+        case Exit() if meetings >= maxNumberOfMeetings =>
           Stop(meetings)
+      }
     }(algorithm)
   }
 
 def chameneosExample(
-    maxNumberOfMeetings: Int,
-    numberOfChameneos: Int,
-    algorithm: MatchingAlgorithm
+    chameneosConfig: ChameneosConfig
 ) =
   import ChameneoColor.*, ChameneosMsg.*
 
-  println(s"Chameneos Example: $maxNumberOfMeetings, $numberOfChameneos, $algorithm")
+  println(
+    s"Chameneos Example: ${chameneosConfig}"
+  )
 
-  val (mallFut, mallRef) = mallActor(maxNumberOfMeetings, algorithm).start()
+  val (mallFut, mallRef) =
+    mallActor(
+      chameneosConfig.maxNumberOfMeetings,
+      chameneosConfig.algorithm
+    ).start()
 
-  // randomly assign colors to chameneos
   val colors = Gen.oneOf(List(Blue, Red, Yellow))
 
-  val chameneos = (0 until numberOfChameneos).map { i =>
+  val chameneos = (1 to chameneosConfig.numberOfChameneos).map { i =>
     chameneoActor(
       colors.sample.get,
       mallRef,
-      algorithm
-    )
-  } map { c =>
-    val (fut, ref) = c.start()
+      chameneosConfig.algorithm
+    ).start()
+  }
+
+  chameneos foreach { c =>
+    val (fut, ref) = c
     ref ! Start()
   }
 
-  val meetings = Await.result(mallFut, Duration.Inf)
+  val meetings = Await.result(mallFut, Duration(5, "minutes"))
+
+  chameneos foreach { c =>
+    val (fut, ref) = c
+    println(s"Sending Exit to $ref")
+    ref ! Exit()
+    Await.ready(fut, Duration.Inf)
+  }
 
   println(s"Meetings: $meetings")
