@@ -67,17 +67,6 @@ object Main:
     )
 
   @main
-  def santaClausConfig(
-      config: Config,
-      @arg(short = 'a', doc = "The number of actions Santa Claus should perform (matches)")
-      santaClauseActions: Int = 10000
-  ) =
-    runSantaClausBenchmark(
-      santaClauseActions = santaClauseActions,
-      writeToFile = config.writeToFile.value
-    )
-
-  @main
   def sizeConfig(
       config: Config,
       @arg(short = 'm', doc = "The number of matches the size actor should perform")
@@ -129,74 +118,19 @@ object Main:
       repititons = config.repititions
     )
 
+  @main
+  def sizeWithGuardsWithNonMatchingPayloadsConfig(
+      config: Config,
+      @arg(short = 'm', doc = "The number of matches the size actor should perform")
+      matches: Int = 100
+  ) =
+    runSizeWithGuardsWithNonMatchingPayloadBenchmark(
+      matches = matches,
+      writeToFile = config.writeToFile.value,
+      warmupRepititions = config.warmupRepititions,
+      repititons = config.repititions
+    )
+
   def main(args: Array[String]): Unit =
     val config = ParserForMethods(this).runOrExit(args)
     println(config)
-
-  // runChameneoBenchmark(
-  //   maxMeetings = 5,
-  //   numberOfChameneos = 3,
-  //   stepBy = 1,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runSantaClausBenchmark(
-  //   santaClauseActions = 10000,
-  //   writeToFile = writeToFile
-  // )
-
-  // runSizeBenchmark(
-  //   matches = 100,
-  //   withShuffle = false,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-  // runSizeWithGuardsBenchmark(
-  //   matches = 100,
-  //   withShuffle = false,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runSizeWithNoiseBenchmark(
-  //   matches = 100,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runSizeWithGuardsWithNoiseBenchmark(
-  //   matches = 100,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runSizeWithGuardsWithNonMatchingPayloadBenchmark(
-  //   matches = 3,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runSizeBenchmark(
-  //   matches = 100,
-  //   withShuffle = true,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runSizeWithGuardsBenchmark(
-  //   matches = 100,
-  //   withShuffle = true,
-  //   writeToFile = writeToFile,
-  //   warmupRepititions = warmupRepititions,
-  //   repititons = repititons
-  // )
-
-  // runPingPongBenchmark(maxHits = 10000, writeToFile = writeToFile)
