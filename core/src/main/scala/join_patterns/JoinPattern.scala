@@ -1,7 +1,6 @@
 package join_patterns
 
 import actor.ActorRef
-import com.typesafe.scalalogging.LazyLogging
 
 import math.Ordering.Implicits.infixOrderingOps
 import math.Ordering.Implicits.seqOrdering

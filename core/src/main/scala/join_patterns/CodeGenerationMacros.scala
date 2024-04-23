@@ -3,7 +3,6 @@ package join_patterns
 import actor.Actor
 import actor.ActorRef
 import actor.Result
-import com.typesafe.scalalogging.Logger
 
 import scala.collection.immutable.*
 import scala.collection.immutable.TreeMap as MTree
@@ -13,8 +12,6 @@ import scala.quoted.Expr
 import scala.quoted.Quotes
 import scala.quoted.Type
 import scala.quoted.Varargs
-
-val logger = Logger("CodeGenMacros")
 
 /** Extracts a type's name and representation from a `Tree`.
   *

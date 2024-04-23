@@ -1,7 +1,6 @@
 package join_patterns
 
 import actor.ActorRef
-import com.typesafe.scalalogging.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.ArrayBuffer

@@ -1,7 +1,6 @@
 package join_patterns
 
 import actor.ActorRef
-import com.typesafe.scalalogging.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import java.util.concurrent.TimeUnit
@@ -44,7 +43,7 @@ type CandidateMatch[M, T] = Option[(MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))]
 type CandidateMatches[M, T] =
   TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]
 
-object CandidateMatches extends LazyLogging:
+object CandidateMatches:
   import math.Ordering.Implicits.infixOrderingOps
   import math.Ordering.Implicits.seqOrdering
   def apply[M, T](): CandidateMatches[M, T] =
@@ -79,7 +78,7 @@ object CandidateMatches extends LazyLogging:
   * @tparam T
   *   The type of the RHS of the join pattern.
   */
-trait Matcher[M, T] extends LazyLogging:
+trait Matcher[M, T]:
 
   /** The matcher constructor that takes a mailbox and an actor reference and returns the result of
     * the join pattern.

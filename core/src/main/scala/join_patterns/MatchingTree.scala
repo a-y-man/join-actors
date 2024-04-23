@@ -113,7 +113,7 @@ def removeNode(mtree: MatchingTree, messageIdxsToRemove: MessageIdxs): MatchingT
   mtree - messageIdxsToRemove
 
 def logMTree(ppTree: String, ident: String): Unit =
-  logger.info(
+  println(
     s"\n\n************$ident****************\n${ppTree}\n***************$ident*************\n"
   )
 
