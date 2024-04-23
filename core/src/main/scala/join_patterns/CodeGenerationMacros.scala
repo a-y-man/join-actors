@@ -340,13 +340,14 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
   import quotes.reflect.*
 
   val typesData = extractContructorData(dataType)
-  val extractors: List[(Expr[M => Boolean], Expr[M => LookupEnv])] =
+  val extractors: List[(Expr[String], Expr[M => Boolean], Expr[M => LookupEnv])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
       outer.asType match
         case '[ot] =>
           (
+            Expr(TypeTree.of[ot].symbol.name),
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
               ${ extractor.asExprOf[ot => LookupEnv] }(m.asInstanceOf[ot])
@@ -358,7 +359,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
   val patExtractors: Expr[PatternExtractors[M]] = '{
     val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-    _extractors.zipWithIndex.map { case ((checkMsgType, extractField), idx) =>
+    _extractors.zipWithIndex.map { case ((_, checkMsgType, extractField), idx) =>
       idx -> (checkMsgType, extractField)
     }.toMap
 
@@ -388,12 +389,12 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
       def getMsgIdxsWithFits(
           messages: List[(M, Int)],
-          msgPatterns: List[((M => Boolean, M => LookupEnv), Int)]
+          msgPatterns: List[((String, M => Boolean, M => LookupEnv), Int)]
       ): List[(MessageIdx, PatternIdxs)] =
         messages
           .flatMap { case (msg, idx) =>
             val matches =
-              msgPatterns.filter { case ((checkMsgType, _), _) => checkMsgType(msg) }.map(_._2)
+              msgPatterns.filter { case ((_, checkMsgType, _), _) => checkMsgType(msg) }.map(_._2)
             List((idx, matches))
           }
           .filter(_._2.nonEmpty)
@@ -441,7 +442,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
       val patInfo     = ${ patternInfo }
 
       val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgTypesInPattern = _extractors.map(pat => (pat._1, pat._2)).zipWithIndex
+      val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
 
       val isMsgInPat = msgTypesInPattern.exists { case ((checkMsgType, _), _) => checkMsgType(mQ) }
 
