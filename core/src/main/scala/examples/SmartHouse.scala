@@ -14,6 +14,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
 
+/* This is a definiton of the messages accepted by the Smart house actor */
 sealed trait Action
 case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Action
 case class AmbientLight(id: Int, value: Int, room: String, timestamp: Date = Date()) extends Action
@@ -24,53 +25,9 @@ case class HeatingF(id: Int, _type: String, timestamp: Date = Date())           
 case class DoorBell(id: Int, timestamp: Date = Date())                               extends Action
 case class ShutOff()                                                                 extends Action
 
-object GenerateActions:
-  // Set seed for the random generator
-  Random.setSeed(42)
-
-  private val genMotion: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.oneOf(true, false)
-    s <- Gen.alphaStr
-  yield Motion(i, b, s).asInstanceOf[Action]
-
-  private val genAmbientLight: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.choose(0, 100)
-    s <- Gen.alphaStr
-  yield AmbientLight(i, b, s).asInstanceOf[Action]
-
-  private val genLight: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.oneOf(true, false)
-    s <- Gen.alphaStr
-  yield Light(i, b, s).asInstanceOf[Action]
-
-  private val genContact: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.oneOf(true, false)
-    s <- Gen.alphaStr
-  yield Contact(i, b, s).asInstanceOf[Action]
-
-  private val genConsumption: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    b <- Gen.choose(0, 100)
-  yield Consumption(i, b).asInstanceOf[Action]
-
-  private val genHeatingF: Gen[Action] = for
-    i <- Gen.choose(0, 100)
-    s <- Gen.alphaStr
-  yield HeatingF(i, s).asInstanceOf[Action]
-
-  private val genDoorBell: Gen[Action] =
-    for i <- Gen.choose(0, 100)
-    yield DoorBell(i).asInstanceOf[Action]
-
-  def genActionsOfSizeN(n: Int): Option[List[Action]] =
-    val pickAction =
-      Gen.oneOf(genMotion, genAmbientLight, genLight, genContact, genConsumption, genHeatingF)
-    Gen.containerOfN[List, Action](n, pickAction).sample
-
+/*
+This function defines a smart house example using join patterns.
+ */
 def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
@@ -108,9 +65,8 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
   val smartHouseActor = Actor[Action, Unit] {
-    receive { (y: Action, selfRef: ActorRef[Action]) =>
-      y match
-        // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
+    receive { (selfRef: ActorRef[Action]) =>
+      { // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case (
               Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
               AmbientLight(_: Int, value: Int, alRoom: String, t1: Date),
@@ -126,7 +82,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
           println("Someone entered the bathroom")
-          Next()
+          Continue()
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
@@ -142,7 +98,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
             ) =>
           lastNotification = Date()
           println("Someone arrived home")
-          Next()
+          Continue()
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
               Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
@@ -157,42 +113,28 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
             ) =>
           lastNotification = Date()
           println("Someone left home")
-          Next()
+          Continue()
 
         case ShutOff() =>
           println("Shutting down the smart house. Bye!")
           Stop(())
+      }
 
     }(algorithm)
   }
 
-  val msgs = smartHouseMsgs(numberOfRandomMsgs)
+  val msgs = smartHouseMsgs(numberOfRandomMsgs)(GenerateActions.genActionsOfSizeN)
 
   val (actFut, act) = smartHouseActor.start()
+  val startTime     = System.currentTimeMillis()
   msgs.foreach(act ! _)
-
   act ! ShutOff()
   val result = Await.ready(actFut, Duration.Inf)
 
   result.onComplete(printResult)
 
-def intercalateCorrectMsgs[A](
-    correctMsgs: Vector[A],
-    randomMsgs: Vector[A]
-): Vector[A] =
-  val randomMsgsSize  = randomMsgs.size
-  val correctMsgsSize = correctMsgs.size
-  if randomMsgsSize >= correctMsgsSize then
-    val groupSize = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
-    randomMsgs
-      .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
-      .zipAll(correctMsgs, randomMsgs, randomMsgs.headOption.getOrElse(correctMsgs.last))
-      .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
-      .toVector
-  else randomMsgs ++ correctMsgs
-
-def smartHouseMsgs(n: Int): Vector[Action] =
-  val randomMsgs = GenerateActions.genActionsOfSizeN(n).toVector.flatten
+def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
+  val randomMsgs = generator(n)
   val correctMsgs =
     Random.nextInt(3) match
       case 0 =>

@@ -17,7 +17,7 @@ implicit val ec: ExecutionContext =
 
 sealed trait Result[T]
 case class Stop[T](value: T) extends Result[T]
-case class Next[T]()         extends Result[T]
+case class Continue[T]()     extends Result[T]
 
 /** Represents an actor that processes messages of type M and produces a result of type T.
   *
@@ -55,5 +55,5 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   @tailrec
   private def run(promise: Promise[T]): Unit =
     matcher(mailbox)(self) match
-      case Next()      => run(promise)
+      case Continue()  => run(promise)
       case Stop(value) => promise.success(value)

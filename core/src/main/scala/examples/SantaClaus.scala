@@ -2,7 +2,7 @@ package join_patterns.examples
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_patterns.receiveOld
 
 import java.util.concurrent.Executors
 import scala.collection.mutable.ListBuffer
@@ -28,7 +28,7 @@ val N_ELVES = 3
 
 def santaClausActor(algorithm: MatchingAlgorithm) =
   val actor = Actor[SAction, Unit] {
-    receive { (y: SAction, selfRef: SantaClausRef) =>
+    receiveOld { (y: SAction, selfRef: SantaClausRef) =>
       y match
         case (
               IsBack(reindeerRef0),
@@ -57,12 +57,12 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
             s"${Console.RED}Ho Ho Ho! Let's prepare the sleigh for the reindeers!${Console.RESET}"
           )
           reinDeerRefs.foreach(_ ! CanLeave(selfRef))
-          Next()
+          Continue()
         case (NeedHelp(elfRef0), NeedHelp(elfRef1), NeedHelp(elfRef2)) =>
           println(s"${Console.RED}Ho Ho Ho! Let's help the elves!${Console.RESET}")
           val elfRefs = List(elfRef0, elfRef1, elfRef2)
           elfRefs.foreach(_ ! Helped(selfRef))
-          Next()
+          Continue()
         case Rest() =>
           Stop(())
     }(algorithm)
@@ -71,22 +71,22 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
   actor
 
 def reindeerActor() = Actor[SAction, Unit] {
-  receive { (y: SAction, _: ReindeerRef) =>
+  receiveOld { (y: SAction, _: ReindeerRef) =>
     y match
       case CanLeave(_) =>
         println(s"${Console.YELLOW}Going on holiday${Console.RESET}")
-        Next()
+        Continue()
       case Rest() =>
         Stop(())
   }(MatchingAlgorithm.BruteForceAlgorithm)
 }
 
 def elfActor() = Actor[SAction, Unit] {
-  receive { (y: SAction, _: ElfRef) =>
+  receiveOld { (y: SAction, _: ElfRef) =>
     y match
       case Helped(_) =>
         println(s"${Console.GREEN}Has been helped${Console.RESET}")
-        Next()
+        Continue()
       case Rest() =>
         Stop(())
   }(MatchingAlgorithm.BruteForceAlgorithm)

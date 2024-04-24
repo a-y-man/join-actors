@@ -2,7 +2,7 @@ package benchmarks
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_patterns.receiveOld
 import os.*
 
 import java.util.Date
@@ -61,7 +61,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
   Actor[Action, (Long, Int)] {
-    receive { (y: Action, selfRef: ActorRef[Action]) =>
+    receiveOld { (y: Action, selfRef: ActorRef[Action]) =>
       y match
         // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case (
@@ -79,7 +79,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
           actions += 1
-          Next()
+          Continue()
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
@@ -95,7 +95,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
             ) =>
           lastNotification = Date()
           actions += 1
-          Next()
+          Continue()
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
               Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
@@ -110,7 +110,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
             ) =>
           lastNotification = Date()
           actions += 1
-          Next()
+          Continue()
         case ShutOff() =>
           Stop((System.currentTimeMillis(), actions))
     }(algorithm)

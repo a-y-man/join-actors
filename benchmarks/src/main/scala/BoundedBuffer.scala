@@ -6,7 +6,7 @@ import benchmarks.BenchmarkPass
 import benchmarks.Measurement
 import benchmarks.saveToFile
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive_
+import join_patterns.receive
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -57,7 +57,7 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
   import BoundedBuffer.*, InternalEvent.*, ConsumerEvent.*, ProducerEvent.*
   var matches = 0
   Actor[BBEvent, (Long, Int)] {
-    receive_ { (bbRef: BBRef) =>
+    receive { (bbRef: BBRef) =>
       {
         case (Put(producerRef, x), Free(c)) =>
           if c == 1 then bbRef ! Full()
@@ -65,17 +65,17 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
           bbRef ! P(x)
           producerRef ! PReply(bbRef)
           matches += 1
-          Next()
+          Continue()
         case (Get(consumerRef), P(x), Full()) =>
           bbRef ! Free(1)
           consumerRef ! CReply(bbRef, x)
           matches += 1
-          Next()
+          Continue()
         case (Get(consumerRef), P(x), Free(c)) =>
           bbRef ! Free(c + 1)
           consumerRef ! CReply(bbRef, x)
           matches += 1
-          Next()
+          Continue()
         case TerminateActors() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -87,12 +87,12 @@ def consumer(bbRef: BBRef, maxCount: Int) =
 
   var cnt = 0
   Actor[CEvent, Unit] {
-    receive_ { (selfRef: ConsumerRef) =>
+    receive { (selfRef: ConsumerRef) =>
       {
         case CReply(bbRef, x) if cnt < maxCount =>
           cnt += 1
           bbRef ! Get(selfRef)
-          Next()
+          Continue()
         case TerminateActors() if cnt == maxCount =>
           Stop(())
       }
@@ -104,12 +104,12 @@ def producer(bbRef: BBRef, maxCount: Int) =
 
   var cnt = 0
   Actor[PEvent, Unit] {
-    receive_ { (selfRef: ProducerRef) =>
+    receive { (selfRef: ProducerRef) =>
       {
         case PReply(bbRef) if cnt < maxCount =>
           cnt += 1
           bbRef ! Put(selfRef, cnt)
-          Next()
+          Continue()
         case TerminateActors() if cnt == maxCount =>
           Stop(())
       }

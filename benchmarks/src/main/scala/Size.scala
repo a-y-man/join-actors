@@ -2,7 +2,7 @@ package benchmarks
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive_
+import join_patterns.receive
 import org.scalacheck.Gen
 
 import scala.concurrent.Await
@@ -28,11 +28,11 @@ def size1(algorithm: MatchingAlgorithm) =
   import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[SizeMsg]) =>
+    receive { (_: ActorRef[SizeMsg]) =>
       {
         case A() =>
           matches += 1
-          Next()
+          Continue()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -43,11 +43,11 @@ def size2(algorithm: MatchingAlgorithm) =
   import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[SizeMsg]) =>
+    receive { (_: ActorRef[SizeMsg]) =>
       {
         case (A(), B()) =>
           matches += 1
-          Next()
+          Continue()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -58,11 +58,11 @@ def size3(algorithm: MatchingAlgorithm) =
   import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[SizeMsg]) =>
+    receive { (_: ActorRef[SizeMsg]) =>
       {
         case (A(), B(), C()) =>
           matches += 1
-          Next()
+          Continue()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -73,11 +73,11 @@ def size4(algorithm: MatchingAlgorithm) =
   import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[SizeMsg]) =>
+    receive { (_: ActorRef[SizeMsg]) =>
       {
         case (A(), B(), C(), D()) =>
           matches += 1
-          Next()
+          Continue()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -88,11 +88,11 @@ def size5(algorithm: MatchingAlgorithm) =
   import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[SizeMsg]) =>
+    receive { (_: ActorRef[SizeMsg]) =>
       {
         case (A(), B(), C(), D(), E()) =>
           matches += 1
-          Next()
+          Continue()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -103,11 +103,11 @@ def size6(algorithm: MatchingAlgorithm) =
   import SizeMsg.*
   var matches = 0
   Actor[SizeMsg, (Long, Int)] {
-    receive_ { (_: ActorRef[SizeMsg]) =>
+    receive { (_: ActorRef[SizeMsg]) =>
       {
         case (A(), B(), C(), D(), E(), F()) =>
           matches += 1
-          Next()
+          Continue()
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }

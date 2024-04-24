@@ -48,17 +48,17 @@ def chameneoActor(
   import ChameneoColor.*, ChameneosMsg.*
   val color = initColor
   Actor[ChameneosMsg, Unit] {
-    receive_ { (thisChameneo: ChameneoRef) =>
+    receive { (thisChameneo: ChameneoRef) =>
       {
         case Start() =>
           mall ! MeetMsg(thisChameneo, color)
-          Next()
+          Continue()
         case MeetMsg(otherChameneo, otherColor) =>
           val newColor = color.complement(otherColor)
           otherChameneo ! MeetMsg(thisChameneo, newColor)
           mall ! MeetMsg(thisChameneo, color)
           mall ! MeetMsg(otherChameneo, otherColor)
-          Next()
+          Continue()
         case Exit() =>
           Stop(())
       }
@@ -69,7 +69,7 @@ def mallActor(maxNumberOfMeetings: Int, algorithm: MatchingAlgorithm) =
   import ChameneoColor.*, ChameneosMsg.*
   var meetings = 0
   Actor[ChameneosMsg, Int] {
-    receive_ { (mallRef: MeetingPlace) =>
+    receive { (mallRef: MeetingPlace) =>
       {
         case (MeetMsg(ch1, c1), MeetMsg(ch2, c2)) if c1 != c2 && meetings < maxNumberOfMeetings =>
           println(s"Meeting: $c1, $c2 --- $meetings")
@@ -77,7 +77,7 @@ def mallActor(maxNumberOfMeetings: Int, algorithm: MatchingAlgorithm) =
           meetings += 1
           if meetings >= maxNumberOfMeetings then mallRef ! Exit()
           println(s"meetings: $meetings")
-          Next()
+          Continue()
         case Exit() if meetings >= maxNumberOfMeetings =>
           Stop(meetings)
       }

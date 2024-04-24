@@ -316,7 +316,7 @@ def nwptExample(algorithm: MatchingAlgorithm): Unit =
   case class Sell(sN: String, sID: String, sA: Int) extends Message
 
   val tradingSystemActor = Actor[Message, Unit] {
-    receive { (msg: Message, systemActor: ActorRef[Message]) =>
+    receiveOld { (msg: Message, systemActor: ActorRef[Message]) =>
       msg match
         case (Buy(bN, bID, bA), Sell(sN, sID, sA)) if sA >= bA =>
           Stop(println(s"${sA} >= ${bA}"))

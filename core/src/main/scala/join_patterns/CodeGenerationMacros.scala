@@ -630,10 +630,10 @@ private def receiveCodegen_[M, T](
   *   a compile-time closure that takes a MatchingAlgorithm type and returns a Matcher-object that
   *   performs pattern-matching on a message queue at runtime.
   */
-inline def receive[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm => Matcher[M, T] =
+inline def receiveOld[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm => Matcher[M, T] =
   ${ receiveCodegen('f) }
 
-inline def receive_[M, T](
+inline def receive[M, T](
     inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])
 ): MatchingAlgorithm => Matcher[M, Result[T]] =
   ${ receiveCodegen_('f) }

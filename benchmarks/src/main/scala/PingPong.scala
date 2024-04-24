@@ -2,7 +2,7 @@ package benchmarks
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receive_
+import join_patterns.receive
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -22,16 +22,16 @@ case class Done(hits: Int)              extends PingPong
 def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
   val pingActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
-      receive_ { (pingRef: Pinger) =>
+      receive { (pingRef: Pinger) =>
         {
           case Pong(pongRef, x) =>
             if x < maxHits then
               pongRef ! Ping(pingRef, x + 1)
-              Next()
+              Continue()
             else
               pongRef ! Done(x)
               pingRef ! Done(x)
-              Next()
+              Continue()
           case Done(x) =>
             Stop(x)
         }
@@ -40,16 +40,16 @@ def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
 
   val pongActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
-      receive_ { (pongRef: Ponger) =>
+      receive { (pongRef: Ponger) =>
         {
           case Ping(pingRef, x) =>
             if x < maxHits then
               pingRef ! Pong(pongRef, x + 1)
-              Next()
+              Continue()
             else
               pingRef ! Done(x)
               pongRef ! Done(x)
-              Next()
+              Continue()
           case Done(x) =>
             Stop(x)
         }

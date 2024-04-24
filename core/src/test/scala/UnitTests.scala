@@ -37,7 +37,7 @@ class SingletonPatterns extends AnyFunSuite:
     val expected = Random.nextInt
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case A() => Stop(expected)
         }(algorithm)
@@ -58,7 +58,7 @@ class SingletonPatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case A() if ifZero(1) => Stop(expected + 1)
             case A() if ifZero(0) => Stop(expected)
@@ -79,7 +79,7 @@ class SingletonPatterns extends AnyFunSuite:
     val expected = Random.nextInt
 
     forAll(matchingAlgos) { algorithm =>
-      val actor = Actor[Msg, Int](receive { (y: Msg, _: ActorRef[Msg]) =>
+      val actor = Actor[Msg, Int](receiveOld { (y: Msg, _: ActorRef[Msg]) =>
         y match
           case B(n: Int) => Stop(n)
       }(algorithm))
@@ -99,7 +99,7 @@ class SingletonPatterns extends AnyFunSuite:
     val ifZero   = (i: Int) => i == 0
 
     forAll(matchingAlgos) { algorithm =>
-      val actor = Actor[Msg, Int](receive { (y: Msg, _: ActorRef[Msg]) =>
+      val actor = Actor[Msg, Int](receiveOld { (y: Msg, _: ActorRef[Msg]) =>
         y match
           case B(n: Int) if ifZero(1) => Stop(n + 1) // Always false
           case B(n: Int) if ifZero(0) => Stop(n)
@@ -119,7 +119,7 @@ class SingletonPatterns extends AnyFunSuite:
     val expected = "test"
 
     forAll(matchingAlgos) { algorithm =>
-      val actor = Actor[Msg, String](receive { (y: Msg, _: ActorRef[Msg]) =>
+      val actor = Actor[Msg, String](receiveOld { (y: Msg, _: ActorRef[Msg]) =>
         y match
           case C(n: String) => Stop(n)
       }(algorithm))
@@ -140,7 +140,7 @@ class SingletonPatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case C(n: String) if ifNotEmpty("") =>
               Stop(n.appended(Random.alphanumeric.filter(_.isDigit).head))
@@ -165,7 +165,7 @@ class SingletonPatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case F(z: Int, c: String) => Stop(c.repeat(z))
         }(algorithm)
@@ -188,7 +188,7 @@ class SingletonPatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case F(z: Int, c: String) if isZero(z) => Stop(c)
             case F(z: Int, c: String)              => Stop(c.repeat(z))
@@ -210,7 +210,7 @@ class CompositePatterns extends AnyFunSuite:
     val expected = Random.nextInt
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (D(), A(), E()) => Stop(expected)
             case (A(), D())      => Stop(expected + 1)
@@ -237,7 +237,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (A()) => Stop(expected)
         }(algorithm)
@@ -259,7 +259,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (A(), D(), E()) if isZero(0) => Stop(expected + 1)
             case (A(), D(), E())              => Stop(expected)
@@ -284,7 +284,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (B(i0: Int), B(i1: Int)) => Stop(i0 + i1)
             case B(i: Int) =>
@@ -309,7 +309,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (F(i0: Int, s: String), D(), B(i1: Int)) => Stop(s.repeat(i0 + i1))
             case D()                                      => Stop(expected)
@@ -335,7 +335,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) => Stop("Hello World")
             case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) == false =>
@@ -361,7 +361,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (D(), A(), E()) => Stop(expected)
             case (A(), E())      => Stop(expected + 1)
@@ -395,7 +395,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (F(i0: Int, s: String), B(i1: Int)) if i0 == i1 => Stop(expected)
             case (F(i0: Int, s1: String), G(i1: Int, s2: String, i2: Int, b: Boolean))
@@ -436,7 +436,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case (B(i0: Int), B(i1: Int), A()) if ifNotZero(result0) => Stop(i0 + i1)
             case (B(i0: Int), B(i1: Int), A())                       => Stop(i0)
@@ -462,7 +462,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case G(x: Int, y: String, z: Int, w: Boolean) => Stop(y + z)
         }(algorithm)
@@ -487,7 +487,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (y: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (y: Msg, _: ActorRef[Msg]) =>
           y match
             case G(x: Int, y: String, z: Int, b: Boolean) if is(b)  => Stop(z)
             case G(x: Int, y: String, z: Int, b: Boolean) if is(!b) => Stop(x)
@@ -510,11 +510,11 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (msg: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (msg: Msg, _: ActorRef[Msg]) =>
           msg match
-            case (B(a: Int), B(b: Int), B(c: Int)) if a == 3 && b == 2 && c == 1 => Next()
-            case (B(a: Int), B(b: Int), B(c: Int)) if a == 6 && b == 5 && c == 4 => Next()
-            case (B(a: Int), B(b: Int), B(c: Int)) if a == 9 && b == 8 && c == 7 => Next()
+            case (B(a: Int), B(b: Int), B(c: Int)) if a == 3 && b == 2 && c == 1 => Continue()
+            case (B(a: Int), B(b: Int), B(c: Int)) if a == 6 && b == 5 && c == 4 => Continue()
+            case (B(a: Int), B(b: Int), B(c: Int)) if a == 9 && b == 8 && c == 7 => Continue()
             case (B(a: Int), B(b: Int), B(c: Int)) if a == 12 && b == 11 && c == 10 =>
               Stop(a * b * c)
         }(algorithm)
@@ -535,7 +535,7 @@ class CompositePatterns extends AnyFunSuite:
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, Int] {
-        receive { (msg: Msg, _: ActorRef[Msg]) =>
+        receiveOld { (msg: Msg, _: ActorRef[Msg]) =>
           msg match
             case (B(a: Int), A(), B(b: Int)) if a == 3 && b == 2 => Stop(a + b)
         }(algorithm)
