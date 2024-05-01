@@ -170,16 +170,16 @@ def smartHouseBenchmark(
     smartHouseActions: Int,
     rangeOfRandomMsgs: Vector[(Vector[Action], Int)],
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
 
   val nullPassMsgs = smartHouseMsgs(5)(GenerateActions.genActionsOfSizeN)
   Benchmark(
     name = "SmartHouse",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       s"Null Pass ${algorithm}",
       () => measureSmartHouse(smartHouseActions, nullPassMsgs, algorithm)
@@ -197,8 +197,8 @@ def runSmartHouseBenchmark(
     maxRandomMsgs: Int,
     rndMsgsStep: Int,
     writeToFile: Boolean = false,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -216,8 +216,8 @@ def runSmartHouseBenchmark(
       smartHouseActions,
       rangeOfRandomMsgs,
       algorithm,
-      warmupRepititions,
-      repititons
+      warmupRepetitions,
+      repetitions
     ).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"

@@ -28,24 +28,24 @@ class BenchmarkPass(
     val name: String,
     private val mainFn: () => Future[Measurement]
 ):
-  def warmup(warmupRepititions: Int): Unit =
+  def warmup(warmupRepetitions: Int): Unit =
     Await.ready(
-      Future.sequence((1 to warmupRepititions).map(_ => mainFn())),
+      Future.sequence((1 to warmupRepetitions).map(_ => mainFn())),
       Duration.Inf
     )
 
-  def benchmark(repititions: Int): Seq[Measurement] =
+  def benchmark(repetitions: Int): Seq[Measurement] =
     Await
       .result(
-        Future.sequence((1 to repititions).map(_ => mainFn())),
+        Future.sequence((1 to repetitions).map(_ => mainFn())),
         Duration.Inf
       )
 
-  def run(warmupRepititions: Int, iterations: Int): Seq[Measurement] =
+  def run(warmupRepetitions: Int, iterations: Int): Seq[Measurement] =
     println(f"-- Pass $name")
 
     println(Console.YELLOW + "\tstart warmup" + Console.RESET)
-    warmup(warmupRepititions)
+    warmup(warmupRepetitions)
     println(Console.YELLOW + "\tend warmup" + Console.RESET)
 
     println(Console.GREEN + "\tstart benchmark" + Console.RESET)
@@ -59,8 +59,8 @@ class BenchmarkPass(
 class Benchmark(
     private val name: String,
     private val algorithm: MatchingAlgorithm,
-    val warmupRepititions: Int,
-    val repititons: Int,
+    val warmupRepetitions: Int,
+    val repetitions: Int,
     private val nullPass: BenchmarkPass,
     private val passes: Seq[BenchmarkPass]
 ):
@@ -71,7 +71,7 @@ class Benchmark(
 
     val nullPassElapsed = nullPassMeasurements.map(Measurement.time).reduce(_ + _)
     val nullPassMatches = nullPassMeasurements.map(Measurement.matches).sum
-    val nullPassAverage = nullPassElapsed / warmupRepititions
+    val nullPassAverage = nullPassElapsed / warmupRepetitions
 
     println(
       Console.YELLOW + f"Null Pass $nullName" + Console.RESET +
@@ -85,7 +85,7 @@ class Benchmark(
     for (passName, passRuntimes) <- passes do
       val totalMatches     = passRuntimes.map(Measurement.matches).sum
       val totalElapsedPass = passRuntimes.map(Measurement.time).reduce(_ + _)
-      val passAverage      = totalElapsedPass / repititons
+      val passAverage      = totalElapsedPass / repetitions
       val delta            = ((passAverage - nullPassAverage) * 100.0) / nullPassAverage
       val delta_formatted =
         (if delta < 0 then s"${GREEN}" else s"${RED}") + "%.2f".format(delta) + s"${RESET}"
@@ -100,12 +100,12 @@ class Benchmark(
 
   def run(): List[(String, Seq[Measurement])] =
     println(
-      f"Benchmark $name BEGIN (iterations: $repititons, warmup iterations: $warmupRepititions)"
+      f"Benchmark $name BEGIN (iterations: $repetitions, warmup iterations: $warmupRepetitions)"
     )
 
     val results: List[(String, Seq[Measurement])] =
-      List((nullPass.name, nullPass.run(warmupRepititions, repititons))).concat(
-        passes.map(p => (p.name, p.run(warmupRepititions, repititons)))
+      List((nullPass.name, nullPass.run(warmupRepetitions, repetitions))).concat(
+        passes.map(p => (p.name, p.run(warmupRepetitions, repetitions)))
       )
 
     println(f"Benchmark $name END")

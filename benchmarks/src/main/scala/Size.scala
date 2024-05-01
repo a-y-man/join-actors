@@ -192,8 +192,8 @@ def measureSizeWithNoise(
 def sizeBenchmark(
     matches: Int,
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
 
   val nullPass = measureSize(
@@ -205,8 +205,8 @@ def sizeBenchmark(
   Benchmark(
     name = "Pattern Size without Guards",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -222,8 +222,8 @@ def sizeBenchmark(
 def sizeWithNoiseBenchmark(
     matches: Int,
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
 
   val nullPass =
@@ -235,8 +235,8 @@ def sizeWithNoiseBenchmark(
   Benchmark(
     name = "Pattern Size with Noise",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -252,8 +252,8 @@ def sizeWithNoiseBenchmark(
 def runSizeBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -263,7 +263,7 @@ def runSizeBenchmark(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
     val measurement =
-      sizeBenchmark(matches, algorithm, warmupRepititions, repititons).run()
+      sizeBenchmark(matches, algorithm, warmupRepetitions, repetitions).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
@@ -276,8 +276,8 @@ def runSizeBenchmark(
 def runSizeWithNoiseBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -287,7 +287,7 @@ def runSizeWithNoiseBenchmark(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
     val measurement =
-      sizeWithNoiseBenchmark(matches, algorithm, warmupRepititions, repititons)
+      sizeWithNoiseBenchmark(matches, algorithm, warmupRepetitions, repetitions)
         .run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"

@@ -15,10 +15,10 @@ object Main:
   case class Config(
       @arg(short = 'n', doc = "benchmark name")
       benchmarkName: String,
-      @arg(doc = "warmup repititions")
-      warmupRepititions: Int = 2,
-      @arg(doc = "repititions")
-      repititions: Int = 2,
+      @arg(doc = "warmup repetitions")
+      warmupRepetitions: Int = 2,
+      @arg(doc = "repetitions")
+      repetitions: Int = 2,
       @arg(doc = "write to file")
       writeToFile: Flag
   )
@@ -43,8 +43,8 @@ object Main:
       maxRandomMsgs = randomMsgs,
       rndMsgsStep = rndMsgsStep,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   @main
@@ -62,8 +62,8 @@ object Main:
       bufferBound = bufferBound,
       nProdsCons = nProdsCons,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   @main
@@ -75,8 +75,8 @@ object Main:
     runSizeBenchmark(
       matches = matches,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   @main
@@ -88,8 +88,8 @@ object Main:
     runSizeWithGuardsBenchmark(
       matches = matches,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   @main
@@ -101,8 +101,8 @@ object Main:
     runSizeWithNoiseBenchmark(
       matches = matches,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   @main
@@ -114,8 +114,8 @@ object Main:
     runSizeWithGuardsWithNoiseBenchmark(
       matches = matches,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   @main
@@ -127,8 +127,8 @@ object Main:
     runSizeWithGuardsWithNonMatchingPayloadBenchmark(
       matches = matches,
       writeToFile = config.writeToFile.value,
-      warmupRepititions = config.warmupRepititions,
-      repititons = config.repititions
+      warmupRepetitions = config.warmupRepetitions,
+      repetitions = config.repetitions
     )
 
   def main(args: Array[String]): Unit =

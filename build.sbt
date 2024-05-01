@@ -7,9 +7,9 @@ lazy val scalaTestPlusVersion = "3.2.18.0"
 lazy val scalacticVersion     = "3.2.18"
 lazy val scalaLoggingVersion  = "3.9.5"
 lazy val logbackVersion       = "1.4.14"
-lazy val upickleVersion       = "3.2.0"
+lazy val upickleVersion       = "3.3.0"
 lazy val sourcecodeVersion    = "0.3.1"
-lazy val osLibVersion         = "0.9.3"
+lazy val osLibVersion         = "0.10.0"
 lazy val mainargsVersion      = "0.7.0"
 
 lazy val commonSettings = Seq(

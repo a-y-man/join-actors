@@ -180,8 +180,8 @@ def measureBB(bbConfig: BBConfig) =
 def boundedBufferBenchmark(
     bbConfigs: Array[MatchingAlgorithm => BBConfig],
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val warmupConfig =
     BBConfig(
@@ -195,8 +195,8 @@ def boundedBufferBenchmark(
   Benchmark(
     name = "Bounded Buffer",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       s"Null Pass ${algorithm}",
       () => measureBB(warmupConfig)
@@ -214,8 +214,8 @@ def runBBBenchmark(
     bufferBound: Int,
     nProdsCons: Int,
     writeToFile: Boolean,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val bbConfigs =
     Array((1 to nProdsCons).map(n => (bufferBound, n))*).map { case (bufferBound, nProdsCons) =>
@@ -236,7 +236,7 @@ def runBBBenchmark(
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
-    val m = boundedBufferBenchmark(bbConfigs, algorithm, warmupRepititions, repititons).run()
+    val m = boundedBufferBenchmark(bbConfigs, algorithm, warmupRepetitions, repetitions).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )

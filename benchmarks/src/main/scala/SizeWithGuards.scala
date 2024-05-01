@@ -293,8 +293,8 @@ def measureSizeWithGuards(
 def sizeWithGuardsBenchmark(
     matches: Int,
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
 
   val nullPass =
@@ -306,8 +306,8 @@ def sizeWithGuardsBenchmark(
   Benchmark(
     name = "Pattern Size with Guards",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -323,8 +323,8 @@ def sizeWithGuardsBenchmark(
 def sizeWithGuardsWithNoiseBenchmark(
     matches: Int,
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
 
   val nullPass =
@@ -336,8 +336,8 @@ def sizeWithGuardsWithNoiseBenchmark(
   Benchmark(
     name = "Pattern Size with Guards with Noise",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -353,8 +353,8 @@ def sizeWithGuardsWithNoiseBenchmark(
 def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
     matches: Int,
     algorithm: MatchingAlgorithm,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
 
   val nullPass =
@@ -368,8 +368,8 @@ def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
   Benchmark(
     name = "Pattern Size with Guards with Non-matching Payload",
     algorithm = algorithm,
-    warmupRepititions = warmupRepititions,
-    repititons = repititons,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
     nullPass = BenchmarkPass(
       "Null Pass",
       () => nullPass
@@ -385,8 +385,8 @@ def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
 def runSizeWithGuardsBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -396,7 +396,7 @@ def runSizeWithGuardsBenchmark(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
     val measurement =
-      sizeWithGuardsBenchmark(matches, algorithm, warmupRepititions, repititons).run()
+      sizeWithGuardsBenchmark(matches, algorithm, warmupRepetitions, repetitions).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
     )
@@ -409,8 +409,8 @@ def runSizeWithGuardsBenchmark(
 def runSizeWithGuardsWithNoiseBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -420,7 +420,7 @@ def runSizeWithGuardsWithNoiseBenchmark(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
     )
     val measurement =
-      sizeWithGuardsWithNoiseBenchmark(matches, algorithm, warmupRepititions, repititons)
+      sizeWithGuardsWithNoiseBenchmark(matches, algorithm, warmupRepetitions, repetitions)
         .run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
@@ -434,8 +434,8 @@ def runSizeWithGuardsWithNoiseBenchmark(
 def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
-    warmupRepititions: Int = 5,
-    repititons: Int = 10
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -448,8 +448,8 @@ def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
       sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
         matches,
         algorithm,
-        warmupRepititions,
-        repititons
+        warmupRepetitions,
+        repetitions
       )
         .run()
     println(
