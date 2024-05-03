@@ -24,13 +24,16 @@ lazy val commonSettings = Seq(
   libraryDependencies += "org.scalatest"     %% "scalatest-funsuite" % scalaTestVersion % Test
 )
 
-scalacOptions ++= Seq("-deprecation", "-feature", "-Xcheck-macros")
+lazy val commonScalacOptions = Seq("-deprecation", "-feature")
+lazy val commonJavaOptions   = Seq("-J-Xmx16G", "-J-Xms16G")
 
 lazy val core =
   (project in file("core"))
     .settings(
       name := "core",
-      commonSettings
+      commonSettings,
+      scalacOptions ++= commonScalacOptions ++ Seq("Xcheck-macros"),
+      javaOptions ++= commonJavaOptions
     )
 
 lazy val benchmarks =
@@ -38,5 +41,7 @@ lazy val benchmarks =
     .dependsOn(core % "compile->compile;test->test")
     .settings(
       name := "benchmarks",
-      commonSettings
+      commonSettings,
+      scalacOptions ++= commonScalacOptions,
+      javaOptions ++= commonJavaOptions
     )
