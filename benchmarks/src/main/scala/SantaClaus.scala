@@ -2,7 +2,7 @@ package benchmarks
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receiveOld
+import join_patterns.receive
 
 import java.util.concurrent.Executors
 import scala.collection.mutable.ListBuffer
@@ -30,8 +30,8 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
   var actions = 0
 
   val actor = Actor[SAction, (Long, Int)] {
-    receiveOld { (y: SAction, selfRef: SantaClausRef) =>
-      y match
+    receive { (selfRef: SantaClausRef) =>
+      {
         case (
               IsBack(reindeerRef0),
               IsBack(reindeerRef1),
@@ -62,6 +62,7 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
           Continue()
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
+      }
     }(algorithm)
   }
 
@@ -70,26 +71,28 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
 def reindeerActor() =
   var actions = 0
   Actor[SAction, (Long, Int)] {
-    receiveOld { (y: SAction, _: ReindeerRef) =>
-      y match
+    receive { (_: ReindeerRef) =>
+      {
         case CanLeave(_) =>
           actions += 1
           Continue()
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
+      }
     }(MatchingAlgorithm.BruteForceAlgorithm)
   }
 
 def elfActor() =
   var actions = 0
   Actor[SAction, (Long, Int)] {
-    receiveOld { (y: SAction, _: ElfRef) =>
-      y match
+    receive { (_: ElfRef) =>
+      {
         case Helped(santaRef) =>
           actions += 1
           Continue()
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
+      }
     }(MatchingAlgorithm.BruteForceAlgorithm)
   }
 

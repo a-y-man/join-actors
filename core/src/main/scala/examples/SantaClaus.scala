@@ -2,7 +2,7 @@ package join_patterns.examples
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receiveOld
+import join_patterns.receive
 
 import java.util.concurrent.Executors
 import scala.collection.mutable.ListBuffer
@@ -28,8 +28,8 @@ val N_ELVES = 3
 
 def santaClausActor(algorithm: MatchingAlgorithm) =
   val actor = Actor[SAction, Unit] {
-    receiveOld { (y: SAction, selfRef: SantaClausRef) =>
-      y match
+    receive { (selfRef: SantaClausRef) =>
+      {
         case (
               IsBack(reindeerRef0),
               IsBack(reindeerRef1),
@@ -65,30 +65,33 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
           Continue()
         case Rest() =>
           Stop(())
+      }
     }(algorithm)
   }
 
   actor
 
 def reindeerActor() = Actor[SAction, Unit] {
-  receiveOld { (y: SAction, _: ReindeerRef) =>
-    y match
+  receive { (_: ReindeerRef) =>
+    {
       case CanLeave(_) =>
         println(s"${Console.YELLOW}Going on holiday${Console.RESET}")
         Continue()
       case Rest() =>
         Stop(())
+    }
   }(MatchingAlgorithm.BruteForceAlgorithm)
 }
 
 def elfActor() = Actor[SAction, Unit] {
-  receiveOld { (y: SAction, _: ElfRef) =>
-    y match
+  receive { (_: ElfRef) =>
+    {
       case Helped(_) =>
         println(s"${Console.GREEN}Has been helped${Console.RESET}")
         Continue()
       case Rest() =>
         Stop(())
+    }
   }(MatchingAlgorithm.BruteForceAlgorithm)
 }
 

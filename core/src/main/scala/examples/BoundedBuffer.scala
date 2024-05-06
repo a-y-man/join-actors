@@ -3,7 +3,6 @@ package join_patterns.examples
 import actor.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
-import join_patterns.receiveOld
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit

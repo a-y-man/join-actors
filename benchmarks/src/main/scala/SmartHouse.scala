@@ -2,7 +2,7 @@ package benchmarks
 
 import actor.*
 import join_patterns.MatchingAlgorithm
-import join_patterns.receiveOld
+import join_patterns.receive
 import os.*
 
 import java.util.Date
@@ -61,9 +61,9 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
   Actor[Action, (Long, Int)] {
-    receiveOld { (y: Action, selfRef: ActorRef[Action]) =>
-      y match
-        // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
+    receive { (selfRef: ActorRef[Action]) =>
+      // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
+      {
         case (
               Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
               AmbientLight(_: Int, value: Int, alRoom: String, t1: Date),
@@ -113,6 +113,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           Continue()
         case ShutOff() =>
           Stop((System.currentTimeMillis(), actions))
+      }
     }(algorithm)
   }
 

@@ -22,8 +22,8 @@ case class Done(hits: Int)              extends PingPong
 def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
   val pingActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
-      receiveOld { (y: PingPong, pingRef: Pinger) =>
-        y match
+      receive { (pingRef: Pinger) =>
+        {
           case Pong(pongRef, x) =>
             if x < maxHits then
               pongRef ! Ping(pingRef, x + 1)
@@ -34,13 +34,14 @@ def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
               Continue()
           case Done(x) =>
             Stop(x)
+        }
       }(algorithm)
     }
 
   val pongActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
-      receiveOld { (y: PingPong, pongRef: Ponger) =>
-        y match
+      receive { (pongRef: Ponger) =>
+        {
           case Ping(pingRef, x) =>
             if x < maxHits then
               pingRef ! Pong(pongRef, x + 1)
@@ -51,6 +52,7 @@ def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
               Continue()
           case Done(x) =>
             Stop(x)
+        }
       }(algorithm)
     }
 

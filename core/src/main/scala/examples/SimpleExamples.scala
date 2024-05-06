@@ -309,15 +309,15 @@ case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
 //   println("\n======================================================\n\n")
 
-def nwptExample(algorithm: MatchingAlgorithm): Unit =
+def stockTradingExample(algorithm: MatchingAlgorithm): Unit =
 
   sealed trait Message
   case class Buy(bN: String, bID: String, bA: Int)  extends Message
   case class Sell(sN: String, sID: String, sA: Int) extends Message
 
   val tradingSystemActor = Actor[Message, Unit] {
-    receiveOld { (msg: Message, systemActor: ActorRef[Message]) =>
-      msg match
+    receive { (systemActor: ActorRef[Message]) =>
+      {
         case (Buy(bN, bID, bA), Sell(sN, sID, sA)) if sA >= bA =>
           Stop(println(s"${sA} >= ${bA}"))
         case (
@@ -326,6 +326,7 @@ def nwptExample(algorithm: MatchingAlgorithm): Unit =
               Buy(bN, bID, bA)
             ) if (sA1 + sA2) >= bA =>
           Stop(println(s"${sA1} + ${sA2} >= ${bA}"))
+      }
     }(algorithm)
   }
 
