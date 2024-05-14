@@ -14,16 +14,18 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
 
-/* This is a definiton of the messages accepted by the Smart house actor */
-sealed trait Action
-case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())  extends Action
-case class AmbientLight(id: Int, value: Int, room: String, timestamp: Date = Date()) extends Action
-case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Action
-case class Contact(id: Int, open: Boolean, room: String, timestamp: Date = Date())   extends Action
-case class Consumption(meter_id: Int, value: Int, timestamp: Date = Date())          extends Action
-case class HeatingF(id: Int, _type: String, timestamp: Date = Date())                extends Action
-case class DoorBell(id: Int, timestamp: Date = Date())                               extends Action
-case class ShutOff()                                                                 extends Action
+/* This is a definition of the messages accepted by the Smart house actor */
+enum Action:
+  case Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date())
+  case AmbientLight(id: Int, value: Int, room: String, timestamp: Date = Date())
+  case Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())
+  case Contact(id: Int, open: Boolean, room: String, timestamp: Date = Date())
+  case Consumption(meter_id: Int, value: Int, timestamp: Date = Date())
+  case HeatingF(id: Int, _type: String, timestamp: Date = Date())
+  case DoorBell(id: Int, timestamp: Date = Date())
+  case ShutOff()
+
+import Action.*
 
 /*
 This function defines a smart house example using join patterns.

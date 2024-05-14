@@ -67,5 +67,29 @@ object Main:
       chameneosConfig
     )
 
+  @main
+  def smartHouse(
+      @arg(short = 'n', doc = "The number of messages to send")
+      nMessages: Int = 100,
+      @arg(short = 'a', doc = "The join pattern matching algorithm to use")
+      algorithm: MatchingAlgorithm
+  ) =
+    smartHouseExample(
+      algorithm,
+      nMessages
+    )
+
+  @main
+  def santaClaus(
+      @arg(short = 'n', doc = "The number of deliveries to make")
+      nDeliveries: Int = 100,
+      @arg(short = 'a', doc = "The join pattern matching algorithm to use")
+      algorithm: MatchingAlgorithm
+  ) =
+    santaClausExample(
+      algorithm,
+      nDeliveries
+    )
+
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

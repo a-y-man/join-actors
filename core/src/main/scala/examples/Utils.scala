@@ -54,6 +54,7 @@ def intercalateCorrectMsgs[A](
 This object generates random smart house actions.
  */
 object GenerateActions:
+  import Action.*
   // Set seed for the random generator
   Random.setSeed(42)
 
