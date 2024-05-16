@@ -1,6 +1,7 @@
 package benchmarks
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.Gen
@@ -32,7 +33,7 @@ def size1(algorithm: MatchingAlgorithm) =
       {
         case A() =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -47,7 +48,7 @@ def size2(algorithm: MatchingAlgorithm) =
       {
         case (A(), B()) =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -62,7 +63,7 @@ def size3(algorithm: MatchingAlgorithm) =
       {
         case (A(), B(), C()) =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -77,7 +78,7 @@ def size4(algorithm: MatchingAlgorithm) =
       {
         case (A(), B(), C(), D()) =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -92,7 +93,7 @@ def size5(algorithm: MatchingAlgorithm) =
       {
         case (A(), B(), C(), D(), E()) =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -107,7 +108,7 @@ def size6(algorithm: MatchingAlgorithm) =
       {
         case (A(), B(), C(), D(), E(), F()) =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }

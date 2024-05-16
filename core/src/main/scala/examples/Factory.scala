@@ -1,6 +1,7 @@
 package factory
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
@@ -42,7 +43,7 @@ def monitor() = Actor[Event, Unit] {
             && (ts3 - ts1).abs < THIRTY_MIN =>
         self ! Fault(mid3, rid3, ts3) // Re-enqueue latest request
         println(s"Machine ${mid1} broke within 30 minutes after maintenance!")
-        Continue()
+        Continue
 
       // A machine sends a maintenance request that is only taken after a certain
       // maximum time (10 minutes)
@@ -51,21 +52,21 @@ def monitor() = Actor[Event, Unit] {
             && ts2 - ts1 >= TEN_MIN =>
         println(s"Request ${rid1} only taken after ${(ts2 - ts1) / ONE_MIN} minutes!")
         self ! Fault(mid1, rid1, ts1) // Re-enqueue latest request
-        Continue()
+        Continue
       case (Fault(mid1, rid1, ts1), Mark(ts2, used))
           if ts2 - ts1 >= TEN_MIN
             && !used.contains(rid1) =>
         self ! Fault(mid1, rid1, ts1) // Re-enqueue latest request
         self ! Mark(ts2, used + mid1) // Re-enqueue "used" mark for this request
         println(s"Request ${rid1} not taken for ${(ts2 - ts1) / ONE_MIN} minutes!")
-        Continue()
+        Continue
 
       // A maintenance request was taken within ten minutes: all good
       case (Fault(mid1, rid1, ts1), Fix(_, rid2, ts2))
           if rid1 == rid2
             && (ts2 - ts1).abs < TEN_MIN =>
         self ! Fault(mid1, rid1, ts1) // Re-enqueue latest request
-        Continue()                    // Nothing to report
+        Continue                      // Nothing to report
 
       // Get rid of old completed maintenance requests
       case (Fault(mid1, rid1, ts1), RequestCompleted(_, rid2, _), Mark(ts3, used3))
@@ -73,12 +74,12 @@ def monitor() = Actor[Event, Unit] {
             && ts3 - ts1 > THIRTY_MIN =>
         // The event are now useless, we only re-enqueue the mark
         self ! Mark(ts3, used3)
-        Continue()
+        Continue
 
       // Get rid of old marks
       case (Mark(ts1, _), Mark(ts2, used2)) if ts2 - ts1 >= 2 * TEN_MIN =>
         self ! Mark(ts2, used2) // Re-enqueue newest mark only
-        Continue()
+        Continue
 
       // A machine sends 3 maintenance requests within 24 hours. NOTE: this case
       // would (quite likely) never trigger: the cases above would consume some of
@@ -94,7 +95,7 @@ def monitor() = Actor[Event, Unit] {
             && ts1 <= ts2 && ts2 <= ts3
             && ts3 - ts1 < ONE_DAY =>
         println(s"Machine ${mid1} broke 3 times in 24 hours!")
-        Continue()
+        Continue
 
       case Shutdown() =>
         Stop(())

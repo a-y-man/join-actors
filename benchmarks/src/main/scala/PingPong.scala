@@ -1,6 +1,7 @@
 package benchmarks
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
@@ -27,11 +28,11 @@ def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Pong(pongRef, x) =>
             if x < maxHits then
               pongRef ! Ping(pingRef, x + 1)
-              Continue()
+              Continue
             else
               pongRef ! Done(x)
               pingRef ! Done(x)
-              Continue()
+              Continue
           case Done(x) =>
             Stop(x)
         }
@@ -45,11 +46,11 @@ def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Ping(pingRef, x) =>
             if x < maxHits then
               pingRef ! Pong(pongRef, x + 1)
-              Continue()
+              Continue
             else
               pingRef ! Done(x)
               pongRef ! Done(x)
-              Continue()
+              Continue
           case Done(x) =>
             Stop(x)
         }

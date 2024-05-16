@@ -1,6 +1,7 @@
 package join_patterns.examples
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
@@ -64,15 +65,15 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, Long] =
           else bbRef ! Free(c - 1)
           bbRef ! P(x)
           producerRef ! PReply(bbRef)
-          Continue()
+          Continue
         case (Get(consumerRef), P(x), Full()) =>
           bbRef ! Free(1)
           consumerRef ! CReply(bbRef, x)
-          Continue()
+          Continue
         case (Get(consumerRef), P(x), Free(c)) =>
           bbRef ! Free(c + 1)
           consumerRef ! CReply(bbRef, x)
-          Continue()
+          Continue
         case Terminate() =>
           Stop(System.currentTimeMillis())
       }
@@ -90,7 +91,7 @@ def consumer(bbRef: BBRef, maxCount: Int) =
           println(s"Actor: $selfRef -- Received: $x")
           cnt += 1
           bbRef ! Get(selfRef)
-          Continue()
+          Continue
         case Terminate() if cnt == maxCount =>
           Stop(())
       }
@@ -108,7 +109,7 @@ def producer(bbRef: BBRef, maxCount: Int) =
           println(s"Actor: $selfRef -- Sent: $cnt")
           cnt += 1
           bbRef ! Put(selfRef, cnt)
-          Continue()
+          Continue
         case Terminate() if cnt == maxCount =>
           Stop(())
       }

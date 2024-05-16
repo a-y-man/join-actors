@@ -1,5 +1,6 @@
 package join_patterns.examples
 import actor.*
+import actor.Result.*
 import join_patterns.*
 import org.scalacheck.*
 

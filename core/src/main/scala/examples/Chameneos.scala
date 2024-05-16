@@ -1,6 +1,7 @@
 package join_patterns.examples
 
 import actor.*
+import actor.Result.*
 import join_patterns.*
 import org.scalacheck.Gen
 
@@ -52,13 +53,13 @@ def chameneoActor(
       {
         case Start() =>
           mall ! MeetMsg(thisChameneo, color)
-          Continue()
+          Continue
         case MeetMsg(otherChameneo, otherColor) =>
           val newColor = color.complement(otherColor)
           otherChameneo ! MeetMsg(thisChameneo, newColor)
           mall ! MeetMsg(thisChameneo, color)
           mall ! MeetMsg(otherChameneo, otherColor)
-          Continue()
+          Continue
         case Exit() =>
           Stop(())
       }
@@ -77,7 +78,7 @@ def mallActor(maxNumberOfMeetings: Int, algorithm: MatchingAlgorithm) =
           meetings += 1
           if meetings >= maxNumberOfMeetings then mallRef ! Exit()
           println(s"meetings: $meetings")
-          Continue()
+          Continue
         case Exit() if meetings >= maxNumberOfMeetings =>
           Stop(meetings)
       }

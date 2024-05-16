@@ -1,6 +1,7 @@
 package join_patterns.examples
 
 import actor.*
+import actor.Result.*
 import join_patterns.*
 import org.scalacheck.*
 import org.scalatest.run
@@ -27,11 +28,11 @@ def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Pong(pongRef, x) =>
             if x < maxHits then
               pongRef ! Ping(pingRef, x + 1)
-              Continue()
+              Continue
             else
               pongRef ! Done(x)
               pingRef ! Done(x)
-              Continue()
+              Continue
           case Done(x) =>
             Stop(x)
         }
@@ -45,11 +46,11 @@ def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Ping(pingRef, x) =>
             if x < maxHits then
               pingRef ! Pong(pongRef, x + 1)
-              Continue()
+              Continue
             else
               pingRef ! Done(x)
               pongRef ! Done(x)
-              Continue()
+              Continue
           case Done(x) =>
             Stop(x)
         }

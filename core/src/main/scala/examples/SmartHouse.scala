@@ -1,6 +1,7 @@
 package join_patterns.examples
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.*
@@ -84,7 +85,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
           println("Someone entered the bathroom")
-          Continue()
+          Continue
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
@@ -100,7 +101,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
             ) =>
           lastNotification = Date()
           println("Someone arrived home")
-          Continue()
+          Continue
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
               Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
@@ -115,7 +116,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
             ) =>
           lastNotification = Date()
           println("Someone left home")
-          Continue()
+          Continue
 
         case ShutOff() =>
           println("Shutting down the smart house. Bye!")

@@ -1,6 +1,7 @@
 package factory_simpl
 
 import actor.*
+import actor.Result.*
 import join_patterns.receive
 
 // Milliseconds in one minute
@@ -31,7 +32,7 @@ def monitor() = Actor[Event, Unit] {
     {
       case (MaintenanceRequest(_, rid1, _, ts1), RequestTaken(_, rid2, ts2)) if rid1 == rid2 =>
         // updateMaintenanceStats(ts1, ts2)
-        Continue()
+        Continue
 
       case (
             MaintenanceRequest(mid, rid1, reason, ts1),
@@ -43,12 +44,12 @@ def monitor() = Actor[Event, Unit] {
         // updateMaintenanceStats(ts2, ts3)
         println(s"Request ${rid1} ignored for ${(ts2 - ts1) / ONE_MIN} minutes!")
         self ! DelayedMaintenanceRequest(mid, rid1, reason, ts1) // Re-enqueue
-        Continue()
+        Continue
 
       case (DelayedMaintenanceRequest(_, rid1, _, ts1), RequestTaken(_, rid2, ts2))
           if rid1 == rid2 =>
         // updateMaintenanceStats(ts1, ts2)
-        Continue()
+        Continue
 
       // ... more cases omitted ...
 

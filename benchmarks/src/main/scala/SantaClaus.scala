@@ -1,6 +1,7 @@
 package benchmarks
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
@@ -53,13 +54,13 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
           reindeerRef7 ! CanLeave(selfRef)
           reindeerRef8 ! CanLeave(selfRef)
           actions += 1
-          Continue()
+          Continue
         case (NeedHelp(elfRef0), NeedHelp(elfRef1), NeedHelp(elfRef2)) =>
           elfRef0 ! Helped(selfRef)
           elfRef1 ! Helped(selfRef)
           elfRef2 ! Helped(selfRef)
           actions += 1
-          Continue()
+          Continue
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
       }
@@ -75,7 +76,7 @@ def reindeerActor() =
       {
         case CanLeave(_) =>
           actions += 1
-          Continue()
+          Continue
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
       }
@@ -89,7 +90,7 @@ def elfActor() =
       {
         case Helped(santaRef) =>
           actions += 1
-          Continue()
+          Continue
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
       }

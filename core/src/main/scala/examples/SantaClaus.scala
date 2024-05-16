@@ -1,6 +1,7 @@
 package join_patterns.examples
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
@@ -57,12 +58,12 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
             s"${Console.RED}Ho Ho Ho! Let's prepare the sleigh for the reindeers!${Console.RESET}"
           )
           reinDeerRefs.foreach(_ ! CanLeave(selfRef))
-          Continue()
+          Continue
         case (NeedHelp(elfRef0), NeedHelp(elfRef1), NeedHelp(elfRef2)) =>
           println(s"${Console.RED}Ho Ho Ho! Let's help the elves!${Console.RESET}")
           val elfRefs = List(elfRef0, elfRef1, elfRef2)
           elfRefs.foreach(_ ! Helped(selfRef))
-          Continue()
+          Continue
         case Rest() =>
           Stop(())
       }
@@ -76,7 +77,7 @@ def reindeerActor() = Actor[SAction, Unit] {
     {
       case CanLeave(_) =>
         println(s"${Console.YELLOW}Going on holiday${Console.RESET}")
-        Continue()
+        Continue
       case Rest() =>
         Stop(())
     }
@@ -88,7 +89,7 @@ def elfActor() = Actor[SAction, Unit] {
     {
       case Helped(_) =>
         println(s"${Console.GREEN}Has been helped${Console.RESET}")
-        Continue()
+        Continue
       case Rest() =>
         Stop(())
     }

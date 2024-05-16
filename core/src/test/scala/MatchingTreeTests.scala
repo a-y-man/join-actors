@@ -1,6 +1,7 @@
 package test
 
 import actor.*
+import actor.Result.*
 import join_patterns.*
 import org.scalatest.funsuite.AnyFunSuite
 

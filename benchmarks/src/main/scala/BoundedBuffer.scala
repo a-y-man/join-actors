@@ -1,6 +1,7 @@
 package benchmarks
 
 import actor.*
+import actor.Result.*
 import benchmarks.Benchmark
 import benchmarks.BenchmarkPass
 import benchmarks.Measurement
@@ -65,17 +66,17 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
           bbRef ! P(x)
           producerRef ! PReply(bbRef)
           matches += 1
-          Continue()
+          Continue
         case (Get(consumerRef), P(x), Full()) =>
           bbRef ! Free(1)
           consumerRef ! CReply(bbRef, x)
           matches += 1
-          Continue()
+          Continue
         case (Get(consumerRef), P(x), Free(c)) =>
           bbRef ! Free(c + 1)
           consumerRef ! CReply(bbRef, x)
           matches += 1
-          Continue()
+          Continue
         case TerminateActors() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -92,7 +93,7 @@ def consumer(bbRef: BBRef, maxCount: Int) =
         case CReply(bbRef, x) if cnt < maxCount =>
           cnt += 1
           bbRef ! Get(selfRef)
-          Continue()
+          Continue
         case TerminateActors() if cnt == maxCount =>
           Stop(())
       }
@@ -109,7 +110,7 @@ def producer(bbRef: BBRef, maxCount: Int) =
         case PReply(bbRef) if cnt < maxCount =>
           cnt += 1
           bbRef ! Put(selfRef, cnt)
-          Continue()
+          Continue
         case TerminateActors() if cnt == maxCount =>
           Stop(())
       }

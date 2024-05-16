@@ -1,6 +1,7 @@
 package benchmarks
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import os.*
@@ -79,7 +80,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
           actions += 1
-          Continue()
+          Continue
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
@@ -95,7 +96,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
             ) =>
           lastNotification = Date()
           actions += 1
-          Continue()
+          Continue
         case (
               Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
               Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
@@ -110,7 +111,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
             ) =>
           lastNotification = Date()
           actions += 1
-          Continue()
+          Continue
         case ShutOff() =>
           Stop((System.currentTimeMillis(), actions))
       }

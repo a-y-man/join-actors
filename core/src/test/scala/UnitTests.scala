@@ -1,6 +1,7 @@
 package test
 
 import actor.*
+import actor.Result.*
 import join_patterns.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers.*
@@ -342,7 +343,8 @@ class CompositePatterns extends AnyFunSuite:
       val actor = Actor[Msg, String] {
         receive { (_: ActorRef[Msg]) =>
           {
-            case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) => Stop("Hello World")
+            case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) =>
+              Stop("Hello World")
             case (F(i0: Int, s: String), D(), B(i1: Int)) if isEmpty(s) == false =>
               Stop(("Hello " + s).repeat(i0 + i1))
             case B(i: Int) => Stop(rep.toString)
@@ -521,9 +523,9 @@ class CompositePatterns extends AnyFunSuite:
       val actor = Actor[Msg, Int] {
         receive { (_: ActorRef[Msg]) =>
           {
-            case (B(a: Int), B(b: Int), B(c: Int)) if a == 3 && b == 2 && c == 1 => Continue()
-            case (B(a: Int), B(b: Int), B(c: Int)) if a == 6 && b == 5 && c == 4 => Continue()
-            case (B(a: Int), B(b: Int), B(c: Int)) if a == 9 && b == 8 && c == 7 => Continue()
+            case (B(a: Int), B(b: Int), B(c: Int)) if a == 3 && b == 2 && c == 1 => Continue
+            case (B(a: Int), B(b: Int), B(c: Int)) if a == 6 && b == 5 && c == 4 => Continue
+            case (B(a: Int), B(b: Int), B(c: Int)) if a == 9 && b == 8 && c == 7 => Continue
             case (B(a: Int), B(b: Int), B(c: Int)) if a == 12 && b == 11 && c == 10 =>
               Stop(a * b * c)
           }

@@ -1,6 +1,7 @@
 package benchmarks
 
 import actor.*
+import actor.Result.*
 import benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
@@ -33,7 +34,7 @@ def guardedSize1(algorithm: MatchingAlgorithm) =
       {
         case A(x) if x >= 0 =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -48,7 +49,7 @@ def guardedSize2(algorithm: MatchingAlgorithm) =
       {
         case (A(x), B(y)) if x == y =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -63,7 +64,7 @@ def guardedSize3(algorithm: MatchingAlgorithm) =
       {
         case (A(x), B(y), C(z)) if x == y && y == z =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -78,7 +79,7 @@ def guardedSize4(algorithm: MatchingAlgorithm) =
       {
         case (A(x), B(y), C(z), D(w)) if x == y && y == z && z == w =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -93,7 +94,7 @@ def guardedSize5(algorithm: MatchingAlgorithm) =
       {
         case (A(x), B(y), C(z), D(w), E(a)) if x == y && y == z && z == w && w == a =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
@@ -109,7 +110,7 @@ def guardedSize6(algorithm: MatchingAlgorithm) =
         case (A(x), B(y), C(z), D(w), E(a), F(b))
             if x == y && y == z && z == w && w == a && a == b =>
           matches += 1
-          Continue()
+          Continue
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
