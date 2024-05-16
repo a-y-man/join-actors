@@ -1,7 +1,10 @@
 package core
 
 import actor.*
+import actor.Result.*
 import join_patterns.MatchingAlgorithm
+import join_patterns.MatchingAlgorithm.BruteForceAlgorithm
+import join_patterns.MatchingAlgorithm.StatefulTreeBasedAlgorithm
 import join_patterns.examples.*
 import mainargs.Flag
 import mainargs.ParserForClass
@@ -10,18 +13,13 @@ import mainargs.TokensReader
 import mainargs.arg
 import mainargs.main
 
-import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.util.Random
-
 object Main:
   implicit object MatchingAlgorithmParser extends TokensReader.Simple[MatchingAlgorithm]:
     def shortName: String = "algorithm"
     def read(tokens: Seq[String]) =
       tokens.headOption match
-        case Some("brute")    => Right(MatchingAlgorithm.BruteForceAlgorithm)
-        case Some("stateful") => Right(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
+        case Some("brute")    => Right(BruteForceAlgorithm)
+        case Some("stateful") => Right(StatefulTreeBasedAlgorithm)
         case _                => Left("Invalid algorithm")
 
   @main
@@ -89,6 +87,21 @@ object Main:
     santaClausExample(
       algorithm,
       nDeliveries
+    )
+
+  @main
+  def printerSpooler(
+      @arg(short = 'p', doc = "The number of printers")
+      nPrinters: Int = 10,
+      @arg(short = 'j', doc = "The number of jobs")
+      nJobs: Int = 100,
+      @arg(doc = "The join pattern matching algorithm to use")
+      algorithm: MatchingAlgorithm
+  ) =
+    printerSpoolerExample(
+      algorithm,
+      nPrinters,
+      nJobs
     )
 
   def main(args: Array[String]): Unit =
