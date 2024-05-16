@@ -25,7 +25,7 @@ lazy val commonSettings = Seq(
 )
 
 lazy val commonScalacOptions = Seq("-deprecation", "-feature")
-lazy val commonJavaOptions   = Seq("-J-Xmx16G", "-J-Xms16G")
+lazy val commonJavaOptions   = Seq("-Xmx16G", "-Xms16G")
 
 lazy val core =
   (project in file("core"))
