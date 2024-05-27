@@ -25,15 +25,13 @@ lazy val commonSettings = Seq(
 )
 
 lazy val commonScalacOptions = Seq("-deprecation", "-feature")
-lazy val commonJavaOptions   = Seq("-Xmx16G", "-Xms16G")
 
 lazy val core =
   (project in file("core"))
     .settings(
       name := "core",
       commonSettings,
-      scalacOptions ++= commonScalacOptions ++ Seq("Xcheck-macros"),
-      javaOptions ++= commonJavaOptions
+      scalacOptions ++= commonScalacOptions ++ Seq("Xcheck-macros")
     )
 
 lazy val benchmarks =
@@ -42,6 +40,5 @@ lazy val benchmarks =
     .settings(
       name := "benchmarks",
       commonSettings,
-      scalacOptions ++= commonScalacOptions,
-      javaOptions ++= commonJavaOptions
+      scalacOptions ++= commonScalacOptions
     )
