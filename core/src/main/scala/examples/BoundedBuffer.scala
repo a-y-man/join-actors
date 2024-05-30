@@ -88,7 +88,7 @@ def consumer(bbRef: BBRef, maxCount: Int) =
     receive { (selfRef: ConsumerRef) =>
       {
         case CReply(bbRef, x) if cnt < maxCount =>
-          println(s"Actor: $selfRef -- Received: $x")
+          // println(s"Actor: $selfRef -- Received: $x")
           cnt += 1
           bbRef ! Get(selfRef)
           Continue
@@ -106,7 +106,7 @@ def producer(bbRef: BBRef, maxCount: Int) =
     receive { (selfRef: ProducerRef) =>
       {
         case PReply(bbRef) if cnt < maxCount =>
-          println(s"Actor: $selfRef -- Sent: $cnt")
+          // println(s"Actor: $selfRef -- Sent: $cnt")
           cnt += 1
           bbRef ! Put(selfRef, cnt)
           Continue
@@ -127,14 +127,14 @@ def coordinator(
 
   Future {
     for (_, p) <- prods do
-      println(s"Producer: $p")
+      // println(s"Producer: $p")
       bbRef ! Put(p, 0)
       p ! Terminate()
   }
 
   Future {
     for (_, c) <- cons do
-      println(s"Consumer: $c")
+      // println(s"Consumer: $c")
       bbRef ! Get(c)
       c ! Terminate()
   }
@@ -155,12 +155,9 @@ def runBB(bbConfig: BBConfig) =
   def startProds(bbRef: BBRef) =
     (0 until bbConfig.producers).map(_ => producer(bbRef, bbConfig.cnt).start()).toArray
 
-  lazy val cons  = startConsumers(bbRef)
-  lazy val prods = startProds(bbRef)
-
   val startTime = System.currentTimeMillis()
 
-  coordinator(bbRef, prods, cons)
+  coordinator(bbRef, startProds(bbRef), startConsumers(bbRef))
 
   val endTime = Await.result(bbFut, Duration.Inf)
 
