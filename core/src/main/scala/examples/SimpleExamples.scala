@@ -344,3 +344,20 @@ def stockTradingExample(algorithm: MatchingAlgorithm): Unit =
   result.onComplete(printResult)
 
   println("\n======================================================\n\n")
+
+def simpleBB(algorithm: MatchingAlgorithm): Unit =
+  enum SBBMsg:
+    case Put(x: Int)
+    case Get()
+
+  import SBBMsg.*
+
+  type SBBRef = ActorRef[SBBMsg]
+
+  val sbbActor = Actor[SBBMsg, Int] {
+    receive { (self: SBBRef) =>
+      { case (Put(x), Get()) =>
+        Stop(x)
+      }
+    }(algorithm)
+  }

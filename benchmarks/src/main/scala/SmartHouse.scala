@@ -168,6 +168,26 @@ def measureSmartHouse(
     Measurement(endTime - startTime, matches)
   }
 
+def measureSmartHouseV2(
+    msgs: Vector[Action],
+    algorithm: MatchingAlgorithm
+): Future[Measurement] =
+  val actor = smartHouseExample(algorithm)
+
+  val (result, actorRef) = actor.start()
+
+  Future {
+    val startTime = System.currentTimeMillis()
+
+    msgs.foreach(actorRef ! _)
+
+    actorRef ! ShutOff()
+
+    val (endTime, matches) = Await.result(result, Duration.Inf)
+
+    Measurement(endTime - startTime, matches)
+  }
+
 def smartHouseBenchmark(
     smartHouseActions: Int,
     rangeOfRandomMsgs: Vector[(Vector[Action], Int)],
@@ -194,6 +214,30 @@ def smartHouseBenchmark(
     }
   )
 
+def smartHouseBenchmarkV2(
+    rangeOfRandomMsgs: Vector[(Vector[Action], Int)],
+    algorithm: MatchingAlgorithm,
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
+) =
+
+  val nullPassMsgs = smartHouseMsgs(5)(GenerateActions.genActionsOfSizeN)
+  Benchmark(
+    name = "SmartHouse",
+    algorithm = algorithm,
+    warmupRepetitions = warmupRepetitions,
+    repetitions = repetitions,
+    nullPass = BenchmarkPass(
+      s"Null Pass ${algorithm}",
+      () => measureSmartHouseV2(nullPassMsgs, algorithm)
+    ),
+    passes = rangeOfRandomMsgs map { case (msgs, n) =>
+      BenchmarkPass(
+        s"Processing $n number of random messages per match.",
+        () => measureSmartHouseV2(msgs, algorithm)
+      )
+    }
+  )
 def runSmartHouseBenchmark(
     smartHouseActions: Int,
     maxRandomMsgs: Int,
@@ -229,3 +273,49 @@ def runSmartHouseBenchmark(
   }
 
   if writeToFile then saveToFile("SmartHouse", measurements)
+
+def runSmartHouseBenchmarkV2(
+    smartHouseActions: Int,
+    maxRandomMsgs: Int,
+    rndMsgsStep: Int,
+    writeToFile: Boolean = false,
+    warmupRepetitions: Int = 5,
+    repetitions: Int = 10
+) =
+  val algorithms: List[MatchingAlgorithm] =
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+
+  val rangeOfRandomMsgs =
+    Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
+      val allMsgsForNRndMsgs =
+        Vector.fill(smartHouseActions)(smartHouseMsgs(n)(GenerateActions.genActionsOfSizeN))
+
+      // println(s"allMsgsForNRndMsgs: ${allMsgsForNRndMsgs.size}")
+      (allMsgsForNRndMsgs.flatten, n)
+    }
+
+  // rangeOfRandomMsgs foreach { case (msgs, n) =>
+  //   println(s"${msgs.size} --- $n ${msgs.map(_.size)}")
+  //   println("-----------------------------")
+  // }
+  val measurements = algorithms map { algorithm =>
+    println(
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+    )
+    val m = smartHouseBenchmarkV2(
+      rangeOfRandomMsgs,
+      algorithm,
+      warmupRepetitions,
+      repetitions
+    ).run()
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+    )
+
+    (algorithm, m)
+  }
+
+  if writeToFile then saveToFile("SmartHouse", measurements)
+
+object TestRun extends App:
+  runSmartHouseBenchmarkV2(10, 32, 4, writeToFile = true, warmupRepetitions = 2, repetitions = 5)

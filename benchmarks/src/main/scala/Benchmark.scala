@@ -123,9 +123,7 @@ def toFile(
   import java.text.SimpleDateFormat
   import os.*
 
-  val data = os.pwd / "benchmarks" / "data"
-
-  // val data       = os.home / "Documents" / "JoinPatterns" / "experiment_results" / "data"
+  val data       = os.pwd / "benchmarks" / "data"
   val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
   val folderFile = data / s"${timestamp}_${benchmarkName}"
   os.makeDir.all(folderFile)

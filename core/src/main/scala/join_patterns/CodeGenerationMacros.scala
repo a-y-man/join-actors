@@ -584,7 +584,11 @@ private def getJoinDefinition_[M, T](
           body.head match
             case DefDef(_, _, _, Some(Match(_, cases))) =>
               val selfRef = params.head.name
-              cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
+              val jps     = cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
+              // jps foreach { jp =>
+              //   report.info(s"JP: ${jp.asTerm.show(using Printer.TreeShortCode)}")
+              // }
+              jps
         case default =>
           errorTree("Unsupported code", default)
           List()

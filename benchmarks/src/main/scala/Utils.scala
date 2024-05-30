@@ -60,10 +60,23 @@ object GenerateActions:
     for i <- Gen.choose(0, 100)
     yield DoorBell(i).asInstanceOf[Action]
 
+  private val favorableActionFreqs =
+    List(
+      (2, genMotion),
+      (2, genAmbientLight),
+      (2, genLight),
+      (2, genContact),
+      (1, genConsumption),
+      (1, genHeatingF),
+      (1, genDoorBell)
+    )
+
   def genActionsOfSizeN(n: Int): Vector[Action] =
     val pickAction =
       Gen.oneOf(genMotion, genAmbientLight, genLight, genContact, genConsumption, genHeatingF)
     Gen.containerOfN[Vector, Action](n, pickAction).sample.get
+
+  // def genMsgsWithVariedRandomness(patSize: Int)(generator: Int => Vector[Action])(nMatches: Int) =
 
 object GenerateGuardedSizeMsgs:
   import GuardedSizeMsg.*
