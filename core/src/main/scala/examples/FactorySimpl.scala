@@ -1,60 +1,105 @@
-package factory_simpl
+package join_patterns.examples.factory_simpl
 
 import actor.*
 import actor.Result.*
+import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
 // Milliseconds in one minute
 private val ONE_MIN    = 1000 * 60
 private val ONE_DAY    = ONE_MIN * 60 * 24
 private val TEN_MIN    = ONE_MIN * 10
+private val QUARTER_HR = ONE_MIN * 15
 private val THIRTY_MIN = ONE_MIN * 30
 
 enum MachineEvent:
-  case MaintenanceRequest(machineId: Int, reqId: Int, reason: String, ts: Long)
-  // ...
+  case Fault(faultID: Int, ts: Long)
 
 enum WorkerEvent:
-  case RequestTaken(workerId: Int, reqId: Int, ts: Long)
-  // ...
+  case Fix(faultID: Int, ts: Long)
 
 enum SystemEvent:
-  case DelayedMaintenanceRequest(machineId: Int, reqId: Int, reason: String, ts: Long)
-  // ...
+  case DelayedFault(faultID: Int, ts: Long)
   case Shutdown()
 
 type Event = MachineEvent | WorkerEvent | SystemEvent
 
-def monitor() = Actor[Event, Unit] {
-  import MachineEvent.*, WorkerEvent.*, SystemEvent.*
+import MachineEvent.*, WorkerEvent.*, SystemEvent.*
 
-  receive { (self: ActorRef[Event]) =>
-    {
-      case (MaintenanceRequest(_, rid1, _, ts1), RequestTaken(_, rid2, ts2)) if rid1 == rid2 =>
-        // updateMaintenanceStats(ts1, ts2)
-        Continue
 
-      case (
-            MaintenanceRequest(mid, rid1, reason, ts1),
-            MaintenanceRequest(_, rid2, _, ts2),
-            RequestTaken(wid, rid3, ts3)
+def monitor(algorithm: MatchingAlgorithm) = 
+  Actor[Event, Unit] {
+    receive { (self: ActorRef[Event]) =>
+      {
+        case (Fault(fid1, ts1), Fix(fid2, ts2)) if fid1 == fid2 =>
+          println(
+            s"========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 01${Console.RESET} =========================\n"
           )
-          if rid2 == rid3
-            && ts2 > ts1 + TEN_MIN =>
-        // updateMaintenanceStats(ts2, ts3)
-        println(s"Request ${rid1} ignored for ${(ts2 - ts1) / ONE_MIN} minutes!")
-        self ! DelayedMaintenanceRequest(mid, rid1, reason, ts1) // Re-enqueue
-        Continue
+          println(
+            s"${Console.BLUE}${Console.UNDERLINED}Matched messages: Fault(fid = $fid1, ...), Fix(fid = $fid2, ...)${Console.RESET}\n"
+          )
+          println(
+            s"${Console.GREEN}${Console.UNDERLINED}Fault(fid = $fid1) completed in ${(ts2 - ts1) / ONE_MIN} minutes!${Console.RESET}"
+          )
+          println(
+            s"\n========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 01${Console.RESET} ========================="
+          )
+          Continue
 
-      case (DelayedMaintenanceRequest(_, rid1, _, ts1), RequestTaken(_, rid2, ts2))
-          if rid1 == rid2 =>
-        // updateMaintenanceStats(ts1, ts2)
-        Continue
+        case (Fault(fid1, ts1), Fault(fid2, ts2), Fix(fid3, ts3))
+            if fid2 == fid3 && ts2 > ts1 + TEN_MIN =>
+          println(
+            s"========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 02${Console.RESET} =========================\n"
+          )
+          println(
+            s"${Console.BLUE}${Console.UNDERLINED}Matched messages: Fault(fid = $fid1, ...), Fault(fid = $fid2, ...), Fix(fid = $fid3, ...)${Console.RESET}\n"
+          )
+          println(
+            s"${Console.GREEN}${Console.UNDERLINED}Fault(fid = $fid1, ...) ignored for ${(ts2 - ts1) / ONE_MIN} minutes!${Console.RESET}"
+          )
+          println(
+            s"\n========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 02${Console.RESET} ========================="
+          )
+          self ! DelayedFault(fid1, ts1) // Re-enqueue
+          Continue
 
-      // ... more cases omitted ...
+        case (DelayedFault(fid1, ts1), Fix(fid2, ts2)) if fid1 == fid2 =>
+          println(
+            s"========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 03${Console.RESET} =========================\n"
+          )
+          println(
+            s"${Console.BLUE}${Console.UNDERLINED}Matched messages: DelayedFault(fid = $fid1, ...), Fix(fid = $fid2, ...)${Console.RESET}\n"
+          )
+          println(
+            s"${Console.GREEN}${Console.UNDERLINED}Delayed Fault(fid = $fid1, ...) completed in ${(ts2 - ts1) / ONE_MIN} minutes!${Console.RESET}"
+          )
+          println(
+            s"\n========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 03${Console.RESET} ========================="
+          )
+          Continue
 
-      case Shutdown() =>
-        Stop(())
-    }
-  }(join_patterns.MatchingAlgorithm.StatefulTreeBasedAlgorithm)
-}
+        case Shutdown() => Stop(())
+      }
+    }(algorithm)
+  }
+
+object RunMonitor extends App:
+  val events = List(
+    // Fault(1, ONE_MIN),
+    // Fault(2, ONE_MIN * 5),
+    Fault(3, ONE_MIN * 25),
+    Fix(3, THIRTY_MIN)
+  )
+
+  val algorithm = MatchingAlgorithm.BruteForceAlgorithm
+
+  val (monitorFut, monitorRef) = monitor(algorithm).start()
+
+  events foreach (msg => monitorRef ! msg)
+
+  monitorRef ! Shutdown()
+
+  import scala.concurrent.Await
+  import scala.concurrent.duration.Duration
+
+  Await.ready(monitorFut, Duration(15, "m"))
