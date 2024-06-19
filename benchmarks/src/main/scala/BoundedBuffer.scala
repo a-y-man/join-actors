@@ -7,6 +7,7 @@ import benchmarks.BenchmarkPass
 import benchmarks.Measurement
 import benchmarks.saveToFile
 import join_patterns.MatchingAlgorithm
+import join_patterns.examples.RunBoundedBuffer.bbConfig
 import join_patterns.receive
 
 import java.util.concurrent.Executors
@@ -14,37 +15,34 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
 
 // Termination message to stop the actors
 case class TerminateActors()
 
+type BufferType = String
+
 // Bounded buffer events
 enum BoundedBuffer:
-  case Put(ref: ProducerRef, x: Int)
-  case Get(ref: ConsumerRef)
+  case Put(ref: ProducerSyncReply, x: BufferType)
+  case Get(ref: ConsumerReply)
 
 // Internal events
 enum InternalEvent:
-  case P(x: Int)
+  case P(x: BufferType)
   case Free(x: Int)
   case Full()
 
 // Response to Get event
-enum ConsumerEvent:
-  case CReply(bbRef: BBRef, x: Int)
+type ConsumerReply = Promise[BufferType]
 
 // Response to Put event
-enum ProducerEvent:
-  case PReply(bbRef: BBRef)
+type ProducerSyncReply = Promise[Unit]
 
-type CEvent  = ConsumerEvent | TerminateActors
-type PEvent  = ProducerEvent | TerminateActors
-type BBEvent = BoundedBuffer | InternalEvent | ConsumerEvent | TerminateActors
+type BBEvent = BoundedBuffer | InternalEvent | ConsumerReply | TerminateActors
 
-type ProducerRef = ActorRef[ProducerEvent | TerminateActors]
-type ConsumerRef = ActorRef[ConsumerEvent | TerminateActors]
-type BBRef       = ActorRef[BBEvent]
+type BBRef = ActorRef[BBEvent]
 
 case class BBConfig(
     val bufferBound: Int,
@@ -55,7 +53,7 @@ case class BBConfig(
 )
 
 def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
-  import BoundedBuffer.*, InternalEvent.*, ConsumerEvent.*, ProducerEvent.*
+  import BoundedBuffer.*, InternalEvent.*
   var matches = 0
   Actor[BBEvent, (Long, Int)] {
     receive { (bbRef: BBRef) =>
@@ -64,17 +62,16 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
           if c == 1 then bbRef ! Full()
           else bbRef ! Free(c - 1)
           bbRef ! P(x)
-          producerRef ! PReply(bbRef)
-          matches += 1
+          producerRef.success(())
           Continue
         case (Get(consumerRef), P(x), Full()) =>
           bbRef ! Free(1)
-          consumerRef ! CReply(bbRef, x)
+          consumerRef.success(x)
           matches += 1
           Continue
         case (Get(consumerRef), P(x), Free(c)) =>
           bbRef ! Free(c + 1)
-          consumerRef ! CReply(bbRef, x)
+          consumerRef.success(x)
           matches += 1
           Continue
         case TerminateActors() =>
@@ -83,82 +80,46 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
     }(algorithm)
   }
 
-def consumer(bbRef: BBRef, maxCount: Int) =
-  import BoundedBuffer.*, ConsumerEvent.*
-
-  var cnt = 0
-  Actor[CEvent, Unit] {
-    receive { (selfRef: ConsumerRef) =>
-      {
-        case CReply(bbRef, x) if cnt < maxCount =>
-          cnt += 1
-          bbRef ! Get(selfRef)
-          Continue
-        case TerminateActors() if cnt == maxCount =>
-          Stop(())
-      }
-    }(MatchingAlgorithm.BruteForceAlgorithm)
-  }
-
-def producer(bbRef: BBRef, maxCount: Int) =
-  import BoundedBuffer.*, ProducerEvent.*
-
-  var cnt = 0
-  Actor[PEvent, Unit] {
-    receive { (selfRef: ProducerRef) =>
-      {
-        case PReply(bbRef) if cnt < maxCount =>
-          cnt += 1
-          bbRef ! Put(selfRef, cnt)
-          Continue
-        case TerminateActors() if cnt == maxCount =>
-          Stop(())
-      }
-    }(MatchingAlgorithm.BruteForceAlgorithm)
-  }
-
 def coordinator(
     bbRef: BBRef,
-    prods: Array[(Future[Unit], ActorRef[PEvent])],
-    cons: Array[(Future[Unit], ActorRef[CEvent])]
+    bbConfig: BBConfig
 ) =
-  import BoundedBuffer.*, ConsumerEvent.*, ProducerEvent.*
+  import BoundedBuffer.*
 
-  val prodsAndConsFut = Future.sequence(prods.map(_._1) ++ cons.map(_._1))
+  val msg = "hello"
 
-  val startTime = System.currentTimeMillis()
+  def producer() =
+    Future {
+      for i <- 0 until bbConfig.cnt do
+        val prodPromise: ProducerSyncReply = Promise[Unit]()
+        val prodFut                        = prodPromise.future
+        bbRef ! Put(prodPromise, msg)
+        Await.ready(prodFut, Duration(10, TimeUnit.MINUTES))
+    }
 
-  Future {
-    for (_, p) <- prods do
-      bbRef ! Put(p, 0) // initial Put event to start the producer
+  def consumer() =
+    Future {
+      for _ <- 0 until bbConfig.cnt do
+        val consPromise: ConsumerReply = Promise[BufferType]()
+        val consFut                    = consPromise.future
+        bbRef ! Get(consPromise)
+        Await.ready(consFut, Duration(10, TimeUnit.MINUTES))
+    }
 
-      // This will only be consumed when the actor has
-      // reached a maximum count of pre-configured value
-      p ! TerminateActors()
-  }
+  // Create and start consumers
+  val consumers = Future.sequence((0 until bbConfig.consumers).map(_ => consumer()))
 
-  Future {
-    for (_, c) <- cons do
-      bbRef ! Get(c) // initial Get event to start the consumer
+  // Create and start producers
+  val producers = Future.sequence((0 until bbConfig.producers).map(_ => producer()))
 
-      // This will only be consumed when the actor has
-      // reached a maximum count of pre-configured value
-      c ! TerminateActors()
-  }
+  Await.ready(Future.sequence(Seq(consumers, producers)), Duration(10, TimeUnit.MINUTES))
 
-  // Wait for all producers and consumers to finish
-  Await.ready(prodsAndConsFut, Duration(90, TimeUnit.MINUTES))
+  bbRef ! TerminateActors()
 
 def measureBB(bbConfig: BBConfig) =
-  import BoundedBuffer.*, InternalEvent.*, ConsumerEvent.*, ProducerEvent.*
+  import BoundedBuffer.*, InternalEvent.*
   val bb             = boundedBuffer(bbConfig.algorithm)
   val (bbFut, bbRef) = bb.start()
-
-  def startConsumers(bbRef: BBRef) =
-    (1 to bbConfig.consumers).map(_ => consumer(bbRef, bbConfig.cnt).start()).toArray
-
-  def startProds(bbRef: BBRef) =
-    (1 to bbConfig.producers).map(_ => producer(bbRef, bbConfig.cnt).start()).toArray
 
   Future {
     val startTime = System.currentTimeMillis()
@@ -166,14 +127,13 @@ def measureBB(bbConfig: BBConfig) =
     bbRef ! Free(bbConfig.bufferBound)
     coordinator(
       bbRef,
-      startProds(bbRef),
-      startConsumers(bbRef)
+      bbConfig
     ) // This blocks until all producers and consumers are done
 
     // Terminate the bounded buffer actor
     bbRef ! TerminateActors()
 
-    val (endTime, finalMatchCount) = Await.result(bbFut, Duration.Inf)
+    val (endTime, finalMatchCount) = Await.result(bbFut, Duration(10, TimeUnit.MINUTES))
 
     Measurement(endTime - startTime, finalMatchCount)
   }

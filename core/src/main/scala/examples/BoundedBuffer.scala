@@ -10,42 +10,34 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
-
-implicit val ec: ExecutionContext =
-  ExecutionContext.fromExecutorService(
-    Executors.newVirtualThreadPerTaskExecutor()
-  )
 
 // Termination message to stop the actors
 case class Terminate()
 
+type BufferType = String
+
 // Bounded buffer events
 enum BoundedBuffer:
-  case Put(ref: ProducerRef, x: Int)
-  case Get(ref: ConsumerRef)
+  case Put(ref: ProducerSyncReply, x: BufferType)
+  case Get(ref: ConsumerReply)
 
 // Internal events
 enum InternalEvent:
-  case P(x: Int)
+  case P(x: BufferType)
   case Free(x: Int)
   case Full()
 
 // Response to Get event
-enum ConsumerEvent:
-  case CReply(bbRef: BBRef, x: Int)
+type ConsumerReply = Promise[BufferType]
 
 // Response to Put event
-enum ProducerEvent:
-  case PReply(bbRef: BBRef)
+type ProducerSyncReply = Promise[Unit]
 
-type CEvent  = ConsumerEvent | Terminate
-type PEvent  = ProducerEvent | Terminate
-type BBEvent = BoundedBuffer | InternalEvent | ConsumerEvent | Terminate
+type BBEvent = BoundedBuffer | InternalEvent | ConsumerReply | Terminate
 
-type ProducerRef = ActorRef[ProducerEvent | Terminate]
-type ConsumerRef = ActorRef[ConsumerEvent | Terminate]
-type BBRef       = ActorRef[BBEvent]
+type BBRef = ActorRef[BBEvent]
 
 case class BBConfig(
     val bufferBound: Int,
@@ -56,7 +48,10 @@ case class BBConfig(
 )
 
 def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, Long] =
-  import BoundedBuffer.*, InternalEvent.*, ConsumerEvent.*, ProducerEvent.*
+  import BoundedBuffer.*, InternalEvent.*
+  var matches = 0
+  var puts    = 0
+  var gets    = 0
   Actor[BBEvent, Long] {
     receive { (bbRef: BBRef) =>
       {
@@ -64,101 +59,89 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, Long] =
           if c == 1 then bbRef ! Full()
           else bbRef ! Free(c - 1)
           bbRef ! P(x)
-          producerRef ! PReply(bbRef)
+          producerRef.success(())
+          puts += 1
           Continue
         case (Get(consumerRef), P(x), Full()) =>
           bbRef ! Free(1)
-          consumerRef ! CReply(bbRef, x)
+          consumerRef.success(x)
+          gets += 1
+          matches += 1
           Continue
         case (Get(consumerRef), P(x), Free(c)) =>
           bbRef ! Free(c + 1)
-          consumerRef ! CReply(bbRef, x)
+          consumerRef.success(x)
+          gets += 1
+          matches += 1
           Continue
         case Terminate() =>
+          // println(s"Matches: $matches, Puts: $puts, Gets: $gets")
           Stop(System.currentTimeMillis())
       }
     }(algorithm)
   }
 
-def consumer(bbRef: BBRef, maxCount: Int) =
-  import BoundedBuffer.*, ConsumerEvent.*
-
-  var cnt = 0
-  Actor[CEvent, Unit] {
-    receive { (selfRef: ConsumerRef) =>
-      {
-        case CReply(bbRef, x) if cnt < maxCount =>
-          // println(s"Actor: $selfRef -- Received: $x")
-          cnt += 1
-          bbRef ! Get(selfRef)
-          Continue
-        case Terminate() if cnt == maxCount =>
-          Stop(())
-      }
-    }(MatchingAlgorithm.BruteForceAlgorithm)
-  }
-
-def producer(bbRef: BBRef, maxCount: Int) =
-  import BoundedBuffer.*, ProducerEvent.*
-
-  var cnt = 0
-  Actor[PEvent, Unit] {
-    receive { (selfRef: ProducerRef) =>
-      {
-        case PReply(bbRef) if cnt < maxCount =>
-          // println(s"Actor: $selfRef -- Sent: $cnt")
-          cnt += 1
-          bbRef ! Put(selfRef, cnt)
-          Continue
-        case Terminate() if cnt == maxCount =>
-          Stop(())
-      }
-    }(MatchingAlgorithm.BruteForceAlgorithm)
-  }
-
 def coordinator(
     bbRef: BBRef,
-    prods: Array[(Future[Unit], ActorRef[PEvent])],
-    cons: Array[(Future[Unit], ActorRef[CEvent])]
+    bbConfig: BBConfig
 ) =
-  import BoundedBuffer.*, ConsumerEvent.*, ProducerEvent.*
+  import BoundedBuffer.*
 
-  val prodsAndConsFut = Future.sequence(prods.map(_._1) ++ cons.map(_._1))
+  val msg = "hello"
 
-  Future {
-    for (_, p) <- prods do
-      // println(s"Producer: $p")
-      bbRef ! Put(p, 0)
-      p ! Terminate()
-  }
+  def producer() =
+    Future {
+      for i <- 0 until bbConfig.cnt do
+        val prodPromise: ProducerSyncReply = Promise[Unit]()
+        val prodFut                        = prodPromise.future
+        bbRef ! Put(prodPromise, msg)
+        Await.ready(prodFut, Duration(10, TimeUnit.SECONDS))
+    }
 
-  Future {
-    for (_, c) <- cons do
-      // println(s"Consumer: $c")
-      bbRef ! Get(c)
-      c ! Terminate()
-  }
+  def consumer() =
+    Future {
+      for _ <- 0 until bbConfig.cnt do
+        val consPromise: ConsumerReply = Promise[BufferType]()
+        val consFut                    = consPromise.future
+        bbRef ! Get(consPromise)
+        val got = Await.result(consFut, Duration(10, TimeUnit.SECONDS))
+        // println(s"Got: $got")
+    }
 
-  Await.ready(prodsAndConsFut, Duration(90, TimeUnit.MINUTES))
+  // Create and start consumers
+  val consumers = Future.sequence((0 until bbConfig.consumers).map(_ => consumer()))
+
+  // Create and start producers
+  val producers = Future.sequence((0 until bbConfig.producers).map(_ => producer()))
+
+  Await.ready(Future.sequence(Seq(consumers, producers)), Duration(10, TimeUnit.SECONDS))
+
   bbRef ! Terminate()
 
 def runBB(bbConfig: BBConfig) =
-  import BoundedBuffer.*, InternalEvent.*, ConsumerEvent.*, ProducerEvent.*
+  import BoundedBuffer.*, InternalEvent.*
   val bb = boundedBuffer(bbConfig.algorithm)
 
   val (bbFut, bbRef) = bb.start()
   bbRef ! Free(bbConfig.bufferBound)
 
-  def startConsumers(bbRef: BBRef) =
-    (0 until bbConfig.consumers).map(_ => consumer(bbRef, bbConfig.cnt).start()).toArray
-
-  def startProds(bbRef: BBRef) =
-    (0 until bbConfig.producers).map(_ => producer(bbRef, bbConfig.cnt).start()).toArray
-
   val startTime = System.currentTimeMillis()
 
-  coordinator(bbRef, startProds(bbRef), startConsumers(bbRef))
+  coordinator(bbRef, bbConfig)
 
   val endTime = Await.result(bbFut, Duration.Inf)
 
   println(s"${bbConfig.algorithm}: ${endTime - startTime} ms")
+
+object RunBoundedBuffer extends App:
+  val bbConfig = BBConfig(
+    bufferBound = 100,
+    producers = 8,
+    consumers = 8,
+    cnt = 10,
+    algorithm = MatchingAlgorithm.BruteForceAlgorithm
+  )
+
+  for _ <- 1 to 10 do
+    runBB(bbConfig.copy(algorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm))
+    runBB(bbConfig)
