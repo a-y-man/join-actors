@@ -201,6 +201,11 @@ trait Matcher[M, T]:
   def removeProcessedMsgs(messages: ArrayBuffer[(M, Int)], processedMsgs: MessageIdxs) =
     messages.filterNot((_, idx) => processedMsgs.contains(idx))
 
+  def appendToFile(filename: String, content: String): Unit =
+    val fileFolder = os.pwd / "core" / "logs"
+    os.makeDir.all(fileFolder)
+    os.write.append(fileFolder / filename, content)
+
 object SelectMatcher:
   import MatchingAlgorithm.*
   def apply[M, T](algorithm: MatchingAlgorithm, patterns: List[JoinPattern[M, T]]): Matcher[M, T] =

@@ -1,7 +1,39 @@
 package benchmarks
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonObject
 import org.scalacheck.*
 
 import scala.util.*
+
+object ActionToJsonFormatter:
+  val gson = GsonBuilder().setDateFormat("MMM dd, yyyy, hh:mm:ss a").setPrettyPrinting().create()
+
+  def toJson(obj: Any): String =
+    assert(obj != null, "Object to be converted to JSON cannot be null")
+
+    val jsonObj: JsonObject = JsonObject()
+
+    jsonObj.addProperty("type", obj.getClass.getSimpleName)
+    jsonObj.add("data", gson.toJsonTree(obj))
+    gson.toJson(jsonObj)
+
+  def fromJson[T](json: String, typeOfT: T): Any =
+    assert(json != null, "JSON string cannot be null")
+
+    val jsonObj = gson.fromJson(json, classOf[JsonObject])
+    gson.fromJson(jsonObj.get("data"), typeOfT.getClass)
+
+// object DataRowJsonFormatter:
+//   val gson = GsonBuilder().setPrettyPrinting().create()
+
+//   def toJson(obj: Any): String =
+//     assert(obj != null, "Object to be converted to JSON cannot be null")
+
+//     val jsonObj: JsonObject = JsonObject()
+
+//     jsonObj.addProperty("number_of_messages", classOf[Int])
+//     jsonObj.addProperty("number_of_random_messages", classOf[Int])
 
 def intercalateCorrectMsgs[A](
     correctMsgs: Vector[A],
@@ -186,3 +218,6 @@ object GenerateGuardedSizeMsgs:
 
 def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int) =
   Vector.fill(nMatches)(generator(patSize)).flatten
+
+object CreateJsonFromAction:
+  import upickle.default.*

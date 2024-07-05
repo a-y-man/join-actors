@@ -13,15 +13,16 @@ lazy val osLibVersion         = "0.10.0"
 lazy val mainargsVersion      = "0.7.0"
 
 lazy val commonSettings = Seq(
-  libraryDependencies += "com.lihaoyi"       %% "upickle"            % upickleVersion,
-  libraryDependencies += "com.lihaoyi"       %% "sourcecode"         % sourcecodeVersion,
-  libraryDependencies += "com.lihaoyi"       %% "os-lib"             % osLibVersion,
-  libraryDependencies += "com.lihaoyi"       %% "mainargs"           % mainargsVersion,
-  libraryDependencies += "org.scalacheck"    %% "scalacheck"         % scalaCheckVersion,
-  libraryDependencies += "org.scalactic"     %% "scalactic"          % scalacticVersion,
-  libraryDependencies += "org.scalatestplus" %% "scalacheck-1-17"    % scalaTestPlusVersion,
-  libraryDependencies += "org.scalatest"     %% "scalatest"          % scalaTestVersion % Test,
-  libraryDependencies += "org.scalatest"     %% "scalatest-funsuite" % scalaTestVersion % Test
+  libraryDependencies += "com.lihaoyi"         %% "upickle"            % upickleVersion,
+  libraryDependencies += "com.lihaoyi"         %% "sourcecode"         % sourcecodeVersion,
+  libraryDependencies += "com.lihaoyi"         %% "os-lib"             % osLibVersion,
+  libraryDependencies += "com.lihaoyi"         %% "mainargs"           % mainargsVersion,
+  libraryDependencies += "org.scalacheck"      %% "scalacheck"         % scalaCheckVersion,
+  libraryDependencies += "org.scalactic"       %% "scalactic"          % scalacticVersion,
+  libraryDependencies += "org.scalatestplus"   %% "scalacheck-1-17"    % scalaTestPlusVersion,
+  libraryDependencies += "com.google.code.gson" % "gson"               % "2.11.0",
+  libraryDependencies += "org.scalatest"       %% "scalatest"          % scalaTestVersion % Test,
+  libraryDependencies += "org.scalatest"       %% "scalatest-funsuite" % scalaTestVersion % Test
 )
 
 lazy val commonScalacOptions = Seq("-deprecation", "-feature")

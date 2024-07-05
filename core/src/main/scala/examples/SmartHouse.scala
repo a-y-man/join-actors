@@ -5,6 +5,7 @@ import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.*
+import org.scalatest.run
 
 import java.util.Date
 import scala.collection.mutable.ListBuffer
@@ -31,7 +32,7 @@ import Action.*
 /*
 This function defines a smart house example using join patterns.
  */
-def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
+def smartHouseExample(algorithm: MatchingAlgorithm) =
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
   def isSorted: Seq[Date] => Boolean = times =>
@@ -67,7 +68,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
       _ == true
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
-  val smartHouseActor = Actor[Action, Unit] {
+  Actor[Action, Unit] {
     receive { (selfRef: ActorRef[Action]) =>
       { // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case (
@@ -126,16 +127,6 @@ def smartHouseExample(algorithm: MatchingAlgorithm, numberOfRandomMsgs: Int) =
     }(algorithm)
   }
 
-  val msgs = smartHouseMsgs(numberOfRandomMsgs)(GenerateActions.genActionsOfSizeN)
-
-  val (actFut, act) = smartHouseActor.start()
-  val startTime     = System.currentTimeMillis()
-  msgs.foreach(act ! _)
-  act ! ShutOff()
-  val result = Await.ready(actFut, Duration.Inf)
-
-  result.onComplete(printResult)
-
 def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
   val randomMsgs = generator(n)
   val correctMsgs =
@@ -163,3 +154,37 @@ def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
         )
 
   intercalateCorrectMsgs(correctMsgs, randomMsgs)
+
+// val msgs = smartHouseMsgs(numberOfRandomMsgs)(GenerateActions.genActionsOfSizeN)
+def runSmartHouseExample(
+    algorithm: MatchingAlgorithm,
+    msgs: Vector[Action]
+) =
+  val smartHouseActor = smartHouseExample(algorithm)
+  val (actFut, act)   = smartHouseActor.start()
+  val startTime       = System.currentTimeMillis()
+  msgs.foreach(act ! _)
+  act ! ShutOff()
+  val result = Await.ready(actFut, Duration.Inf)
+
+  result.onComplete(printResult)
+
+object Test extends App:
+  val a = Vector(
+    Motion(0, true, "bathroom"),
+    AmbientLight(0, 30, "bathroom"),
+    Light(0, true, "bathroom"),
+    Motion(0, true, "bathroom"),
+    AmbientLight(0, 30, "bathroom"),
+    Light(0, true, "bathroom"),
+    Motion(0, true, "bathroom"),
+    AmbientLight(0, 30, "bathroom"),
+    Light(0, false, "bathroom")
+  )
+
+  val msgs = Vector.fill(10)(a).flatten
+
+  runSmartHouseExample(
+    MatchingAlgorithm.StatefulTreeBasedAlgorithm,
+    msgs
+  )

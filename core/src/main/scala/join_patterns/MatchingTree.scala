@@ -21,10 +21,14 @@ given patternIdxOrdering: Ordering[PatternIdxs] with
     val sizeComp = x.size.compareTo(y.size) // compare by size first
     if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
     else
-      x.lazyZip(y).foldLeft(0) { // otherwise, compare each element pair
-        case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
-        case (_, (a, b)) => Ordering[Int].compare(a, b) // else, compare the elements
-      }
+      var acc = 0
+      var i   = 0
+      while i < x.size && i < y.size && acc == 0 do
+        val a = x(i)
+        val b = y(i)
+        if a != b then acc = Ordering[Int].compare(a, b)
+        i += 1
+      acc
 type PatternBins = TreeMap[PatternIdxs, MessageIdxs]
 object PatternBins:
   def apply(elems: (PatternIdxs, MessageIdxs)*) =
@@ -64,10 +68,14 @@ given messageIdxOrdering: Ordering[MessageIdxs] with
     val sizeComp = x.size.compareTo(y.size) // compare by size first
     if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
     else
-      x.lazyZip(y).foldLeft(0) { // otherwise, compare each element pair
-        case (acc, (a, b)) if acc != 0 => acc // if already found a difference, return it
-        case (_, (a, b)) => Ordering[Int].compare(a, b) // else, compare the elements
-      }
+      var i   = 0
+      var acc = 0
+      while i < x.size && i < y.size && acc == 0 do
+        val a = x(i)
+        val b = y(i)
+        if a != b then acc = Ordering[Int].compare(a, b)
+        i += 1
+      acc
 
 type MatchingTree = TreeMap[MessageIdxs, PatternBins]
 object MatchingTree:

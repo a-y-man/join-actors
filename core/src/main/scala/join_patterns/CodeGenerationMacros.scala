@@ -615,16 +615,24 @@ private def receiveCodegen_[M, T](
     tm: Type[M],
     tt: Type[T],
     quotes: Quotes
-): Expr[MatchingAlgorithm => Matcher[M, Result[T]]] = '{ (algorithm: MatchingAlgorithm) =>
-  SelectMatcher[M, Result[T]](
-    algorithm,
-    ${
-      Expr.ofList(
-        getJoinDefinition_(expr.asInstanceOf[Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]])
-      )
-    }
-  )
-}
+): Expr[MatchingAlgorithm => Matcher[M, Result[T]]] =
+  import quotes.reflect.*
+
+  val ret = '{ (algorithm: MatchingAlgorithm) =>
+    SelectMatcher[M, Result[T]](
+      algorithm,
+      ${
+        Expr.ofList(
+          getJoinDefinition_(
+            expr.asInstanceOf[Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]]
+          )
+        )
+      }
+    )
+  }
+
+  // report.info(s"Generated code: ${ret.asTerm.show(using Printer.TreeAnsiCode)}", expr.asTerm.pos)
+  ret
 
 @deprecated("Use `receive` instead")
 inline def receiveOld[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm => Matcher[M, T] =

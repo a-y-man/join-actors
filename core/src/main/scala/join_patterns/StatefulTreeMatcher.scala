@@ -1,9 +1,14 @@
 package join_patterns
 
 import actor.ActorRef
+import os.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.ArrayBuffer
+
+def logMTreeAndMailBoxSize[M](mTrees: List[MatchingTree], msgCount: Int): String =
+  val mTreesSize = mTrees.map(_.size - 1).reduce(_ + _)
+  s"${msgCount + 1},$mTreesSize"
 
 class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     extends Matcher[M, T]:
@@ -81,6 +86,14 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       List(findMatch(newMsg, patternState))
     }
 
+  // val filename0 = "stateful_tree_matcher_mtree_size_0_random_msgs_3_valid_msgs_V4.csv"
+  // val filename0 = "stateful_tree_matcher_mtree_size_3_random_msgs_3_valid_msgs_V4.csv"
+  // val filename0 = "stateful_tree_matcher_mtree_size_6_random_msgs_3_valid_msgs_V4.csv"
+
+  // val logs: ArrayBuffer[String] = ArrayBuffer()
+  // logs.append("Message Count,Matching Trees Size")
+  // appendToFile(filename0, logs.head + "\n" + "0,0\n")
+
   private var mQidx = -1
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     import scala.jdk.CollectionConverters.*
@@ -95,6 +108,11 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
         collectCandidateMatches((mQ, mQidx), patternsWithMatchingTrees).unzip
 
       patternsWithMatchingTrees = updatedPatternStates
+      // val mTrees     = patternsWithMatchingTrees.map(_._2._1)
+      // val currentLog = logMTreeAndMailBoxSize(mTrees, mQidx)
+      // logs.append(currentLog)
+      // // println(logs.mkString("\n"))
+      // appendToFile(filename0, currentLog + "\n")
 
       val candidateMatches: CandidateMatches[M, T] =
         possibleMatches.foldLeft(CandidateMatches[M, T]()) {

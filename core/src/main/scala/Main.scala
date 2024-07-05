@@ -13,6 +13,19 @@ import mainargs.TokensReader
 import mainargs.arg
 import mainargs.main
 
+// object TestSomething extends App:
+//   val msgs = Vector.fill(10)(smartHouseMsgs(0)(GenerateActions.genActionsOfSizeN)).flatten
+// println(msgs.mkString(", "))
+// runSmartHouseExample(
+//   BruteForceAlgorithm,
+//   msgs
+// )
+// println("=====================================================================")
+// runSmartHouseExample(
+//   StatefulTreeBasedAlgorithm,
+//   msgs
+// )
+
 object Main:
   implicit object MatchingAlgorithmParser extends TokensReader.Simple[MatchingAlgorithm]:
     def shortName: String = "algorithm"
@@ -72,9 +85,10 @@ object Main:
       @arg(short = 'a', doc = "The join pattern matching algorithm to use")
       algorithm: MatchingAlgorithm
   ) =
-    smartHouseExample(
+    val msgs = smartHouseMsgs(nMessages)(GenerateActions.genActionsOfSizeN)
+    runSmartHouseExample(
       algorithm,
-      nMessages
+      msgs
     )
 
   @main
