@@ -3,6 +3,7 @@ package benchmarks
 import join_patterns.Matcher
 import join_patterns.MatchingAlgorithm
 import join_patterns.MatchingTree
+import os.Path
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -117,15 +118,15 @@ class Benchmark(
 def toFile(
     benchmarkName: String,
     algorithm: MatchingAlgorithm,
-    results: List[(String, Seq[Measurement])]
+    results: List[(String, Seq[Measurement])],
+    dataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   import java.util.Date
   import java.text.SimpleDateFormat
   import os.*
 
-  val data       = os.pwd / "benchmarks" / "data"
   val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
-  val folderFile = data / s"${timestamp}_${benchmarkName}"
+  val folderFile = dataDir / s"${timestamp}_${benchmarkName}"
   os.makeDir.all(folderFile)
 
   val file = folderFile / f"${benchmarkName}_${algorithm}.csv"
@@ -144,6 +145,7 @@ def toFile(
 
 def saveToFile(
     name: String,
-    results: List[(MatchingAlgorithm, List[(String, Seq[Measurement])])]
+    results: List[(MatchingAlgorithm, List[(String, Seq[Measurement])])],
+    dataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  results foreach { (algorithm, m) => toFile(name, algorithm, m.tail) }
+  results foreach { (algorithm, m) => toFile(name, algorithm, m.tail, dataDir) }

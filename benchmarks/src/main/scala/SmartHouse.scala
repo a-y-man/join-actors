@@ -7,13 +7,11 @@ import join_patterns.receive
 import os.*
 
 import java.text.SimpleDateFormat
-import java.time.Duration as JDuration
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
 import scala.util.*
 
 sealed trait Action
@@ -34,18 +32,6 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
   def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
 
-  def busyLoop(): Unit =
-    val start = System.nanoTime()
-    while System.nanoTime() - start < 100000 do ()
-    ()
-
-  def busyLoop2(): Unit =
-    var i     = 0
-    val start = System.nanoTime()
-    while i < 1000 do i += 1
-    val end = System.nanoTime()
-    ()
-
   def bathroomOccupied =
     (
         times: Seq[Date],
@@ -53,9 +39,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
         mStatus: Boolean,
         lStatus: Boolean,
         value: Int
-    ) =>
-      busyLoop()
-      isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
+    ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
   def occupiedHome = (
       times: Seq[Date],
@@ -100,36 +84,36 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           actions += 1
           Continue
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
-        // case (
-        //       Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
-        //       Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
-        //       Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-        //     )
-        //     if occupiedHome(
-        //       List(t0, t1, t2),
-        //       List(mStatus0, mStatus1, cStatus),
-        //       mRoom0,
-        //       mRoom1,
-        //       cRoom
-        //     ) =>
-        //   lastNotification = Date()
-        //   actions += 1
-        //   Continue
-        // case (
-        //       Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
-        //       Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
-        //       Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-        //     )
-        //     if emptyHome(
-        //       List(t0, t1, t2),
-        //       List(mStatus0, mStatus1, cStatus),
-        //       mRoom0,
-        //       mRoom1,
-        //       cRoom
-        //     ) =>
-        //   lastNotification = Date()
-        //   actions += 1
-        //   Continue
+        case (
+              Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
+              Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
+              Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+            )
+            if occupiedHome(
+              List(t0, t1, t2),
+              List(mStatus0, mStatus1, cStatus),
+              mRoom0,
+              mRoom1,
+              cRoom
+            ) =>
+          lastNotification = Date()
+          actions += 1
+          Continue
+        case (
+              Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
+              Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
+              Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+            )
+            if emptyHome(
+              List(t0, t1, t2),
+              List(mStatus0, mStatus1, cStatus),
+              mRoom0,
+              mRoom1,
+              cRoom
+            ) =>
+          lastNotification = Date()
+          actions += 1
+          Continue
         case ShutOff() =>
           Stop((System.currentTimeMillis(), actions))
       }
@@ -165,40 +149,6 @@ def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
 
   intercalateCorrectMsgs(correctMsgs, randomMsgs)
 
-def smartHouseMsgsWithPreMatches(n: Int): Vector[Action] =
-  // Random.nextInt(3) match
-  //   case 0 =>
-  val pat1MatchPrefix = Vector(
-    Motion(0, true, "bathroom"),
-    AmbientLight(0, 30, "bathroom")
-  )
-  val pat1MatchSuffix = Light(0, false, "bathroom")
-  // val wrongAction     = Light(0, true, "Bath_Room") // Falsifies the guard
-
-  if n == 0 then pat1MatchPrefix :+ pat1MatchSuffix
-  else Vector.fill(n)(pat1MatchPrefix).flatten :+ pat1MatchSuffix
-  // case 1 =>
-  //   val pat2MatchPrefix = Vector(
-  //     Motion(0, true, "front_door"),
-  //     Contact(0, true, "front_door")
-  //   )
-  //   val pat2MatchSuffix = Motion(0, true, "entrance_hall")
-  //   // val wrongAction     = Motion(0, false, "Entrance_Hall") // Falsifies the guard
-
-  //   if n == 0 then pat2MatchPrefix :+ pat2MatchSuffix
-  //   else Vector.fill(n)(pat2MatchPrefix).flatten :+ pat2MatchSuffix
-
-  // case 2 =>
-  //   val pat3MatchPrefix = Vector(
-  //     Motion(0, true, "entrance_hall"),
-  //     Contact(0, true, "front_door")
-  //   )
-  //   val pat3MatchSuffix = Motion(0, true, "front_door")
-  //   // val wrongAction     = Motion(0, false, "Front_Door") // Falsifies the guard
-
-  //   if n == 0 then pat3MatchPrefix :+ pat3MatchSuffix
-  //   else Vector.fill(n)(pat3MatchPrefix).flatten :+ pat3MatchSuffix
-
 def measureSmartHouse(
     msgs: Vector[Action],
     algorithm: MatchingAlgorithm
@@ -226,8 +176,8 @@ def smartHouseBenchmark(
     repetitions: Int = 10
 ) =
 
-  val nullPassMsgs = smartHouseMsgsWithPreMatches(5)
-  // smartHouseMsgs(5)(GenerateActions.genActionsOfSizeN)
+  val nullPassMsgs = smartHouseMsgs(5)(GenerateActions.genActionsOfSizeN)
+
   Benchmark(
     name = "SmartHouse",
     algorithm = algorithm,
@@ -254,12 +204,12 @@ def runSmartHouseBenchmark(
     repetitions: Int = 10
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm) // , MatchingAlgorithm.BruteForceAlgorithm)
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
 
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
       val allMsgsForNRndMsgs =
-        Vector.fill(smartHouseActions)(smartHouseMsgsWithPreMatches(n))
+        Vector.fill(smartHouseActions)(smartHouseMsgs(n)(GenerateActions.genActionsOfSizeN))
 
       // println(s"allMsgsForNRndMsgs: ${allMsgsForNRndMsgs.size}")
       (allMsgsForNRndMsgs.flatten, n)
@@ -280,25 +230,25 @@ def runSmartHouseBenchmark(
       (updateMsgIds, n)
     }
 
-  val msgsAsJson = rangeOfRandomMsgs
-    .map { case (msgs, n) =>
-      val msgsToJson = msgs map { msg => ActionToJsonFormatter.toJson(msg) }
-      s"""
-        |{
-        |  "number_of_messages": ${msgs.size},
-        |  "number_of_random_messages": $n,
-        |  "messages": ${msgsToJson.mkString("[", ",", "]")}
-        |}""".stripMargin
-    }
-    .mkString("[", ",", "]")
+  // val msgsAsJson = rangeOfRandomMsgs
+  //   .map { case (msgs, n) =>
+  //     val msgsToJson = msgs map { msg => ActionToJsonFormatter.toJson(msg) }
+  //     s"""
+  //       |{
+  //       |  "number_of_messages": ${msgs.size},
+  //       |  "number_of_random_messages": $n,
+  //       |  "messages": ${msgsToJson.mkString("[", ",", "]")}
+  //       |}""".stripMargin
+  //   }
+  //   .mkString("[", ",", "]")
 
   // println(msgsAsJson.take(10000) + " ...")
 
-  val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
-  write(
-    os.home / "Documents" / "JoinPatterns" / "rete-smarthouse-monitor" / "src" / "main" / "java" / "com" / "example" / "MonitorData" / s"${timestamp}_smartHouseData.json",
-    msgsAsJson
-  )
+  // val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
+  // write(
+  //   os.home / "Documents" / "JoinPatterns" / "rete-smarthouse-monitor" / "src" / "main" / "java" / "com" / "example" / "MonitorData" / s"${timestamp}_smartHouseData.json",
+  //   msgsAsJson
+  // )
   val measurements = algorithms map { algorithm =>
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
@@ -318,6 +268,6 @@ def runSmartHouseBenchmark(
 
   if writeToFile then saveToFile("SmartHouse", measurements)
 
-object TestRun extends App:
-  // println(s"msgs with pre matches: ${smartHouseMsgsWithPreMatches(2)}")
-  runSmartHouseBenchmark(10, 20, 4, writeToFile = true, warmupRepetitions = 3, repetitions = 5)
+// object TestRun extends App:
+//   // println(s"msgs with pre matches: ${smartHouseMsgsWithPreMatches(2)}")
+//   runSmartHouseBenchmark(10, 20, 4, writeToFile = true, warmupRepetitions = 3, repetitions = 5)

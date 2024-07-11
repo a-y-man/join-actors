@@ -1,5 +1,6 @@
 package benchmarks
 
+import benchmarks.RunSimpleSmartHouseBenchmark.pathForJsonData
 import join_patterns.MatchingAlgorithm
 import mainargs.Flag
 import mainargs.ParserForClass
@@ -46,6 +47,33 @@ object Main:
       warmupRepetitions = config.warmupRepetitions,
       repetitions = config.repetitions
     )
+
+  // @main
+  // def simpleSmartHouseConfig(
+  //     config: Config,
+  //     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
+  //     matches: Int = 100,
+  //     @arg(
+  //       short = 'r',
+  //       doc = "The maximum number of prefix messages the smart house actor should process"
+  //     )
+  //     randomMsgs: Int = 20,
+  //     @arg(short = 's', doc = "The step by which the number of prefix messages should increase")
+  //     rndMsgsStep: Int = 4,
+  //     @arg(short = 'f', doc = "The file to write the messages used to run the benchmarks")
+  //     jsonDataToWrite: String
+  // ) =
+  //   val path = os.Path(jsonDataToWrite)
+  //   runSimpleSmartHouseBenchmark(
+  //     smartHouseActions = matches,
+  //     maxRandomMsgs = randomMsgs,
+  //     rndMsgsStep = rndMsgsStep,
+  //     jsonFileToWrite = path,
+
+  //     writeToFile = config.writeToFile.value,
+  //     warmupRepetitions = config.warmupRepetitions,
+  //     repetitions = config.repetitions
+  //   )
 
   @main
   def boundedBufferConfig(

@@ -168,23 +168,3 @@ def runSmartHouseExample(
   val result = Await.ready(actFut, Duration.Inf)
 
   result.onComplete(printResult)
-
-object Test extends App:
-  val a = Vector(
-    Motion(0, true, "bathroom"),
-    AmbientLight(0, 30, "bathroom"),
-    Light(0, true, "bathroom"),
-    Motion(0, true, "bathroom"),
-    AmbientLight(0, 30, "bathroom"),
-    Light(0, true, "bathroom"),
-    Motion(0, true, "bathroom"),
-    AmbientLight(0, 30, "bathroom"),
-    Light(0, false, "bathroom")
-  )
-
-  val msgs = Vector.fill(10)(a).flatten
-
-  runSmartHouseExample(
-    MatchingAlgorithm.StatefulTreeBasedAlgorithm,
-    msgs
-  )
