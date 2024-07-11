@@ -95,25 +95,6 @@ object Main:
     )
 
   @main
-  def scalaJoinsBBConfig(
-      config: Config,
-      @arg(short = 'b', doc = "The buffer bound")
-      bufferBound: Int = 100,
-      @arg(
-        short = 'p',
-        doc = "The maximum number of producers and consumers"
-      )
-      nProdsCons: Int = 50
-  ) =
-    runScalaJoinsBBBenchmark(
-      bufferBound = bufferBound,
-      nProdsCons = nProdsCons,
-      writeToFile = config.writeToFile.value,
-      warmupRepetitions = config.warmupRepetitions,
-      repetitions = config.repetitions
-    )
-
-  @main
   def sizeConfig(
       config: Config,
       @arg(short = 'm', doc = "The number of matches the size actor should perform")

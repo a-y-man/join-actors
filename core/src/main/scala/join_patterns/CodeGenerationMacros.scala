@@ -557,23 +557,6 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
   *   a list of join pattern expressions.
   */
 private def getJoinDefinition[M, T](
-    expr: Expr[(M, ActorRef[M]) => T]
-)(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
-  import quotes.reflect.*
-  expr.asTerm match
-    case Inlined(_, _, Block(_, Block(stmts, _))) =>
-      stmts.head match
-        case DefDef(_, List(TermParamClause(params)), _, Some(Block(_, Match(_, cases)))) =>
-          val selfRef = params(1).name
-          cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
-        case default =>
-          errorTree("Unsupported code", default)
-          List()
-    case default =>
-      errorTree("Unsupported expression", default)
-      List()
-
-private def getJoinDefinition_[M, T](
     expr: Expr[ActorRef[M] => PartialFunction[Any, T]]
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
@@ -585,9 +568,6 @@ private def getJoinDefinition_[M, T](
             case DefDef(_, _, _, Some(Match(_, cases))) =>
               val selfRef = params.head.name
               val jps     = cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRef))
-              // jps foreach { jp =>
-              //   report.info(s"JP: ${jp.asTerm.show(using Printer.TreeShortCode)}")
-              // }
               jps
         case default =>
           errorTree("Unsupported code", default)
@@ -604,12 +584,6 @@ private def getJoinDefinition_[M, T](
   *   a matcher instance.
   */
 private def receiveCodegen[M, T](
-    expr: Expr[(M, ActorRef[M]) => T]
-)(using tm: Type[M], tt: Type[T], quotes: Quotes) = '{ (algorithm: MatchingAlgorithm) =>
-  SelectMatcher[M, T](algorithm, ${ Expr.ofList(getJoinDefinition(expr)) })
-}
-
-private def receiveCodegen_[M, T](
     expr: Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]
 )(using
     tm: Type[M],
@@ -618,25 +592,18 @@ private def receiveCodegen_[M, T](
 ): Expr[MatchingAlgorithm => Matcher[M, Result[T]]] =
   import quotes.reflect.*
 
-  val ret = '{ (algorithm: MatchingAlgorithm) =>
+  '{ (algorithm: MatchingAlgorithm) =>
     SelectMatcher[M, Result[T]](
       algorithm,
       ${
         Expr.ofList(
-          getJoinDefinition_(
+          getJoinDefinition(
             expr.asInstanceOf[Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]]
           )
         )
       }
     )
   }
-
-  // report.info(s"Generated code: ${ret.asTerm.show(using Printer.TreeAnsiCode)}", expr.asTerm.pos)
-  ret
-
-@deprecated("Use `receive` instead")
-inline def receiveOld[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm => Matcher[M, T] =
-  ${ receiveCodegen('f) }
 
 /** Entry point of the `receive` macro.
   *
@@ -649,4 +616,4 @@ inline def receiveOld[M, T](inline f: (M, ActorRef[M]) => T): MatchingAlgorithm 
 inline def receive[M, T](
     inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])
 ): MatchingAlgorithm => Matcher[M, Result[T]] =
-  ${ receiveCodegen_('f) }
+  ${ receiveCodegen('f) }

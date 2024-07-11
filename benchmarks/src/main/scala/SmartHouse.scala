@@ -211,7 +211,6 @@ def runSmartHouseBenchmark(
       val allMsgsForNRndMsgs =
         Vector.fill(smartHouseActions)(smartHouseMsgs(n)(GenerateActions.genActionsOfSizeN))
 
-      // println(s"allMsgsForNRndMsgs: ${allMsgsForNRndMsgs.size}")
       (allMsgsForNRndMsgs.flatten, n)
     } map { case (msgs, n) =>
       val updateMsgIds =
@@ -230,25 +229,6 @@ def runSmartHouseBenchmark(
       (updateMsgIds, n)
     }
 
-  // val msgsAsJson = rangeOfRandomMsgs
-  //   .map { case (msgs, n) =>
-  //     val msgsToJson = msgs map { msg => ActionToJsonFormatter.toJson(msg) }
-  //     s"""
-  //       |{
-  //       |  "number_of_messages": ${msgs.size},
-  //       |  "number_of_random_messages": $n,
-  //       |  "messages": ${msgsToJson.mkString("[", ",", "]")}
-  //       |}""".stripMargin
-  //   }
-  //   .mkString("[", ",", "]")
-
-  // println(msgsAsJson.take(10000) + " ...")
-
-  // val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
-  // write(
-  //   os.home / "Documents" / "JoinPatterns" / "rete-smarthouse-monitor" / "src" / "main" / "java" / "com" / "example" / "MonitorData" / s"${timestamp}_smartHouseData.json",
-  //   msgsAsJson
-  // )
   val measurements = algorithms map { algorithm =>
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
@@ -267,7 +247,3 @@ def runSmartHouseBenchmark(
   }
 
   if writeToFile then saveToFile("SmartHouse", measurements)
-
-// object TestRun extends App:
-//   // println(s"msgs with pre matches: ${smartHouseMsgsWithPreMatches(2)}")
-//   runSmartHouseBenchmark(10, 20, 4, writeToFile = true, warmupRepetitions = 3, repetitions = 5)
