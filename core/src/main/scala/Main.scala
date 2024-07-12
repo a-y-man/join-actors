@@ -6,6 +6,7 @@ import join_patterns.MatchingAlgorithm
 import join_patterns.MatchingAlgorithm.BruteForceAlgorithm
 import join_patterns.MatchingAlgorithm.StatefulTreeBasedAlgorithm
 import join_patterns.examples.*
+import join_patterns.examples.factory_simpl.runFactorySimple
 import mainargs.Flag
 import mainargs.ParserForClass
 import mainargs.ParserForMethods
@@ -104,6 +105,13 @@ object Main:
       nPrinters,
       nJobs
     )
+
+  @main
+  def factorySimple(
+      @arg(doc = "The join pattern matching algorithm to use")
+      algorithm: MatchingAlgorithm
+  ) =
+    runFactorySimple(algorithm)
 
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

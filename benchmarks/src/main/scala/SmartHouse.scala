@@ -201,7 +201,8 @@ def runSmartHouseBenchmark(
     rndMsgsStep: Int,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -246,4 +247,4 @@ def runSmartHouseBenchmark(
     (algorithm, m)
   }
 
-  if writeToFile then saveToFile("SmartHouse", measurements)
+  if writeToFile then saveToFile("SmartHouse", measurements, outputDataDir)

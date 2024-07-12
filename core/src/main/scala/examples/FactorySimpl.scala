@@ -5,6 +5,9 @@ import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 // Milliseconds in one minute
 private val ONE_MIN    = 1000 * 60
 private val ONE_DAY    = ONE_MIN * 60 * 24
@@ -24,10 +27,11 @@ enum SystemEvent:
 
 type Event = MachineEvent | WorkerEvent | SystemEvent
 
-import MachineEvent.*, WorkerEvent.*, SystemEvent.*
+import MachineEvent.*
+import WorkerEvent.*
+import SystemEvent.*
 
-
-def monitor(algorithm: MatchingAlgorithm) = 
+def monitor(algorithm: MatchingAlgorithm) =
   Actor[Event, Unit] {
     receive { (self: ActorRef[Event]) =>
       {
@@ -78,28 +82,27 @@ def monitor(algorithm: MatchingAlgorithm) =
           )
           Continue
 
-        case Shutdown() => Stop(())
+        case Shutdown() =>
+          println(
+            s"${Console.RED}${Console.UNDERLINED}Shutting down monitor actor...${Console.RESET}"
+          )
+          Stop(())
       }
     }(algorithm)
   }
 
-object RunMonitor extends App:
+def runFactorySimple(algorithm: MatchingAlgorithm) =
   val events = List(
-    // Fault(1, ONE_MIN),
-    // Fault(2, ONE_MIN * 5),
-    Fault(3, ONE_MIN * 25),
+    Fault(1, ONE_MIN),
+    Fault(2, TEN_MIN),
+    Fault(3, QUARTER_HR),
     Fix(3, THIRTY_MIN)
   )
-
-  val algorithm = MatchingAlgorithm.BruteForceAlgorithm
 
   val (monitorFut, monitorRef) = monitor(algorithm).start()
 
   events foreach (msg => monitorRef ! msg)
 
   monitorRef ! Shutdown()
-
-  import scala.concurrent.Await
-  import scala.concurrent.duration.Duration
 
   Await.ready(monitorFut, Duration(15, "m"))

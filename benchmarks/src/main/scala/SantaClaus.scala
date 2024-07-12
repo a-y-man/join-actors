@@ -4,6 +4,7 @@ import actor.*
 import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
+import os.Path
 
 import java.util.concurrent.Executors
 import scala.collection.mutable.ListBuffer
@@ -166,7 +167,11 @@ def santaClausBenchmark(santaClauseActions: Int, algorithm: MatchingAlgorithm) =
     )
   )
 
-def runSantaClausBenchmark(santaClauseActions: Int, writeToFile: Boolean = false) =
+def runSantaClausBenchmark(
+    santaClauseActions: Int,
+    writeToFile: Boolean = false,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
+) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
 
@@ -182,4 +187,4 @@ def runSantaClausBenchmark(santaClauseActions: Int, writeToFile: Boolean = false
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("SantaClaus", measurements)
+  if writeToFile then saveToFile("SantaClaus", measurements, outputDataDir)

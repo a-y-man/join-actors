@@ -132,16 +132,3 @@ def runBB(bbConfig: BBConfig) =
   val endTime = Await.result(bbFut, Duration.Inf)
 
   println(s"${bbConfig.algorithm}: ${endTime - startTime} ms")
-
-object RunBoundedBuffer extends App:
-  val bbConfig = BBConfig(
-    bufferBound = 100,
-    producers = 8,
-    consumers = 8,
-    cnt = 10,
-    algorithm = MatchingAlgorithm.BruteForceAlgorithm
-  )
-
-  for _ <- 1 to 10 do
-    runBB(bbConfig.copy(algorithm = MatchingAlgorithm.StatefulTreeBasedAlgorithm))
-    runBB(bbConfig)

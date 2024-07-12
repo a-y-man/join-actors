@@ -16,7 +16,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.util.*
 
-def simpleSmartHouseExample(algorithm: MatchingAlgorithm) =
+def simpleSmartHouseExample(algorithm: MatchingAlgorithm, withHeavyGuard: Boolean) =
   var lastNotification     = Date(0L)
   var lastMotionInBathroom = Date(0L)
   var actions              = 0
@@ -25,7 +25,7 @@ def simpleSmartHouseExample(algorithm: MatchingAlgorithm) =
 
   def busyLoop(): Unit =
     val start = System.nanoTime()
-    while System.nanoTime() - start < 500000 do ()
+    while System.nanoTime() - start < 100000 do ()
     ()
 
   def bathroomOccupied =
@@ -36,7 +36,7 @@ def simpleSmartHouseExample(algorithm: MatchingAlgorithm) =
         lStatus: Boolean,
         value: Int
     ) =>
-      busyLoop()
+      if withHeavyGuard then busyLoop()
       isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
   Actor[Action, (Long, Int)] {
@@ -77,9 +77,10 @@ def simpleSmartHouseMsgsWithPreMatches(n: Int): Vector[Action] =
 
 def measureSimpleSmartHouse(
     msgs: Vector[Action],
-    algorithm: MatchingAlgorithm
+    algorithm: MatchingAlgorithm,
+    withHeavyGuard: Boolean = false
 ): Future[Measurement] =
-  val actor = simpleSmartHouseExample(algorithm)
+  val actor = simpleSmartHouseExample(algorithm, withHeavyGuard)
 
   val (result, actorRef) = actor.start()
 
@@ -99,7 +100,8 @@ def simpleSmartHouseBenchmark(
     rangeOfRandomMsgs: Vector[(Vector[Action], Int)],
     algorithm: MatchingAlgorithm,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    withHeavyGuard: Boolean = false
 ) =
 
   val nullPassMsgs = simpleSmartHouseMsgsWithPreMatches(5)
@@ -110,12 +112,12 @@ def simpleSmartHouseBenchmark(
     repetitions = repetitions,
     nullPass = BenchmarkPass(
       s"Null Pass ${algorithm}",
-      () => measureSimpleSmartHouse(nullPassMsgs, algorithm)
+      () => measureSimpleSmartHouse(nullPassMsgs, algorithm, withHeavyGuard)
     ),
     passes = rangeOfRandomMsgs map { case (msgs, n) =>
       BenchmarkPass(
         s"Processing $n number of prefix messages per match.",
-        () => measureSimpleSmartHouse(msgs, algorithm)
+        () => measureSimpleSmartHouse(msgs, algorithm, withHeavyGuard)
       )
     }
   )
@@ -123,15 +125,16 @@ def simpleSmartHouseBenchmark(
 def runSimpleSmartHouseBenchmark(
     smartHouseActions: Int,
     maxRandomMsgs: Int,
-    rndMsgsStep: Int,
-    jsonFileToWrite: Path,
-    pathForBenchmarkData: Path,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    withHeavyGuard: Boolean = false,
+    rndMsgsStep: Int,
+    pathToJsonDataFile: Path,
+    pathForBenchmarkData: Path
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm) // , MatchingAlgorithm.BruteForceAlgorithm)
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
 
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
@@ -169,10 +172,11 @@ def runSimpleSmartHouseBenchmark(
     }
     .mkString("[", ",", "]")
 
-  write(
-    jsonFileToWrite,
-    msgsAsJson
-  )
+  val timestamp    = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
+  val jsonDataFile = pathToJsonDataFile / s"${timestamp}_smartHouseData.json"
+
+  write(jsonDataFile, msgsAsJson)
+
   val measurements = algorithms map { algorithm =>
     println(
       s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
@@ -181,7 +185,8 @@ def runSimpleSmartHouseBenchmark(
       rangeOfRandomMsgs,
       algorithm,
       warmupRepetitions,
-      repetitions
+      repetitions,
+      withHeavyGuard
     ).run()
     println(
       s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
@@ -190,32 +195,31 @@ def runSimpleSmartHouseBenchmark(
     (algorithm, m)
   }
 
-  if writeToFile then saveToFile("SmartHouse", measurements, dataDir = pathForBenchmarkData)
+  if writeToFile then
+    if !withHeavyGuard then
+      saveToFile("SimpleSmartHouse", measurements, dataDir = pathForBenchmarkData)
+    else saveToFile("SimpleSmartHouseWithHeavyGuards", measurements, dataDir = pathForBenchmarkData)
 
-object RunSimpleSmartHouseBenchmark extends App:
-  // println(s"msgs with pre matches: ${simpleSmartHouseMsgsWithPreMatches(2)}")
-  val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
-  val pathForJsonData =
-    os.home / "Documents" / "JoinPatterns" / "rete-smarthouse-monitor" / "src" / "main" / "java" / "com" / "example" / "MonitorData" / s"${timestamp}_smartHouseData.json"
+// object RunSimpleSmartHouseBenchmark extends App:
+//   // println(s"msgs with pre matches: ${simpleSmartHouseMsgsWithPreMatches(2)}")
+//   val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
+//   val filename  = s"${timestamp}_smartHouseData.json"
+//   val pathForJsonData =
+//     os.pwd / os.up / "rete-smarthouse-monitor" / "src" / "main" / "resources" / "MonitorData" / filename
 
-  val pathForBenchmarkData = os.pwd / "benchmarks" / "data"
+//   val pathForBenchmarkData = os.pwd / "benchmarks" / "data"
 
-  // val p: Path = os.Path(
-  //   "/Documents/JoinPatterns/rete-smarthouse-monitor/src/main/java/com/example/MonitorData"
-  // )
+//   val p = os.RelPath("benchmarks/data").resolveFrom(os.pwd)
+//   println(s"Path: $p")
 
-  // println(s"Current dir: ${os.pwd}")
-  // println(
-  //   s"Random dir: ${p}"
-  // )
-
-  runSimpleSmartHouseBenchmark(
-    10,
-    20,
-    4,
-    pathForJsonData,
-    pathForBenchmarkData,
-    writeToFile = false,
-    warmupRepetitions = 3,
-    repetitions = 5
-  )
+// runSimpleSmartHouseBenchmark(
+//   10,
+//   20,
+//   4,
+//   pathForJsonData,
+//   pathForBenchmarkData,
+//   writeToFile = true,
+//   warmupRepetitions = 3,
+//   repetitions = 5,
+//   withHeavyGuard = false
+// )

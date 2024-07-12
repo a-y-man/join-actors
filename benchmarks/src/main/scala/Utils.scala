@@ -218,6 +218,3 @@ object GenerateGuardedSizeMsgs:
 
 def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int) =
   Vector.fill(nMatches)(generator(patSize)).flatten
-
-object CreateJsonFromAction:
-  import upickle.default.*

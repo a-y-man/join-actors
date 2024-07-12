@@ -7,7 +7,6 @@ import benchmarks.BenchmarkPass
 import benchmarks.Measurement
 import benchmarks.saveToFile
 import join_patterns.MatchingAlgorithm
-import join_patterns.examples.RunBoundedBuffer.bbConfig
 import join_patterns.receive
 
 import java.util.concurrent.Executors
@@ -17,6 +16,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
+import os.Path
 
 // Termination message to stop the actors
 case class TerminateActors()
@@ -176,7 +176,8 @@ def runBBBenchmark(
     nProdsCons: Int,
     writeToFile: Boolean,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val bbConfigs =
     Array((1 to nProdsCons).map(n => (bufferBound, n))*).map { case (bufferBound, nProdsCons) =>
@@ -205,4 +206,4 @@ def runBBBenchmark(
     (algorithm, m)
   }
 
-  if writeToFile then saveToFile("BoundedBuffer", measurements)
+  if writeToFile then saveToFile("BoundedBuffer", measurements, outputDataDir)

@@ -5,6 +5,7 @@ import actor.Result.*
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.Gen
+import os.Path
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -254,7 +255,8 @@ def runSizeBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -272,13 +274,14 @@ def runSizeBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("Size", measurements)
+  if writeToFile then saveToFile("Size", measurements, outputDataDir)
 
 def runSizeWithNoiseBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -297,4 +300,4 @@ def runSizeWithNoiseBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("SizeWithNoise", measurements)
+  if writeToFile then saveToFile("SizeWithNoise", measurements, outputDataDir)

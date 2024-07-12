@@ -6,6 +6,7 @@ import benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
 import join_patterns.MatchingAlgorithm
 import join_patterns.receive
 import org.scalacheck.Gen
+import os.Path
 
 import scala.concurrent.Await
 import scala.concurrent.Future
@@ -387,7 +388,8 @@ def runSizeWithGuardsBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -405,13 +407,14 @@ def runSizeWithGuardsBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("SizeWithGuards", measurements)
+  if writeToFile then saveToFile("SizeWithGuards", measurements, outputDataDir)
 
 def runSizeWithGuardsWithNoiseBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -430,13 +433,14 @@ def runSizeWithGuardsWithNoiseBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("SizeWithGuardsWithNoise", measurements)
+  if writeToFile then saveToFile("SizeWithGuardsWithNoise", measurements, outputDataDir)
 
 def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
     matches: Int,
     writeToFile: Boolean = false,
     warmupRepetitions: Int = 5,
-    repetitions: Int = 10
+    repetitions: Int = 10,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
@@ -460,4 +464,5 @@ def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("SizeWithGuardsWithNonMatchingPayload", measurements)
+  if writeToFile then
+    saveToFile("SizeWithGuardsWithNonMatchingPayload", measurements, outputDataDir)

@@ -11,6 +11,7 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
+import os.Path
 
 type Ponger = ActorRef[Ping | Done]
 type Pinger = ActorRef[Pong | Done]
@@ -96,7 +97,11 @@ def pingPongBenchmark(maxHits: Int, algorithm: MatchingAlgorithm) =
     )
   )
 
-def runPingPongBenchmark(maxHits: Int, writeToFile: Boolean = false) =
+def runPingPongBenchmark(
+    maxHits: Int,
+    writeToFile: Boolean = false,
+    outputDataDir: Path = os.pwd / "benchmarks" / "data"
+) =
   val algorithms: List[MatchingAlgorithm] =
     List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
 
@@ -111,4 +116,4 @@ def runPingPongBenchmark(maxHits: Int, writeToFile: Boolean = false) =
     (algorithm, measurement)
   }
 
-  if writeToFile then saveToFile("PingPong", measurements)
+  if writeToFile then saveToFile("PingPong", measurements, outputDataDir)
