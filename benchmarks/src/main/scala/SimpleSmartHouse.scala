@@ -197,29 +197,10 @@ def runSimpleSmartHouseBenchmark(
 
   if writeToFile then
     if !withHeavyGuard then
-      saveToFile("SimpleSmartHouse", measurements, dataDir = pathForBenchmarkData)
-    else saveToFile("SimpleSmartHouseWithHeavyGuards", measurements, dataDir = pathForBenchmarkData)
-
-// object RunSimpleSmartHouseBenchmark extends App:
-//   // println(s"msgs with pre matches: ${simpleSmartHouseMsgsWithPreMatches(2)}")
-//   val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
-//   val filename  = s"${timestamp}_smartHouseData.json"
-//   val pathForJsonData =
-//     os.pwd / os.up / "rete-smarthouse-monitor" / "src" / "main" / "resources" / "MonitorData" / filename
-
-//   val pathForBenchmarkData = os.pwd / "benchmarks" / "data"
-
-//   val p = os.RelPath("benchmarks/data").resolveFrom(os.pwd)
-//   println(s"Path: $p")
-
-// runSimpleSmartHouseBenchmark(
-//   10,
-//   20,
-//   4,
-//   pathForJsonData,
-//   pathForBenchmarkData,
-//   writeToFile = true,
-//   warmupRepetitions = 3,
-//   repetitions = 5,
-//   withHeavyGuard = false
-// )
+      saveToFile("JoinActorsSmartHouse", measurements, dataDir = pathForBenchmarkData)
+    else
+      saveToFile(
+        "JoinActorsSmartHouseWithHeavyGuards",
+        measurements,
+        dataDir = pathForBenchmarkData
+      )

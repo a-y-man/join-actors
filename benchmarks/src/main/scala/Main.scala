@@ -79,6 +79,7 @@ object Main:
       writeToFile = config.writeToFile.value,
       warmupRepetitions = config.warmupRepetitions,
       repetitions = config.repetitions,
+      withHeavyGuard = withHeavyGuard,
       pathToJsonDataFile = jsonFilePath,
       pathForBenchmarkData = benchmarkDataPath
     )
@@ -89,7 +90,7 @@ object Main:
       @arg(short = 'b', doc = "The buffer bound")
       bufferBound: Int = 100,
       @arg(
-        short = 'p',
+        short = 'c',
         doc = "The maximum number of producers and consumers"
       )
       nProdsCons: Int = 50,
