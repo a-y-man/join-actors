@@ -13,6 +13,9 @@ import scala.quoted.Quotes
 import scala.quoted.Type
 import scala.quoted.Varargs
 
+object `&&&`:
+  infix def unapply(arg: Any): Option[(Unit, Unit)] = Some((), ())
+
 /** Extracts a type's name and representation from a `Tree`.
   *
   * @param t
@@ -521,6 +524,30 @@ private def generateWildcardPattern[M, T](using
     )
   }
 
+private def getConstructorPatternsFromAndOps[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])(
+  unapplyTree: quotes.reflect.Unapply
+): List[quotes.reflect.TypedOrTest] =
+  import quotes.reflect.*
+
+  // Extract left and right children of the &&& unapply
+  val (left, right) =
+    unapplyTree match
+      case Unapply(_fun, _implicits, left::right::List()) => (left, right)
+      case err => throw MatchError(err)
+
+  // Since &&& is left-associative, the right child will always be a TypedOrTest, so we can coerce it
+  val rightTot = right.asInstanceOf[TypedOrTest]
+
+  // Check case of left child
+  left match
+    // Base case, the left child is also a leaf
+    case leftTot: TypedOrTest => List(leftTot, rightTot)
+
+    // Recursive case, the left child is another unapply
+    case leftUnapply: Unapply => rightTot::getConstructorPatternsFromAndOps[M, T](leftUnapply)
+
+    case err => throw MatchError(err)
+
 /** Creates a join pattern from a `CaseDef`.
   *
   * @param case
@@ -542,6 +569,9 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
               Some(generateUnaryJP[M, T](t, guard, _rhs, selfRef))
             case TypeApply(Select(_, "unapply"), _) =>
               Some(generateNaryJP[M, T](patterns, guard, _rhs, selfRef))
+        case andOperatorApplication @ Unapply(_, _, _) =>
+          val patterns = getConstructorPatternsFromAndOps[M, T](andOperatorApplication)
+          Some(generateNaryJP[M, T](patterns, guard, _rhs, selfRef))
         case w: Wildcard =>
           // report.info("Wildcards should be defined last", w.asExpr)
           Some(generateWildcardPattern[M, T](guard, _rhs))
@@ -549,7 +579,7 @@ private def generateJoinPattern[M, T](using quotes: Quotes, tm: Type[M], tt: Typ
           errorTree("Unsupported case pattern", default)
           None
 
-/** Translates a series of match clauses into a list of join pattern.
+/** Translates a series of match clauses into a list of join patterns.
   *
   * @param expr
   *   the match expression.

@@ -113,5 +113,12 @@ object Main:
   ) =
     runFactorySimple(algorithm)
 
+  @main
+  def simpleExample(
+   @arg(doc = "The join pattern matching algorithm to use")
+   algorithm: MatchingAlgorithm
+  ) =
+    example00(algorithm)
+
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

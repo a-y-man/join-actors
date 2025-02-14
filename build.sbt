@@ -18,7 +18,8 @@ lazy val commonSettings = Seq(
   libraryDependencies += "org.scalatestplus"   %% "scalacheck-1-18"    % scalaTestPlusVersion,
   libraryDependencies += "com.google.code.gson" % "gson"               % gsonVersion,
   libraryDependencies += "org.scalatest"       %% "scalatest"          % scalaTestVersion % Test,
-  libraryDependencies += "org.scalatest"       %% "scalatest-funsuite" % scalaTestVersion % Test
+  libraryDependencies += "org.scalatest"       %% "scalatest-funsuite" % scalaTestVersion % Test,
+  libraryDependencies += "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile
 )
 
 ThisBuild / assemblyMergeStrategy := {
