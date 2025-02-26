@@ -5,7 +5,7 @@ import actor.ActorRef
 import math.Ordering.Implicits.infixOrderingOps
 import math.Ordering.Implicits.seqOrdering
 
-type Messages[M] = List[M]
+type Messages[M] = Map[Int, M]
 
 type LookupEnv = Map[String, Any]
 object LookupEnv:

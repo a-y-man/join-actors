@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 import scala.Console
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.Map as MutMap
 
 type RHSFnClosure[M, T] = (LookupEnv, ActorRef[M]) => T
 
@@ -150,7 +151,7 @@ trait Matcher[M, T]:
     *   The computed substitutions as a LookupEnv.
     */
   def computeSubsts(
-      messages: ArrayBuffer[M],
+      messages: MutMap[Int, M],
       possibleFit: List[(Int, M => LookupEnv)]
   ): LookupEnv =
     possibleFit.foldLeft(LookupEnv.empty) { (substsAcc, msgData) =>
@@ -174,7 +175,7 @@ trait Matcher[M, T]:
     */
   def findFairestMatch(
       validPermutations: Iterator[List[(Int, M => LookupEnv)]],
-      messages: ArrayBuffer[M],
+      messages: MutMap[Int, M],
       pattern: JoinPattern[M, T]
   ) =
     var bestMatchSubsts: LookupEnv = null
@@ -198,8 +199,9 @@ trait Matcher[M, T]:
     * @return
     *   The filtered list of messages without the processed messages.
     */
-  def removeProcessedMsgs(messages: ArrayBuffer[(M, Int)], processedMsgs: MessageIdxs) =
-    messages.filterNot((_, idx) => processedMsgs.contains(idx))
+  def removeProcessedMsgs(messages: MutMap[Int, M], processedMsgs: MessageIdxs) =
+    // messages.filterNot((_, idx) => processedMsgs.contains(idx))
+    messages --= processedMsgs
 
   def appendToFile(filename: String, content: String): Unit =
     val fileFolder = os.pwd / "core" / "logs"

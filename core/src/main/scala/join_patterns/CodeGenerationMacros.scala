@@ -273,15 +273,15 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
   outer.asType match
     case '[ot] =>
       val extract: Expr[
-        List[M] => Option[PatternBins]
+        Map[Int, M] => Option[PatternBins]
       ] =
-        '{ (m: List[M]) =>
+        '{ (m: Map[Int, M]) =>
           val patInfo            = ${ patternInfo }
           val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
           val checkMsgType       = patExtractors(0)._1
           val extractField       = patExtractors(0)._2
-          val messages           = ArrayBuffer.from(m.zipWithIndex)
-          val (mQ, mQidx)        = messages.last // Take the newest msg from the queue
+          // val messages           = ArrayBuffer.from(m.zipWithIndex)
+          val (mQidx, mQ) = m.last // Take the newest msg from the queue
 
           if checkMsgType(mQ) then Some(PatternBins(PatternIdxs(0) -> MessageIdxs(mQidx)))
           else None
@@ -377,19 +377,19 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
   }
 
   val extract: Expr[
-    List[M] => Option[PatternBins]
+    Map[Int, M] => Option[PatternBins]
   ] =
-    '{ (m: List[M]) =>
-      val messages    = m.zipWithIndex
+    '{ (m: Map[Int, M]) =>
+      val messages    = m
       val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
       val msgPatterns = _extractors.zipWithIndex
 
       def getMsgIdxsWithFits(
-          messages: List[(M, Int)],
+          messages: Map[Int, M],
           msgPatterns: List[((String, M => Boolean, M => LookupEnv), Int)]
-      ): List[(MessageIdx, PatternIdxs)] =
+      ): Map[MessageIdx, PatternIdxs] =
         messages
-          .flatMap { case (msg, idx) =>
+          .flatMap { case (idx, msg) =>
             val matches =
               msgPatterns.filter { case ((_, checkMsgType, _), _) => checkMsgType(msg) }.map(_._2)
             List((idx, matches))
@@ -397,7 +397,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
           .filter(_._2.nonEmpty)
 
       def buildPatternBins(
-          messageIdxWithFits: List[(MessageIdx, PatternIdxs)],
+          messageIdxWithFits: Map[MessageIdx, PatternIdxs],
           initialPatternBins: PatternBins
       ): PatternBins =
         messageIdxWithFits.foldLeft(initialPatternBins) { case (acc, (messageIdx, patternShape)) =>
@@ -488,8 +488,8 @@ private def generateWildcardPattern[M, T](using
   import quotes.reflect.*
 
   val extract: Expr[
-    List[M] => Option[PatternBins]
-  ] = '{ (m: List[M]) =>
+    Map[Int, M] => Option[PatternBins]
+  ] = '{ (m: Map[Int, M]) =>
     None
   }
   val predicate: Expr[LookupEnv => Boolean] =
