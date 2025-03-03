@@ -1,9 +1,6 @@
-package factory
+package join_actors.examples.factory
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 
 // Milliseconds in one minute
 private val ONE_MIN    = 1000 * 60

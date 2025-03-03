@@ -1,9 +1,7 @@
 package benchmarks
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
+import os.Path
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -11,7 +9,6 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
-import os.Path
 
 type Ponger = ActorRef[Ping | Done]
 type Pinger = ActorRef[Pong | Done]

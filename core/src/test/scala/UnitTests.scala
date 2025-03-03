@@ -1,8 +1,6 @@
 package test
 
-import actor.*
-import actor.Result.*
-import join_patterns.*
+import join_actors.api.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.TableDrivenPropertyChecks.*

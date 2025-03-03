@@ -1,12 +1,12 @@
 package core
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.MatchingAlgorithm.BruteForceAlgorithm
-import join_patterns.MatchingAlgorithm.StatefulTreeBasedAlgorithm
-import join_patterns.examples.*
-import join_patterns.examples.factory_simpl.runFactorySimple
+import join_actors.actor.*
+import join_actors.actor.Result.*
+import join_actors.api.MatchingAlgorithm
+import join_actors.api.MatchingAlgorithm.BruteForceAlgorithm
+import join_actors.api.MatchingAlgorithm.StatefulTreeBasedAlgorithm
+import join_actors.examples.*
+import join_actors.examples.factory_simpl.runFactorySimple
 import mainargs.Flag
 import mainargs.ParserForClass
 import mainargs.ParserForMethods

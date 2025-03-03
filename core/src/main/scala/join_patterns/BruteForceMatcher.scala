@@ -1,6 +1,11 @@
-package join_patterns
+package join_patterns.matcher.brute_force_matcher
 
-import actor.ActorRef
+import join_patterns.types.*
+import join_patterns.utils.*
+import join_patterns.code_generation.*
+import join_patterns.matching_tree.*
+import join_patterns.matcher.*
+import join_actors.actor.ActorRef
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.ArrayBuffer

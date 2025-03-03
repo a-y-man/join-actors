@@ -1,9 +1,14 @@
-package join_patterns
+package join_patterns.code_generation
 
-import actor.Actor
-import actor.ActorRef
-import actor.Result
-
+import join_actors.actor.Actor
+import join_actors.actor.ActorRef
+import join_actors.actor.Result
+import join_patterns.matching_tree.*
+import join_patterns.matching_tree.given
+import join_patterns.matcher.*
+import join_patterns.utils.*
+import join_patterns.types.*
+import join_patterns.types.given
 import scala.collection.immutable.*
 import scala.collection.immutable.TreeMap as MTree
 import scala.collection.mutable.ArrayBuffer
@@ -561,7 +566,7 @@ private def getJoinDefinition[M, T](
 )(using quotes: Quotes, tm: Type[M], tt: Type[T]): List[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
   expr.asTerm match
-    case Inlined(_, _, Block(_, Block(stmts, _))) =>
+    case Inlined(_, _, Inlined(_, _, Block(_, Block(stmts, _)))) =>
       stmts.head match
         case DefDef(_, List(TermParamClause(params)), _, Some(Block(_, Block(body, _)))) =>
           body.head match

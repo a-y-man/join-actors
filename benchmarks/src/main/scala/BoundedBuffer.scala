@@ -1,13 +1,11 @@
 package benchmarks
 
-import actor.*
-import actor.Result.*
 import benchmarks.Benchmark
 import benchmarks.BenchmarkPass
 import benchmarks.Measurement
 import benchmarks.saveToFile
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
+import os.Path
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -16,7 +14,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
-import os.Path
 
 // Termination message to stop the actors
 case class TerminateActors()

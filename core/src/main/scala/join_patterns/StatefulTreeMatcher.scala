@@ -1,6 +1,13 @@
-package join_patterns
+package join_patterns.matcher.stateful_tree_matcher
 
-import actor.ActorRef
+import join_actors.actor.ActorRef
+import join_actors.actor.ActorRef
+import join_patterns.types.*
+import join_patterns.utils.*
+import join_patterns.matching_tree.*
+import join_patterns.matching_tree.given
+import join_patterns.matcher.*
+
 import os.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox

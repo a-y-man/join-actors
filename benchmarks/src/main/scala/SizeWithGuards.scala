@@ -1,10 +1,7 @@
 package benchmarks
 
-import actor.*
-import actor.Result.*
 import benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 import org.scalacheck.Gen
 import os.Path
 

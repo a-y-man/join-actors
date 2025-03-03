@@ -1,9 +1,6 @@
 package test.classes.pingPong
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await

@@ -1,8 +1,8 @@
 package test
 
-import actor.*
-import actor.Result.*
-import join_patterns.*
+import join_patterns.matching_tree.*
+import join_patterns.types.*
+import join_patterns.types.given
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.concurrent.LinkedTransferQueue

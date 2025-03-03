@@ -1,4 +1,4 @@
-package join_patterns.examples
+package join_actors.examples
 
 import org.scalacheck.Gen
 

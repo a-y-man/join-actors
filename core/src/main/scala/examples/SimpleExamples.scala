@@ -1,7 +1,5 @@
-package join_patterns.examples
-import actor.*
-import actor.Result.*
-import join_patterns.*
+package join_actors.examples
+import join_actors.api.*
 import org.scalacheck.*
 
 import java.util.concurrent.TimeUnit
@@ -234,7 +232,7 @@ def example06(algorithm: MatchingAlgorithm): Unit =
 def example07(algorithm: MatchingAlgorithm): Unit =
   println(s"Using ${algorithm}\n\n")
   val expected = 42
-  val matcher: Matcher[Msg, Result[Int]] = receive { (_: ActorRef[Msg]) =>
+  val matcher = receive { (_: ActorRef[Msg]) =>
     {
       case (F(i0), E(i1), F(i2)) if i0 == i1 && i1 == i2 =>
         Stop(expected)

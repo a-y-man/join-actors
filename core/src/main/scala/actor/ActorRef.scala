@@ -1,4 +1,4 @@
-package actor
+package join_actors.actor
 
 import java.util.concurrent.LinkedTransferQueue
 
