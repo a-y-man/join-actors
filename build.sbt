@@ -39,7 +39,6 @@ lazy val commonSettings = Seq(
 )
 
 ThisBuild / assemblyMergeStrategy := {
-  // case PathList("join_patterns", _*) => MergeStrategy.discard
   case PathList("META-INF", _*) => MergeStrategy.discard
   case _                        => MergeStrategy.first
 }
@@ -48,7 +47,7 @@ lazy val commonScalacOptions = Seq("-feature")
 
 lazy val joinActors =
   (project in file("."))
-    // .aggregate(benchmarks)
+    .aggregate(benchmarks)
     .dependsOn(core)
     .settings(
       name                       := "joinActors",
@@ -56,7 +55,6 @@ lazy val joinActors =
       scalaVersion               := scalaVersion.value,
       assembly / mainClass := Some("core.Main"),
       assembly / assemblyJarName := "joinActors.jar"
-
     )
 
 lazy val core =
