@@ -1,11 +1,6 @@
-package join_patterns.examples
+package join_actors.examples
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.MatchingAlgorithm.BruteForceAlgorithm
-import join_patterns.MatchingAlgorithm.StatefulTreeBasedAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 
 import scala.concurrent.Await
 import scala.concurrent.Future

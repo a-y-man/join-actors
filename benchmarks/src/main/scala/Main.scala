@@ -1,6 +1,6 @@
 package benchmarks
 
-import join_patterns.MatchingAlgorithm
+import join_actors.api.MatchingAlgorithm
 import mainargs.Flag
 import mainargs.ParserForClass
 import mainargs.ParserForMethods

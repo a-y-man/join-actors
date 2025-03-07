@@ -1,9 +1,6 @@
-package join_patterns.examples.factory_simpl
+package join_actors.examples.factory_simpl
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration

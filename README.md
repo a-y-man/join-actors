@@ -69,9 +69,7 @@ monitroring system, as seen in the paper:
 - First add the necessary imports:
 
 ```scala
-import join_patterns.receive
-import actor.*
-import actor.Result.*
+import join_actors.api.*
 ```
 
 - Define the messages that the actors will exchange. We use Scala 3 enums to

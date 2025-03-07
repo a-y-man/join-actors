@@ -1,6 +1,6 @@
-package actor
+package join_actors.actor
 
-import join_patterns.Matcher
+import join_patterns.matcher.*
 
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedTransferQueue as Mailbox

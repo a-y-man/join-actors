@@ -1,9 +1,6 @@
-package join_patterns.examples
+package join_actors.examples
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit

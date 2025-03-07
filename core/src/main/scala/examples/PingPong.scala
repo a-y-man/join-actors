@@ -1,10 +1,7 @@
-package join_patterns.examples
+package join_actors.examples
 
-import actor.*
-import actor.Result.*
-import join_patterns.*
+import join_actors.api.*
 import org.scalacheck.*
-import org.scalatest.run
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await

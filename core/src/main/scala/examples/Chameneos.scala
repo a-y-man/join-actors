@@ -1,8 +1,6 @@
-package join_patterns.examples
+package join_actors.examples
 
-import actor.*
-import actor.Result.*
-import join_patterns.*
+import join_actors.api.*
 import org.scalacheck.Gen
 
 import scala.concurrent.Await

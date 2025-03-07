@@ -1,9 +1,6 @@
 package benchmarks
 
-import actor.*
-import actor.Result.*
-import join_patterns.MatchingAlgorithm
-import join_patterns.receive
+import join_actors.api.*
 import os.*
 
 import java.text.SimpleDateFormat

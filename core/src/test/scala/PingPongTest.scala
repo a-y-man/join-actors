@@ -1,6 +1,6 @@
 package test.scenario.pingPong
 
-import join_patterns.MatchingAlgorithm
+import join_actors.api.MatchingAlgorithm
 import org.scalatest.Assertions.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers.*
