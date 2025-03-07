@@ -31,6 +31,12 @@ given patternIdxOrdering: Ordering[PatternIdxs] with
         if a != b then acc = Ordering[Int].compare(a, b)
         i += 1
       acc
+
+/**
+ * A map from constructor indices within a pattern to the indices of the messages that match the pattern.
+ * If a constructor appears once, then the map key is a list with one index. If the same constructor appears multiple
+ * times, the key is a list of multiple indices.
+ */
 type PatternBins = TreeMap[PatternIdxs, MessageIdxs]
 object PatternBins:
   def apply(elems: (PatternIdxs, MessageIdxs)*) =
@@ -63,6 +69,12 @@ final case class PatternInfo[M](
     val patternExtractors: PatternExtractors[M]
 )
 
+/**
+ * A tuple ((pattern, patternIdx), (mTree, patInfo))
+ *
+ * @tparam M The message type
+ * @tparam T The result type
+ */
 type PatternState[M, T] = ((JoinPattern[M, T], Int), (MatchingTree, PatternInfo[M]))
 
 given messageIdxOrdering: Ordering[MessageIdxs] with

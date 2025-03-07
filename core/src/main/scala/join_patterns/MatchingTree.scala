@@ -9,6 +9,9 @@ import scala.collection.immutable.*
 import math.Ordering.Implicits.infixOrderingOps
 import math.Ordering.Implicits.seqOrdering
 
+/**
+ * A map from the indices of the messages that have been matched so far to the pattern bins.
+ */
 type MatchingTree = TreeMap[MessageIdxs, PatternBins]
 object MatchingTree:
   def apply(elems: (MessageIdxs, PatternBins)*): TreeMap[MessageIdxs, PatternBins] =

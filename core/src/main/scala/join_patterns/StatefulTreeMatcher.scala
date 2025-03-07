@@ -15,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Map as MutMap
 
 def logMTreeAndMailBoxSize[M](mTrees: List[MatchingTree], msgCount: Int): String =
-  val mTreesSize = mTrees.map(_.size - 1).reduce(_ + _)
+  val mTreesSize = mTrees.map(_.size - 1).sum
   s"${msgCount + 1},$mTreesSize"
 
 class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
