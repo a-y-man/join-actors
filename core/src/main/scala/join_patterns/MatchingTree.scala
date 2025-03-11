@@ -34,12 +34,18 @@ def updateMTree(
     patternShape: PatternIdxs
 ): MatchingTree =
   mtree.foldLeft(mtree) { case (acc, (messageIdxs, patternBins)) =>
+    // Create the child for one leaf in the matching tree
+
+    // If the PatternBins contains a key for the constructor type of the new message, we might be able to add a child
     val updatedPatternBinsOpt = patternBins.get(patternShape) match
       case Some(messageIdxList) =>
+        // if all the constructor instances in the pattern already have a match, then we cannot add a child
         if messageIdxList.size == patternShape.size then None
+        // otherwise, we make a PatternBins where the new message index is added to the mapped list
         else Some(patternBins.updated(patternShape, messageIdxList :+ messageIdx))
       case None => None
 
+    // Add the new node to the matching tree
     updatedPatternBinsOpt match
       case None                     => acc
       case Some(updatedPatternBins) => acc.updated(messageIdxs :+ messageIdx, updatedPatternBins)

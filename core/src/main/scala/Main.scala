@@ -5,6 +5,7 @@ import join_actors.actor.Result.*
 import join_actors.api.MatchingAlgorithm
 import join_actors.api.MatchingAlgorithm.BruteForceAlgorithm
 import join_actors.api.MatchingAlgorithm.StatefulTreeBasedAlgorithm
+import join_actors.api.MatchingAlgorithm.MutableStatefulAlgorithm
 import join_actors.examples.*
 import join_actors.examples.factory_simpl.runFactorySimple
 import mainargs.Flag
@@ -21,6 +22,7 @@ object Main:
       tokens.headOption match
         case Some("brute")    => Right(BruteForceAlgorithm)
         case Some("stateful") => Right(StatefulTreeBasedAlgorithm)
+        case Some("mutable")  => Right(MutableStatefulAlgorithm)
         case _                => Left("Invalid algorithm")
 
   @main

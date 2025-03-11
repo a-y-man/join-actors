@@ -8,6 +8,7 @@ import join_patterns.matching_tree.*
 import join_patterns.matching_tree.given
 import join_patterns.matcher.brute_force_matcher.*
 import join_patterns.matcher.stateful_tree_matcher.*
+import join_patterns.mutable.MutableStatefulTreeMatcher
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import java.util.concurrent.TimeUnit
@@ -39,7 +40,7 @@ type MatchIdxs = (MessageIdxs, PatternIdx)
   */
 type CandidateMatch[M, T] = Option[(MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))]
 
-/** A map of candidate matches in the join defintion where the key is a sub-sequence of message
+/** A map of candidate matches in the join definition where the key is a sub-sequence of message
   * indices that are the fairest match for a join pattern and the value is a tuple of the
   * substitutions and the RHS function closure.
   *
@@ -221,3 +222,4 @@ object SelectMatcher:
     algorithm match
       case BruteForceAlgorithm        => BruteForceMatcher(patterns)
       case StatefulTreeBasedAlgorithm => StatefulTreeMatcher(patterns)
+      case MutableStatefulAlgorithm   => MutableStatefulTreeMatcher(patterns)

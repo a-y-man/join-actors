@@ -131,7 +131,7 @@ def runSimpleSmartHouseBenchmark(
     pathForBenchmarkData: Path
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm)
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.MutableStatefulAlgorithm)
 
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
@@ -172,7 +172,7 @@ def runSimpleSmartHouseBenchmark(
   val timestamp    = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
   val jsonDataFile = pathToJsonDataFile / s"${timestamp}_smartHouseData.json"
 
-  write(jsonDataFile, msgsAsJson)
+//  write(jsonDataFile, msgsAsJson)
 
   val measurements = algorithms map { algorithm =>
     println(

@@ -7,7 +7,6 @@ import join_patterns.utils.*
 import join_patterns.matching_tree.*
 import join_patterns.matching_tree.given
 import join_patterns.matcher.*
-
 import os.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox

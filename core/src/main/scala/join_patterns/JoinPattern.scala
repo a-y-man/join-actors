@@ -65,8 +65,9 @@ def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M]): String =
     .mkString(", ")
 
 final case class PatternInfo[M](
-    val patternBins: PatternBins,
-    val patternExtractors: PatternExtractors[M]
+    // Initial pattern bins
+    patternBins: PatternBins,
+    patternExtractors: PatternExtractors[M]
 )
 
 /**
@@ -112,11 +113,11 @@ case class JoinPattern[M, T](
     rhs: (LookupEnv, ActorRef[M]) => T,
     size: Int,
     updateMTree: (
-        Tuple2[M, Int],
+        (M, Int),
         MatchingTree
     ) => Option[MatchingTree],
     getPatternInfo: PatternInfo[M]
 )
 
 enum MatchingAlgorithm:
-  case BruteForceAlgorithm, StatefulTreeBasedAlgorithm
+  case BruteForceAlgorithm, StatefulTreeBasedAlgorithm, MutableStatefulAlgorithm

@@ -438,11 +438,11 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
   val updatedMTree: Expr[
     (
-        Tuple2[M, Int],
+        (M, Int),
         MatchingTree
     ) => Option[MatchingTree]
   ] =
-    '{ (m: Tuple2[M, Int], mTree: MatchingTree) =>
+    '{ (m: (M, Int), mTree: MatchingTree) =>
       val (mQ, mQidx) = m // Take the newest msg from the queue
       val patInfo     = ${ patternInfo }
 
@@ -549,7 +549,7 @@ private def getConstructorPatternsFromAndOps[M, T](using quotes: Quotes, tm: Typ
     case leftTot: TypedOrTest => List(leftTot, rightTot)
 
     // Recursive case, the left child is another unapply
-    case leftUnapply: Unapply => rightTot::getConstructorPatternsFromAndOps[M, T](leftUnapply)
+    case leftUnapply: Unapply => getConstructorPatternsFromAndOps[M, T](leftUnapply) :+ rightTot
 
     case err => throw MatchError(err)
 
