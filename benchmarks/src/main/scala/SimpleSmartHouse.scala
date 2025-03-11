@@ -131,7 +131,7 @@ def runSimpleSmartHouseBenchmark(
     pathForBenchmarkData: Path
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.MutableStatefulAlgorithm)
+    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.MutableStatefulAlgorithm, MatchingAlgorithm.LazyMutableAlgorithm)
 
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
