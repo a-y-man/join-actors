@@ -5,13 +5,12 @@ import join_actors.actor.ActorRef
 
 import math.Ordering.Implicits.infixOrderingOps
 import math.Ordering.Implicits.seqOrdering
-import scala.collection.immutable.Queue
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.{ArraySeq, Queue, TreeMap}
 
 type MessageIdx  = Int
-type MessageIdxs = Queue[MessageIdx]
+type MessageIdxs = ArraySeq[MessageIdx]
 object MessageIdxs:
-  def apply(elems: MessageIdx*): MessageIdxs = Queue(elems*)
+  def apply(elems: MessageIdx*): MessageIdxs = ArraySeq(elems*)
 
 type PatternIdx  = Int
 type PatternIdxs = List[PatternIdx]

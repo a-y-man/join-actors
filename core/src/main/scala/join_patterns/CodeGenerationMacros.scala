@@ -412,7 +412,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
           acc.updatedWith(patternShape) {
             case Some(messageIdxs) =>
               if messageIdxs.contains(messageIdx) then Some(messageIdxs)
-              else Some(messageIdxs enqueue messageIdx)
+              else Some(messageIdxs :+ messageIdx)
             case None => Some(MessageIdxs())
           }
         }
