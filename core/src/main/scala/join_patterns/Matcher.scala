@@ -126,9 +126,7 @@ trait Matcher[M, T]:
           .combinations(patternShape.size)
           .map(_.permutations)
           .map(l => l.map(patternShape zip _).to(LazyList))
-        TreeMap(patternShape -> msgsPermutation.to(LazyList))(
-          patternIdxOrdering
-        )
+        TreeMap(patternShape -> msgsPermutation.to(LazyList))(using messageIdxOrdering)
       )
     crossProduct(
       combs.map(_._2).to(LazyList)

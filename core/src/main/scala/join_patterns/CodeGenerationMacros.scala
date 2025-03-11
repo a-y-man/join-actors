@@ -273,7 +273,7 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
     val extractField = _extractors.head._2
 
     PatternInfo(
-      patternBins = MTree(List(0) -> MessageIdxs()),
+      patternBins = MTree(ArraySeq(0) -> MessageIdxs()),
       patternExtractors = PatternExtractors(0 -> (checkMsgType, extractField))
     )
   }
@@ -378,7 +378,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
         .groupBy(_._1._1)
         .map { case (checkMsgType, occurrences) =>
           val indices = occurrences.map(_._2)
-          indices -> MessageIdxs()
+          indices.iterator.to(ArraySeq) -> MessageIdxs()
         }
 
     PatternInfo(patternBins = patBins.to(MTree), patternExtractors = $patExtractors)
@@ -399,7 +399,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
         messages
           .flatMap { case (idx, msg) =>
             val matches =
-              msgPatterns.filter { case ((_, checkMsgType, _), _) => checkMsgType(msg) }.map(_._2)
+              msgPatterns.filter { case ((_, checkMsgType, _), _) => checkMsgType(msg) }.map(_._2).to(ArraySeq)
             List((idx, matches))
           }
           .filter(_._2.nonEmpty)
@@ -457,6 +457,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             checkMsgType(mQ)
           }
           .map(_._2)
+          .to(ArraySeq)
 
         val updatedMTree = updateMTree(mTree, mQidx, matches)
         Some(updatedMTree)

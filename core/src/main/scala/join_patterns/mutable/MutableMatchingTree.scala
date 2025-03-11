@@ -6,7 +6,7 @@ import join_patterns.matching_tree.MatchingTree
 import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, given}
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.{ArraySeq, TreeMap}
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
 
 class MutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int) extends Matcher[M, T]:
@@ -29,7 +29,7 @@ class MutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private 
     val matchingConstructorIdxs = patternExtractors.iterator
       .filter { case (_idx, (msgTypeChecker, _msgFieldExtractor)) => msgTypeChecker(msg) }
       .map { (idx, _) => idx }
-      .toList
+      .to(ArraySeq)
 
 //    println(s"Matching constructor indices: $matchingConstructorIdxs")
 

@@ -13,23 +13,23 @@ object MessageIdxs:
   def apply(elems: MessageIdx*): MessageIdxs = ArraySeq(elems*)
 
 type PatternIdx  = Int
-type PatternIdxs = List[PatternIdx]
+type PatternIdxs = ArraySeq[PatternIdx]
 object PatternIdxs:
-  def apply(elems: PatternIdx*): PatternIdxs = List(elems*)
+  def apply(elems: PatternIdx*): PatternIdxs = ArraySeq(elems*)
 
-given patternIdxOrdering: Ordering[PatternIdxs] with
-  def compare(x: PatternIdxs, y: PatternIdxs): Int =
-    val sizeComp = x.size.compareTo(y.size) // compare by size first
-    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
-    else
-      var acc = 0
-      var i   = 0
-      while i < x.size && i < y.size && acc == 0 do
-        val a = x(i)
-        val b = y(i)
-        if a != b then acc = Ordering[Int].compare(a, b)
-        i += 1
-      acc
+//given patternIdxOrdering: Ordering[PatternIdxs] with
+//  def compare(x: PatternIdxs, y: PatternIdxs): Int =
+//    val sizeComp = x.size.compareTo(y.size) // compare by size first
+//    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
+//    else
+//      var acc = 0
+//      var i   = 0
+//      while i < x.size && i < y.size && acc == 0 do
+//        val a = x(i)
+//        val b = y(i)
+//        if a != b then acc = Ordering[Int].compare(a, b)
+//        i += 1
+//      acc
 
 /**
  * A map from constructor indices within a pattern to the indices of the messages that match the pattern.
@@ -39,7 +39,7 @@ given patternIdxOrdering: Ordering[PatternIdxs] with
 type PatternBins = TreeMap[PatternIdxs, MessageIdxs]
 object PatternBins:
   def apply(elems: (PatternIdxs, MessageIdxs)*) =
-    TreeMap[PatternIdxs, MessageIdxs](elems*)(patternIdxOrdering)
+    TreeMap[PatternIdxs, MessageIdxs](elems*)
 
 def ppPatternBins(patternBins: PatternBins): String =
   patternBins

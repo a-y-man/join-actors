@@ -199,8 +199,8 @@ class MatchingTreeTests extends AnyFunSuite:
 
   test("Duplicate Types in pattern -- Multiple message tree update") {
     val bins = PatternBins(
-      List(0, 2) -> MessageIdxs(),
-      List(1)    -> MessageIdxs()
+      PatternIdxs(0, 2) -> MessageIdxs(),
+      PatternIdxs(1)    -> MessageIdxs()
     )
 
     val tree = MatchingTree(MessageIdxs() -> bins)
