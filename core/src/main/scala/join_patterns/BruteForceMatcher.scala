@@ -1,11 +1,11 @@
 package join_patterns.matcher.brute_force_matcher
 
+import join_actors.actor.ActorRef
+import join_patterns.code_generation.*
+import join_patterns.matcher.*
+import join_patterns.matching_tree.*
 import join_patterns.types.*
 import join_patterns.utils.*
-import join_patterns.code_generation.*
-import join_patterns.matching_tree.*
-import join_patterns.matcher.*
-import join_actors.actor.ActorRef
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.ArrayBuffer
@@ -18,8 +18,8 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages         = MutMap[Int, M]()
   private val patternsWithIdxs = patterns.zipWithIndex
-
-  private var mQidx = -1
+  
+  private var mQidx            = -1
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     var result: Option[T] = None
@@ -29,7 +29,6 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
     messages.update(mQidx, mQ)
 
     while result.isEmpty do
-      // val indexedMessages = messages.zipWithIndex
       val candidateMatches: CandidateMatches[M, T] =
         patternsWithIdxs.foldLeft(CandidateMatches[M, T]()) {
           (candidateMatchesAcc, patternWithIdx) =>

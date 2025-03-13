@@ -285,8 +285,7 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
           val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
           val checkMsgType       = patExtractors(0)._1
           val extractField       = patExtractors(0)._2
-          // val messages           = ArrayBuffer.from(m.zipWithIndex)
-          val (mQidx, mQ) = m.last // Take the newest msg from the queue
+          val (mQidx, mQ) = m.maxBy(_._1)
 
           if checkMsgType(mQ) then Some(PatternBins(PatternIdxs(0) -> MessageIdxs(mQidx)))
           else None
