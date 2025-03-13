@@ -1,21 +1,22 @@
-package join_patterns.lazy_mutable
+package join_patterns.matching.while_lazy
 
 import join_actors.actor.ActorRef
-import join_patterns.matcher.{CandidateMatch, CandidateMatches, Matcher}
+import join_patterns.matching.{CandidateMatch, CandidateMatches, Matcher}
 import join_patterns.types.JoinPattern
+import join_patterns.util.*
 
 import java.util.concurrent.{Executors, LinkedTransferQueue as Mailbox}
 import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
 import scala.concurrent.duration.{Duration, HOURS}
 import scala.concurrent.{Await, ExecutionContext, Promise}
 
-class LazyMutableTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
-  private val matchingTrees: List[LazyMutableMatchingTree[M, T]] =
-    patterns.zipWithIndex.map(LazyMutableMatchingTree(_, _))
+  private val matchingTrees: List[WhileLazyMatchingTree[M, T]] =
+    patterns.zipWithIndex.map(WhileLazyMatchingTree(_, _))
 
 
   private val ec: ExecutionContext = ExecutionContext.fromExecutorService(
@@ -42,8 +43,8 @@ class LazyMutableTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]
 //
 //      val matches = promises.map{ p => Await.result(p.future, Duration(1, HOURS)) }
 
-
-      val matches = matchingTrees.map(_.findMatch(index, msg, messages))
+      val matches = ArrayBuffer[CandidateMatch[M, T]]()
+      for tree <- matchingTrees.fast do matches.append(tree.findMatch(index, msg, messages))
 
       val candidateMatches: CandidateMatches[M, T] =
         matches.foldLeft(CandidateMatches[M, T]()) {
@@ -58,12 +59,11 @@ class LazyMutableTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]
         result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
-        for matchingTree <- matchingTrees do
-          matchingTree.pruneTree(candidateQidxs)
+        for tree <- matchingTrees.fast do
+          tree.pruneTree(candidateQidxs)
 
         // Remove selected message indices from messages
-        candidateQidxs.foreach { idx =>
+        for idx <- candidateQidxs.fast do
           messages.remove(idx)
-        }
 
     result.get

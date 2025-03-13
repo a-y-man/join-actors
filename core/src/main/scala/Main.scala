@@ -1,21 +1,10 @@
 package core
 
-import join_actors.actor.*
-import join_actors.actor.Result.*
 import join_actors.api.MatchingAlgorithm
-import join_actors.api.MatchingAlgorithm.BruteForceAlgorithm
-import join_actors.api.MatchingAlgorithm.StatefulTreeBasedAlgorithm
-import join_actors.api.MatchingAlgorithm.MutableStatefulAlgorithm
-import join_actors.api.MatchingAlgorithm.LazyMutableAlgorithm
+import join_actors.api.MatchingAlgorithm.*
 import join_actors.examples.*
 import join_actors.examples.factory_simpl.runFactorySimple
-import join_patterns.types.MatchingAlgorithm.WhileLazyAlgorithm
-import mainargs.Flag
-import mainargs.ParserForClass
-import mainargs.ParserForMethods
-import mainargs.TokensReader
-import mainargs.arg
-import mainargs.main
+import mainargs.{ParserForMethods, TokensReader, arg, main}
 
 object Main:
   implicit object MatchingAlgorithmParser extends TokensReader.Simple[MatchingAlgorithm]:

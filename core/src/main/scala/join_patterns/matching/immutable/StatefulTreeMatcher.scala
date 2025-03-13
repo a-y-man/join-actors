@@ -1,21 +1,13 @@
-package join_patterns.matcher.stateful_tree_matcher
+package join_patterns.matching.immutable
 
 import join_actors.actor.ActorRef
-import join_actors.actor.ActorRef
+import join_patterns.matching.functions.*
+import join_patterns.matching.*
 import join_patterns.types.*
-import join_patterns.utils.*
-import join_patterns.matching_tree.*
-import join_patterns.matching_tree.given
-import join_patterns.matcher.*
-import os.*
+import join_patterns.matching.immutable.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Map as MutMap
-
-def logMTreeAndMailBoxSize[M](mTrees: List[MatchingTree], msgCount: Int): String =
-  val mTreesSize = mTrees.map(_.size - 1).sum
-  s"${msgCount + 1},$mTreesSize"
 
 class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     extends Matcher[M, T]:
@@ -95,7 +87,6 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
 
   private var mQidx = -1
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
-    import scala.jdk.CollectionConverters.*
 
     var result: Option[T] = None
     var mQ                = q.take()

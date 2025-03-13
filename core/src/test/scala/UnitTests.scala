@@ -28,7 +28,10 @@ implicit val ec: ExecutionContext =
 val matchingAlgos = Table(
   "MatchingAlgorithm",
   MatchingAlgorithm.BruteForceAlgorithm,
-  MatchingAlgorithm.StatefulTreeBasedAlgorithm
+  MatchingAlgorithm.StatefulTreeBasedAlgorithm,
+  MatchingAlgorithm.MutableStatefulAlgorithm,
+  MatchingAlgorithm.LazyMutableAlgorithm,
+  MatchingAlgorithm.WhileLazyAlgorithm
 )
 
 class SingletonPatterns extends AnyFunSuite:

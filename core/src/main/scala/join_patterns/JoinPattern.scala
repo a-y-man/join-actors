@@ -1,11 +1,10 @@
 package join_patterns.types
 
-import join_patterns.matching_tree.*
 import join_actors.actor.ActorRef
+import join_patterns.matching.*
+import join_patterns.matching.immutable.MatchingTree
 
-import math.Ordering.Implicits.infixOrderingOps
-import math.Ordering.Implicits.seqOrdering
-import scala.collection.immutable.{ArraySeq, Queue, TreeMap}
+import scala.collection.immutable.{ArraySeq, TreeMap}
 
 type MessageIdx  = Int
 type MessageIdxs = ArraySeq[MessageIdx]
@@ -68,14 +67,6 @@ final case class PatternInfo[M](
     patternBins: PatternBins,
     patternExtractors: PatternExtractors[M]
 )
-
-/**
- * A tuple ((pattern, patternIdx), (mTree, patInfo))
- *
- * @tparam M The message type
- * @tparam T The result type
- */
-type PatternState[M, T] = ((JoinPattern[M, T], Int), (MatchingTree, PatternInfo[M]))
 
 given messageIdxOrdering: Ordering[MessageIdxs] with
   def compare(x: MessageIdxs, y: MessageIdxs): Int =

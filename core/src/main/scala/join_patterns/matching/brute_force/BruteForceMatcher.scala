@@ -1,18 +1,12 @@
-package join_patterns.matcher.brute_force_matcher
+package join_patterns.matching.brute_force
 
-import join_patterns.types.*
-import join_patterns.utils.*
-import join_patterns.code_generation.*
-import join_patterns.matching_tree.*
-import join_patterns.matcher.*
 import join_actors.actor.ActorRef
+import join_patterns.matching.functions.*
+import join_patterns.matching.*
+import join_patterns.types.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Map as MutMap
-
-def logMailBoxSizeAndMsgCnt[M](mBox: MutMap[Int, M], msgCount: Int): String =
-  s"$msgCount,${mBox.size}"
 
 class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls

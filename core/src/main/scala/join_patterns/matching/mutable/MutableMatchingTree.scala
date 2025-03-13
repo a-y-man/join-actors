@@ -1,17 +1,14 @@
-package join_patterns.mutable
+package join_patterns.matching.mutable
 
 import join_actors.actor.ActorRef
-import join_patterns.matcher.{CandidateMatch, Matcher}
-import join_patterns.matching_tree.MatchingTree
+import join_patterns.matching.CandidateMatch
+import join_patterns.matching.functions.*
 import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, given}
 
-import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.immutable.{ArraySeq, TreeMap}
+import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
 
-class MutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int) extends Matcher[M, T]:
-  // TODO: Currenly extending Matcher just to get the utility methods, this needs a refactor
-
+class MutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 //  private val msgTypeCheckers = patternExtractors.map{ case (key, (typeChecker, _)) => (key, typeChecker) }
 
@@ -123,7 +120,3 @@ class MutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private 
   def pruneTree(messageIdxsToRemove: MessageIdxs): Unit =
     nodes.filterInPlace: (messageIdxs, _) =>
       messageIdxsToRemove.forall(i => !messageIdxs.contains(i))
-
-  override def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
-    // Needed because of extends Matcher
-    ???

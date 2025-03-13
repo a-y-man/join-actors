@@ -1,19 +1,17 @@
-package join_patterns.lazy_mutable
+package join_patterns.matching.while_lazy
 
 import join_actors.actor.ActorRef
-import join_patterns.matcher.{CandidateMatch, Matcher}
-import join_patterns.matching_tree.MatchingTree
+import join_patterns.matching.CandidateMatch
+import join_patterns.matching.functions.*
 import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, given}
+import join_patterns.util.*
 
-import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.immutable.{ArraySeq, TreeMap}
+import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
 import scala.util.boundary
 import scala.util.boundary.break
 
-class LazyMutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int) extends Matcher[M, T]:
-  // TODO: Currenly extending Matcher just to get the utility methods, this needs a refactor
-
+class WhileLazyMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 //  private val msgTypeCheckers = patternExtractors.map{ case (key, (typeChecker, _)) => (key, typeChecker) }
 
@@ -32,34 +30,32 @@ class LazyMutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], priv
       val additions = ArrayBuffer[(MessageIdxs, PatternBins)]()
 
       val res = boundary:
-        for (messageIdxsMatched, bins) <- nodes do
+        for (messageIdxsMatched, bins) <- nodes.fast do
           // Create the child for one leaf in the matching tree
-
           // If the PatternBins contains a key for the constructor type of the new message, we might be able to compute a child
-          bins.get(matchingConstructorIdxs).foreach { mappedMessageIdxs =>
+          bins.get(matchingConstructorIdxs) match
+            case None => ()
+            case Some(mappedMessageIdxs) =>
+              // We only add a new node if some of the constructor instances in the pattern don't already have a match
+              if mappedMessageIdxs.size < matchingConstructorIdxs.size then
+                val newMessageIdxs = messageIdxsMatched :+ newMessageIdx
+                val newPatternBins = bins.updated(matchingConstructorIdxs, mappedMessageIdxs :+ newMessageIdx)
 
-            // We only add a new node if some of the constructor instances in the pattern don't already have a match
-            if mappedMessageIdxs.size < matchingConstructorIdxs.size then
-              val newMessageIdxs = messageIdxsMatched :+ newMessageIdx
-              val newPatternBins = bins.updated(matchingConstructorIdxs, mappedMessageIdxs :+ newMessageIdx)
+                if newMessageIdxs.size == pattern.size
+                        && newPatternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
+                then
+                  // Find optimal permutation
+                  val bestPermutation = findBestValidPermutation(newPatternBins, messages)
 
-              if newMessageIdxs.size == pattern.size
-                && newPatternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
-              then
-                // Find optimal permutation
-                val bestPermutation = findBestValidPermutation(newPatternBins, messages)
-
-                // If the guard can be satisfied, we break out of the loop with this permutation
-                // Otherwise, we do nothing. Either way, we do not add a new node to the tree
-                bestPermutation match
-                  case r @ Some(_) =>
-                    break(r)
-                  case None => ()
-              else
-                val newNode = (newMessageIdxs, newPatternBins)
-                additions.append(newNode)
-          }
-
+                  // If the guard can be satisfied, we break out of the loop with this permutation
+                  // Otherwise, we do nothing. Either way, we do not add a new node to the tree
+                  bestPermutation match
+                    case r@Some(_) =>
+                      break(r)
+                    case None => ()
+                else
+                  val newNode = (newMessageIdxs, newPatternBins)
+                  additions.append(newNode)
         // If the loop does not find any full nodes with a valid permutation, we do not have a result
         None
 
@@ -67,8 +63,8 @@ class LazyMutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], priv
         case Some((bestMatchIdxs, bestMatchSubsts)) =>
           val selectedMatch =
             (
-              bestMatchSubsts,
-              (substs: LookupEnv, self: ActorRef[M]) => pattern.rhs(substs, self)
+                    bestMatchSubsts,
+                    (substs: LookupEnv, self: ActorRef[M]) => pattern.rhs(substs, self)
             )
 
           Some((bestMatchIdxs, patternIdx), selectedMatch)
@@ -89,7 +85,3 @@ class LazyMutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], priv
   def pruneTree(messageIdxsToRemove: MessageIdxs): Unit =
     nodes.filterInPlace: (messageIdxs, _) =>
       messageIdxsToRemove.forall(i => !messageIdxs.contains(i))
-
-  override def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
-    // Needed because of extends Matcher
-    ???

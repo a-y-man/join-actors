@@ -1,4 +1,4 @@
-package join_patterns.utils
+package join_patterns.util
 
 import scala.quoted.*
 

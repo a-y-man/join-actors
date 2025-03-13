@@ -1,22 +1,13 @@
 package join_patterns.code_generation
 
-import join_actors.actor.Actor
-import join_actors.actor.ActorRef
-import join_actors.actor.Result
-import join_patterns.matching_tree.*
-import join_patterns.matching_tree.given
-import join_patterns.matcher.*
-import join_patterns.utils.*
-import join_patterns.types.*
-import join_patterns.types.given
-import scala.collection.immutable.*
-import scala.collection.immutable.TreeMap as MTree
-import scala.collection.mutable.ArrayBuffer
-import scala.collection.mutable.Map as MutMap
-import scala.quoted.Expr
-import scala.quoted.Quotes
-import scala.quoted.Type
-import scala.quoted.Varargs
+import join_actors.actor.{ActorRef, Result}
+import join_patterns.matching.*
+import join_patterns.matching.immutable.{MatchingTree, updateMTree}
+import join_patterns.types.{*, given}
+import join_patterns.util.*
+
+import scala.collection.immutable.{TreeMap as MTree, *}
+import scala.quoted.{Expr, Quotes, Type, Varargs}
 
 object `&&&`:
   infix def unapply(arg: Any): Option[(Unit, Unit)] = Some((), ())

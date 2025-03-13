@@ -1,7 +1,7 @@
-package join_patterns.mutable
+package join_patterns.matching.lazy_mutable
 
 import join_actors.actor.ActorRef
-import join_patterns.matcher.{CandidateMatch, CandidateMatches, Matcher}
+import join_patterns.matching.{CandidateMatches, Matcher}
 import join_patterns.types.JoinPattern
 
 import java.util.concurrent.{Executors, LinkedTransferQueue as Mailbox}
@@ -9,13 +9,13 @@ import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
 import scala.concurrent.duration.{Duration, HOURS}
 import scala.concurrent.{Await, ExecutionContext, Promise}
 
-class MutableStatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class LazyMutableTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
-  private val matchingTrees: List[MutableMatchingTree[M, T]] =
-    patterns.zipWithIndex.map(MutableMatchingTree(_, _))
+  private val matchingTrees: List[LazyMutableMatchingTree[M, T]] =
+    patterns.zipWithIndex.map(LazyMutableMatchingTree(_, _))
 
 
   private val ec: ExecutionContext = ExecutionContext.fromExecutorService(
