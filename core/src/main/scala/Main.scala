@@ -9,6 +9,7 @@ import join_actors.api.MatchingAlgorithm.MutableStatefulAlgorithm
 import join_actors.api.MatchingAlgorithm.LazyMutableAlgorithm
 import join_actors.examples.*
 import join_actors.examples.factory_simpl.runFactorySimple
+import join_patterns.types.MatchingAlgorithm.WhileLazyAlgorithm
 import mainargs.Flag
 import mainargs.ParserForClass
 import mainargs.ParserForMethods
@@ -24,7 +25,8 @@ object Main:
         case Some("brute")    => Right(BruteForceAlgorithm)
         case Some("stateful") => Right(StatefulTreeBasedAlgorithm)
         case Some("mutable")  => Right(MutableStatefulAlgorithm)
-        case Some("lazy-mutable")  => Right(LazyMutableAlgorithm)
+        case Some("lazy-mutable") => Right(LazyMutableAlgorithm)
+        case Some("while-lazy") => Right(WhileLazyAlgorithm)
         case _                => Left("Invalid algorithm")
 
   @main

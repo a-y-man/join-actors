@@ -10,6 +10,7 @@ import join_patterns.matching_tree.given
 import join_patterns.matcher.brute_force_matcher.*
 import join_patterns.matcher.stateful_tree_matcher.*
 import join_patterns.mutable.MutableStatefulTreeMatcher
+import join_patterns.while_lazy.WhileLazyTreeMatcher
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import java.util.concurrent.TimeUnit
@@ -223,3 +224,4 @@ object SelectMatcher:
       case StatefulTreeBasedAlgorithm => StatefulTreeMatcher(patterns)
       case MutableStatefulAlgorithm   => MutableStatefulTreeMatcher(patterns)
       case LazyMutableAlgorithm       => LazyMutableTreeMatcher(patterns)
+      case WhileLazyAlgorithm         => WhileLazyTreeMatcher(patterns)
