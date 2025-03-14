@@ -1,7 +1,6 @@
 package join_patterns.types
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.*
 import join_patterns.matching.immutable.MatchingTree
 
 import scala.collection.immutable.{ArraySeq, TreeMap}
@@ -98,7 +97,6 @@ def ppLookupEnv(lookupEnv: LookupEnv): String =
 /** An ADT defintion of a join pattern
   */
 case class JoinPattern[M, T](
-    extract: Messages[M] => Option[PatternBins],
     guard: LookupEnv => Boolean,
     rhs: (LookupEnv, ActorRef[M]) => T,
     size: Int,

@@ -1,8 +1,6 @@
 package benchmarks
 
 import join_actors.api.MatchingAlgorithm
-import join_patterns.matcher.*
-import join_patterns.matching_tree.*
 import os.Path
 
 import java.util.concurrent.Executors

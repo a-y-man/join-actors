@@ -271,26 +271,13 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
 
   outer.asType match
     case '[ot] =>
-      val extract: Expr[
-        Map[Int, M] => Option[PatternBins]
-      ] =
-        '{ (m: Map[Int, M]) =>
-          val patInfo            = ${ patternInfo }
-          val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
-          val checkMsgType       = patExtractors(0)._1
-          val extractField       = patExtractors(0)._2
-          val (mQidx, mQ) = m.maxBy(_._1)
-
-          if checkMsgType(mQ) then Some(PatternBins(PatternIdxs(0) -> MessageIdxs(mQidx)))
-          else None
-        }
       val predicate: Expr[LookupEnv => Boolean] =
         generateGuard(guard, inners).asExprOf[LookupEnv => Boolean]
       val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
         generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(LookupEnv, ActorRef[M]) => T]
       val size = 1
 
-      val updatedMTree = '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
+      val updatedMTree = '{ (m: (M, Int), pState: MatchingTree) =>
         val patInfo            = ${ patternInfo }
         val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
         val checkMsgType       = patExtractors(0)._1
@@ -303,7 +290,6 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
 
       '{
         JoinPattern(
-          $extract,
           $predicate,
           $rhs,
           ${ Expr(size) },
@@ -374,54 +360,6 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
     PatternInfo(patternBins = patBins.to(MTree), patternExtractors = $patExtractors)
   }
 
-  val extract: Expr[
-    Map[Int, M] => Option[PatternBins]
-  ] =
-    '{ (m: Map[Int, M]) =>
-      val messages    = m
-      val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgPatterns = _extractors.zipWithIndex
-
-      def getMsgIdxsWithFits(
-          messages: Map[Int, M],
-          msgPatterns: List[((String, M => Boolean, M => LookupEnv), Int)]
-      ): Map[MessageIdx, PatternIdxs] =
-        messages
-          // Associate each message index with the list of pattern indices that match it
-          .flatMap { case (idx, msg) =>
-            val matches =
-              msgPatterns.filter { case ((_, checkMsgType, _), _) => checkMsgType(msg) }.map(_._2).to(ArraySeq)
-            List((idx, matches))
-          }
-          // Take only the results with at least one matching pattern
-          .filter(_._2.nonEmpty)
-
-      def buildPatternBins(
-          messageIdxWithFits: Map[MessageIdx, PatternIdxs],
-          initialPatternBins: PatternBins
-      ): PatternBins =
-        messageIdxWithFits.foldLeft(initialPatternBins) { case (acc, (messageIdx, patternShape)) =>
-          acc.updatedWith(patternShape) {
-            case Some(messageIdxs) =>
-              if messageIdxs.contains(messageIdx) then Some(messageIdxs)
-              else Some(messageIdxs :+ messageIdx)
-            case None => Some(MessageIdxs())
-          }
-        }
-
-      def isPatternBinComplete(
-          patternBins: PatternBins
-      ): Boolean =
-        patternBins.forall((patShape, msgIdxs) => msgIdxs.size >= patShape.size)
-
-      val messageIdxWithFits = getMsgIdxsWithFits(messages, msgPatterns)
-      val initPatternBins    = ${ patternInfo }.patternBins
-      val patternBins        = buildPatternBins(messageIdxWithFits, initPatternBins)
-
-      if !isPatternBinComplete(patternBins) then None
-      else Some(patternBins)
-    }
-
   val predicate: Expr[LookupEnv => Boolean] =
     generateGuard(guard, inners).asExprOf[LookupEnv => Boolean]
   val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
@@ -458,7 +396,6 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
   '{
     JoinPattern(
-      $extract,
       $predicate,
       $rhs,
       ${ Expr(size) },
@@ -488,11 +425,6 @@ private def generateWildcardPattern[M, T](using
 )(guard: Option[quotes.reflect.Term], _rhs: quotes.reflect.Term): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val extract: Expr[
-    Map[Int, M] => Option[PatternBins]
-  ] = '{ (m: Map[Int, M]) =>
-    None
-  }
   val predicate: Expr[LookupEnv => Boolean] =
     generateGuard(guard, List()).asExprOf[LookupEnv => Boolean]
   val rhs: Expr[(LookupEnv, ActorRef[M]) => T] = '{ (_: LookupEnv, _: ActorRef[M]) =>
@@ -513,7 +445,6 @@ private def generateWildcardPattern[M, T](using
 
   '{
     JoinPattern(
-      $extract,
       $predicate,
       $rhs,
       ${ Expr(size) },

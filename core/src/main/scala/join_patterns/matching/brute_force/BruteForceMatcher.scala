@@ -6,6 +6,7 @@ import join_patterns.matching.*
 import join_patterns.types.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
+import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable.Map as MutMap
 
 class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
@@ -29,7 +30,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
           (candidateMatchesAcc, patternWithIdx) =>
             val (pattern, patternIdx) = patternWithIdx
             if messages.size >= pattern.size then
-              val patternBinsOpt = pattern.extract(messages.toMap)
+              val patternBinsOpt = extractPatternBins(pattern, messages.toMap)
               patternBinsOpt match
                 case Some(patternBins) =>
                   val validPermutations =
@@ -69,3 +70,46 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
         messages.update(mQidx, mQ)
 
     result.get
+
+  private def extractPatternBins(pattern: JoinPattern[M, T], messages: Messages[M]): Option[PatternBins] =
+    val msgPatterns = pattern.getPatternInfo.patternExtractors
+
+    val messageIdxWithFits = getMsgIdxsWithFits(messages, msgPatterns)
+    val initPatternBins = pattern.getPatternInfo.patternBins
+    val patternBins = buildPatternBins(messageIdxWithFits, initPatternBins)
+
+    if !isPatternBinComplete(patternBins) then None
+    else Some(patternBins)
+
+  private def getMsgIdxsWithFits(
+                          messages: Map[Int, M],
+                          msgPatterns: PatternExtractors[M]
+                        ): Map[MessageIdx, PatternIdxs] =
+    messages.iterator
+      // Associate each message index with the list of pattern indices that match it
+      .map { case (idx, msg) =>
+        val matches =
+          msgPatterns.filter { case (_idx, (checkMsgType, _fieldExtractor)) => checkMsgType(msg) }.keys.to(ArraySeq)
+        (idx, matches)
+      }
+      // Take only the results with at least one matching pattern
+      .filter(_._2.nonEmpty)
+      .toMap
+
+  private def buildPatternBins(
+                        messageIdxWithFits: Map[MessageIdx, PatternIdxs],
+                        initialPatternBins: PatternBins
+                      ): PatternBins =
+    messageIdxWithFits.foldLeft(initialPatternBins) { case (acc, (messageIdx, patternShape)) =>
+      acc.updatedWith(patternShape) {
+        case Some(messageIdxs) =>
+          if messageIdxs.contains(messageIdx) then Some(messageIdxs)
+          else Some(messageIdxs :+ messageIdx)
+        case None => Some(MessageIdxs())
+      }
+    }
+
+  private def isPatternBinComplete(
+                            patternBins: PatternBins
+                          ): Boolean =
+    patternBins.forall((patShape, msgIdxs) => msgIdxs.size >= patShape.size)
