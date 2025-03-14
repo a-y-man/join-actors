@@ -388,11 +388,13 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
           msgPatterns: List[((String, M => Boolean, M => LookupEnv), Int)]
       ): Map[MessageIdx, PatternIdxs] =
         messages
+          // Associate each message index with the list of pattern indices that match it
           .flatMap { case (idx, msg) =>
             val matches =
               msgPatterns.filter { case ((_, checkMsgType, _), _) => checkMsgType(msg) }.map(_._2).to(ArraySeq)
             List((idx, matches))
           }
+          // Take only the results with at least one matching pattern
           .filter(_._2.nonEmpty)
 
       def buildPatternBins(

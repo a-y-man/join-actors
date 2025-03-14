@@ -5,10 +5,8 @@ import join_patterns.matching.{CandidateMatch, CandidateMatches, Matcher}
 import join_patterns.types.JoinPattern
 import join_patterns.util.*
 
-import java.util.concurrent.{Executors, LinkedTransferQueue as Mailbox}
+import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
-import scala.concurrent.duration.{Duration, HOURS}
-import scala.concurrent.{Await, ExecutionContext, Promise}
 
 class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
@@ -17,11 +15,6 @@ class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) 
 
   private val matchingTrees: List[WhileLazyMatchingTree[M, T]] =
     patterns.zipWithIndex.map(WhileLazyMatchingTree(_, _))
-
-
-  private val ec: ExecutionContext = ExecutionContext.fromExecutorService(
-    Executors.newVirtualThreadPerTaskExecutor()
-  )
 
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
@@ -34,14 +27,6 @@ class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) 
       nextMessageIndex += 1
 
       messages.update(index, msg)
-
-//      val promises = ArrayBuffer[Promise[CandidateMatch[M, T]]]()
-//      for tree <- matchingTrees do
-//        val prom = Promise[CandidateMatch[M, T]]()
-//        promises.append(prom)
-//        ec.execute(() => prom.success(tree.findMatch(index, msg, messages)))
-//
-//      val matches = promises.map{ p => Await.result(p.future, Duration(1, HOURS)) }
 
       val matches = ArrayBuffer[CandidateMatch[M, T]]()
       for tree <- matchingTrees.fast do matches.append(tree.findMatch(index, msg, messages))
