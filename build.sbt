@@ -9,7 +9,6 @@ lazy val versions = new {
     val osLib      = "0.11.4"
     val mainargs   = "0.7.6"
     val gson       = "2.11.0"
-    val kyo        = "0.16.2"
   }
 
 lazy val commonDependencies = Seq(
@@ -17,14 +16,6 @@ lazy val commonDependencies = Seq(
   "com.lihaoyi"         %% "mainargs" % versions.mainargs,
   "com.google.code.gson" % "gson"     % versions.gson
 )
-
-lazy val kyoDependencies = Seq(
-  "io.getkyo" %% "kyo-prelude" % versions.kyo,
-  "io.getkyo" %% "kyo-core"    % versions.kyo,
-  "io.getkyo" %% "kyo-data"    % versions.kyo,
-  "io.getkyo" %% "kyo-direct"  % versions.kyo
-)
-
 lazy val testDependencies = Seq(
   "org.scalacheck"    %% "scalacheck"         % versions.scalaCheck,
   "org.scalactic"     %% "scalactic"          % versions.scalactic         % Test,
@@ -36,7 +27,7 @@ lazy val testDependencies = Seq(
 
 // Common settings for all projects
 lazy val commonSettings = Seq(
-  libraryDependencies ++= commonDependencies ++ kyoDependencies ++ testDependencies
+  libraryDependencies ++= commonDependencies ++ testDependencies
 )
 
 ThisBuild / assemblyMergeStrategy := {
