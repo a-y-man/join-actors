@@ -1,13 +1,13 @@
 package join_patterns.matcher
 
 import join_actors.actor.ActorRef
+import join_patterns.matcher.brute_force_matcher.*
+import join_patterns.matcher.stateful_tree_matcher.*
+import join_patterns.matching_tree.*
+import join_patterns.matching_tree.given
 import join_patterns.types.*
 import join_patterns.types.given
 import join_patterns.utils.*
-import join_patterns.matching_tree.*
-import join_patterns.matching_tree.given
-import join_patterns.matcher.brute_force_matcher.*
-import join_patterns.matcher.stateful_tree_matcher.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import java.util.concurrent.TimeUnit
@@ -52,8 +52,6 @@ type CandidateMatches[M, T] =
   TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]
 
 object CandidateMatches:
-  import math.Ordering.Implicits.infixOrderingOps
-  import math.Ordering.Implicits.seqOrdering
   def apply[M, T](): CandidateMatches[M, T] =
     TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]()(
       Ordering.Tuple2[MessageIdxs, PatternIdx]
@@ -125,9 +123,7 @@ trait Matcher[M, T]:
           .combinations(patternShape.size)
           .map(_.permutations)
           .map(l => l.map(patternShape zip _).to(LazyList))
-        TreeMap(patternShape -> msgsPermutation.to(LazyList))(
-          patternIdxOrdering
-        )
+        TreeMap(patternShape -> msgsPermutation.to(LazyList))
       )
     crossProduct(
       combs.map(_._2).to(LazyList)

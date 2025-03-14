@@ -6,9 +6,6 @@ import join_patterns.types.given
 import scala.Console
 import scala.collection.immutable.*
 
-import math.Ordering.Implicits.infixOrderingOps
-import math.Ordering.Implicits.seqOrdering
-
 type MatchingTree = TreeMap[MessageIdxs, PatternBins]
 object MatchingTree:
   def apply(elems: (MessageIdxs, PatternBins)*): TreeMap[MessageIdxs, PatternBins] =

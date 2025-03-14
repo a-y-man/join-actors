@@ -393,7 +393,7 @@ class CompositePatterns extends AnyFunSuite:
 
       val actual = Await.result(futureResult, Duration.Inf)
 
-      assert(actual == expected + 1)
+      assert(actual == expected)
     }
   }
 
@@ -555,6 +555,161 @@ class CompositePatterns extends AnyFunSuite:
 
       val actual   = Await.result(futureResult, Duration.Inf)
       val expected = 5
+
+      assert(actual == expected)
+    }
+  }
+
+class FairMatchingTests extends AnyFunSuite:
+  test("Fair join pattern matching of a single join pattern") {
+    val msgs =
+      List[Msg](F(1, "fst"), F(1, "snd"), F(2, "fst"), F(2, "snd"), F(3, "fst"), F(3, "snd"))
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[Msg, List[String]] {
+        receive { (_: ActorRef[Msg]) =>
+          {
+            case (F(a1, b1), F(a2, b2), F(a3, b3)) if a1 == 1 && a2 == 2 && a3 == 3 =>
+              Stop(List(b1, b2, b3))
+          }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val actual = Await.result(futureResult, Duration.Inf)
+
+      assert(actual.forall(_ == "fst"))
+    }
+  }
+
+  test("Fair join definition matching with multiple identical join patterns and no guard") {
+    val msgs = List[Msg](B(1), B(2), B(3))
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[Msg, Int] {
+        receive { (_: ActorRef[Msg]) =>
+          {
+            case (B(a: Int), B(b: Int), B(c: Int)) => Stop(1)
+            case (B(a: Int), B(b: Int), B(c: Int)) => Stop(2)
+            case (B(a: Int), B(b: Int), B(c: Int)) => Stop(3)
+            case (B(a: Int), B(b: Int), B(c: Int)) => Stop(4)
+          }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val actual   = Await.result(futureResult, Duration.Inf)
+      val expected = 1
+
+      assert(actual == expected)
+    }
+  }
+
+  test("Fair join definition matching with multiple identical join patterns and a guard") {
+    val msgs = 
+      List[Msg](F(1, "fst"), F(1, "snd"), F(2, "fst"), 
+                F(2, "snd"), F(3, "fst"), F(3, "snd"))
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[Msg, (Int, List[String])] {
+        receive { (_: ActorRef[Msg]) =>
+          {
+            case (F(a1, b1), F(a2, b2), F(a3, b3)) if a1 == 1 && a2 == 2 && a3 == 3 =>
+              Stop((1, List(b1, b2, b3)))
+            case (F(a1, b1), F(a2, b2), F(a3, b3)) if a1 == 1 && a2 == 2 && a3 == 3 =>
+              Stop((2, List(b1, b2, b3)))
+            case (F(a1, b1), F(a2, b2), F(a3, b3)) if a1 == 1 && a2 == 2 && a3 == 3 =>
+              Stop((3, List(b1, b2, b3)))
+            case (F(a1, b1), F(a2, b2), F(a3, b3)) if a1 == 1 && a2 == 2 && a3 == 3 =>
+              Stop((4, List(b1, b2, b3)))
+          }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val actual = Await.result(futureResult, Duration.Inf)
+
+      assert(actual._1 == 1 && actual._2.forall(_ == "fst"))
+    }
+  }
+
+  test("Fair join definition matching with no guard") {
+    val msgs = List[Msg](A(), B(1), C("C"), B(2), B(3), B(4), B(5), B(6))
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[Msg, Int] {
+        receive { (_: ActorRef[Msg]) =>
+          {
+            case (B(a: Int), B(b: Int), B(c: Int)) => Stop(a + b + c)
+          }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val actual   = Await.result(futureResult, Duration.Inf)
+      val expected = 6
+
+      assert(actual == expected)
+    }
+  }
+
+  test("Fair join definition matching with different sized join patterns") {
+    val msgs = 
+      List[Msg](D(), B(1), A())
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[Msg, Int] {
+        receive { (self: ActorRef[Msg]) =>
+          {
+            case (A(), B(_)) =>
+              Stop(1)
+            case (B(_), A()) => 
+              Stop(2)
+            case (D(), A(), B(_)) =>
+              Stop(3)
+            case (B(_), A(), D()) =>
+              Stop(4)
+          }
+        }(algorithm)
+      }
+
+      val (futureResult, actorRef) = actor.start()
+  
+      msgs.foreach(actorRef ! _)
+  
+      val actual = Await.result(futureResult, Duration.Inf)
+
+      assert(actual == 3)
+    }
+  }
+
+  test("Fair join definition matching with a guard") {
+    val msgs = List[Msg](B(1), B(2), B(3), F(3, "f"))
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[Msg, Int] {
+        receive { (_: ActorRef[Msg]) =>
+          {
+            case (B(a), F(b, _)) if a == b => Stop(1)
+            case (B(a), B(b), F(c, _)) if b == c => Stop(2)
+            case (F(c, _), B(a), B(b)) if b == c => Stop(3)
+          }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val actual   = Await.result(futureResult, Duration.Inf)
+      val expected = 2
 
       assert(actual == expected)
     }
