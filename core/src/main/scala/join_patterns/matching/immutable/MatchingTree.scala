@@ -1,10 +1,10 @@
 package join_patterns.matching.immutable
 
-import join_patterns.types.{*, given}
+import join_patterns.types.*
+import join_patterns.types.messageIdxOrdering
 
 import scala.Console
 import scala.collection.immutable.*
-import scala.math.Ordering.Implicits.{infixOrderingOps, seqOrdering}
 
 /**
  * A map from the indices of the messages that have been matched so far to the pattern bins.

@@ -48,7 +48,6 @@ type CandidateMatches[M, T] =
   TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]
 
 object CandidateMatches:
-  import math.Ordering.Implicits.seqOrdering
   def apply[M, T](): CandidateMatches[M, T] =
     TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]()(
       Ordering.Tuple2[MessageIdxs, PatternIdx]

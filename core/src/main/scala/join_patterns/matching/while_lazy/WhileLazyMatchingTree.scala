@@ -3,7 +3,7 @@ package join_patterns.matching.while_lazy
 import join_actors.actor.ActorRef
 import join_patterns.matching.CandidateMatch
 import join_patterns.matching.functions.*
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, given}
+import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, messageIdxOrdering}
 import join_patterns.util.*
 
 import scala.collection.immutable.ArraySeq
@@ -23,7 +23,7 @@ class WhileLazyMatchingTree[M, T](private val pattern: JoinPattern[M, T], privat
     val matchingConstructorIdxs = patternExtractors.iterator
       .filter { case (_idx, (msgTypeChecker, _msgFieldExtractor)) => msgTypeChecker(msg) }
       .map { (idx, _) => idx }
-      .to(ArraySeq)
+      .to(PatternIdxs)
 
     if matchingConstructorIdxs.isEmpty then None
     else

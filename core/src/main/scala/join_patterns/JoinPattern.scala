@@ -3,12 +3,22 @@ package join_patterns.types
 import join_actors.actor.ActorRef
 import join_patterns.matching.immutable.MatchingTree
 
+import scala.annotation.targetName
+import scala.collection.Factory
 import scala.collection.immutable.{ArraySeq, TreeMap}
+import scala.collection.mutable.Builder
 
 type MessageIdx  = Int
-type MessageIdxs = ArraySeq[MessageIdx]
+
+final case class MessageIdxs private (delegate: ArraySeq[MessageIdx]) extends Iterable[MessageIdx]:
+  export delegate.{:+ as _, apply, iterator, sorted, contains, combinations}
+
+  @targetName("colonPlus")
+  infix def :+(e: MessageIdx): MessageIdxs =
+    MessageIdxs(delegate :+ e)
+
 object MessageIdxs:
-  def apply(elems: MessageIdx*): MessageIdxs = ArraySeq(elems*)
+  def apply(elems: MessageIdx*): MessageIdxs = MessageIdxs(ArraySeq(elems*))
 
 given messageIdxOrdering: Ordering[MessageIdxs] with
   def compare(x: MessageIdxs, y: MessageIdxs): Int =
@@ -32,9 +42,18 @@ given messageIdxOrdering: Ordering[MessageIdxs] with
     0
 
 type PatternIdx  = Int
-type PatternIdxs = ArraySeq[PatternIdx]
-object PatternIdxs:
-  def apply(elems: PatternIdx*): PatternIdxs = ArraySeq(elems*)
+final case class PatternIdxs private (delegate: ArraySeq[PatternIdx])
+  extends Iterable[PatternIdx]:
+  export delegate.{apply, iterator}
+
+object PatternIdxs extends Factory[PatternIdx, PatternIdxs]:
+  def apply(elems: PatternIdx*): PatternIdxs = PatternIdxs(ArraySeq(elems*))
+
+  def fromSpecific(it: IterableOnce[PatternIdx]): PatternIdxs =
+    PatternIdxs(it.iterator.to(ArraySeq))
+
+  def newBuilder: Builder[PatternIdx, PatternIdxs] =
+    ArraySeq.newBuilder[PatternIdx].mapResult(PatternIdxs.apply)
 
 given patternIdxOrdering: Ordering[PatternIdxs] with
   def compare(x: PatternIdxs, y: PatternIdxs): Int =
@@ -57,7 +76,7 @@ given patternIdxOrdering: Ordering[PatternIdxs] with
  */
 type PatternBins = TreeMap[PatternIdxs, MessageIdxs]
 object PatternBins:
-  def apply(elems: (PatternIdxs, MessageIdxs)*) =
+  def apply(elems: (PatternIdxs, MessageIdxs)*): PatternBins =
     TreeMap[PatternIdxs, MessageIdxs](elems*)
 
 def ppPatternBins(patternBins: PatternBins): String =

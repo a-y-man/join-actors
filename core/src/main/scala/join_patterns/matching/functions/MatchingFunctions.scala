@@ -2,7 +2,7 @@ package join_patterns.matching.functions
 
 import join_patterns.matching.*
 import join_patterns.matching.immutable.MatchingTree
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternExtractors, messageIdxOrdering}
+import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternExtractors, given}
 
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.Map as MutMap
@@ -32,7 +32,7 @@ private def computeValidCombinations(
         .combinations(patternShape.size)
         .map(_.permutations)
         .map(l => l.map(patternShape zip _).to(LazyList))
-      TreeMap(patternShape -> msgsPermutation.to(LazyList))(using messageIdxOrdering)
+      TreeMap(patternShape -> msgsPermutation.to(LazyList))
     )
   crossProduct(
     combs.map(_._2).to(LazyList)

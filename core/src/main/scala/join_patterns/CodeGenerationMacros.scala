@@ -264,7 +264,7 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
     val extractField = _extractors.head._2
 
     PatternInfo(
-      patternBins = MTree(ArraySeq(0) -> MessageIdxs()),
+      patternBins = MTree(PatternIdxs(0) -> MessageIdxs()),
       patternExtractors = PatternExtractors(0 -> (checkMsgType, extractField))
     )
   }
@@ -284,7 +284,7 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
         val (mQ, mQidx)        = m // Take the newest msg from the queue
         val mTree              = pState
         val mIdxs              = MessageIdxs(mQidx)
-        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, MTree(PatternIdxs(0) -> mIdxs)))
+        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, MTree(PatternIdxs(0) -> mIdxs)(using patternIdxOrdering)))
         else Some(mTree)
       }
 
@@ -354,7 +354,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
         .groupBy(_._1._1)
         .map { case (checkMsgType, occurrences) =>
           val indices = occurrences.map(_._2)
-          indices.iterator.to(ArraySeq) -> MessageIdxs()
+          indices.iterator.to(PatternIdxs) -> MessageIdxs()
         }
 
     PatternInfo(patternBins = patBins.to(MTree), patternExtractors = $patExtractors)
@@ -387,7 +387,7 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
             checkMsgType(mQ)
           }
           .map(_._2)
-          .to(ArraySeq)
+          .to(PatternIdxs)
 
         val updatedMTree = updateMTree(mTree, mQidx, matches)
         Some(updatedMTree)
