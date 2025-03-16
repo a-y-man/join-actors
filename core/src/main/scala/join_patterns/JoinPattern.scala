@@ -10,24 +10,45 @@ type MessageIdxs = ArraySeq[MessageIdx]
 object MessageIdxs:
   def apply(elems: MessageIdx*): MessageIdxs = ArraySeq(elems*)
 
+given messageIdxOrdering: Ordering[MessageIdxs] with
+  def compare(x: MessageIdxs, y: MessageIdxs): Int =
+    val sizeComparison = Ordering[Int].compare(x.size, y.size)
+
+    val xs = x.sorted
+    val ys = y.sorted
+
+    if sizeComparison != 0 then
+      val slexRes = slex(xs, ys)
+      if slexRes == 0 then -sizeComparison else slexRes
+    else slex(xs, ys)
+
+  private def slex(xs: Seq[Int], ys: Seq[Int]): Int =
+    val minLength = math.min(xs.size, ys.size)
+    var i         = 0
+    while i < minLength do
+      val elementComparison = Ordering[Int].compare(xs(i), ys(i))
+      if elementComparison != 0 then return elementComparison
+      i += 1
+    0
+
 type PatternIdx  = Int
 type PatternIdxs = ArraySeq[PatternIdx]
 object PatternIdxs:
   def apply(elems: PatternIdx*): PatternIdxs = ArraySeq(elems*)
 
-//given patternIdxOrdering: Ordering[PatternIdxs] with
-//  def compare(x: PatternIdxs, y: PatternIdxs): Int =
-//    val sizeComp = x.size.compareTo(y.size) // compare by size first
-//    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
-//    else
-//      var acc = 0
-//      var i   = 0
-//      while i < x.size && i < y.size && acc == 0 do
-//        val a = x(i)
-//        val b = y(i)
-//        if a != b then acc = Ordering[Int].compare(a, b)
-//        i += 1
-//      acc
+given patternIdxOrdering: Ordering[PatternIdxs] with
+  def compare(x: PatternIdxs, y: PatternIdxs): Int =
+    val sizeComp = x.size.compareTo(y.size) // compare by size first
+    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
+    else
+      var acc = 0
+      var i   = 0
+      while i < x.size && i < y.size && acc == 0 do
+        val a = x(i)
+        val b = y(i)
+        if a != b then acc = Ordering[Int].compare(a, b)
+        i += 1
+      acc
 
 /**
  * A map from constructor indices within a pattern to the indices of the messages that match the pattern.
@@ -66,20 +87,6 @@ final case class PatternInfo[M](
     patternBins: PatternBins,
     patternExtractors: PatternExtractors[M]
 )
-
-given messageIdxOrdering: Ordering[MessageIdxs] with
-  def compare(x: MessageIdxs, y: MessageIdxs): Int =
-    val sizeComp = x.size.compareTo(y.size) // compare by size first
-    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
-    else
-      var i   = 0
-      var acc = 0
-      while i < x.size && i < y.size && acc == 0 do
-        val a = x(i)
-        val b = y(i)
-        if a != b then acc = Ordering[Int].compare(a, b)
-        i += 1
-      acc
 
 type Messages[M] = Map[Int, M]
 
