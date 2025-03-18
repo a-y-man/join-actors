@@ -47,14 +47,10 @@ type CandidateMatch[M, T] = Option[(MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))]
 type CandidateMatches[M, T] =
   TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]
 
-val defaultSeqOrderingForMessageIdxs = new Ordering[MessageIdxs]():
-  override def compare(x: MessageIdxs, y: MessageIdxs): MessageIdx =
-    import math.Ordering.Implicits.seqOrdering
-
-    val o = seqOrdering(using Ordering[Int])
-    o.compare(x.delegate, y.delegate)
-
 object CandidateMatches:
+  import math.Ordering.Implicits.seqOrdering
+  private val defaultSeqOrderingForMessageIdxs = seqOrdering[ArraySeq, Int]
+
   def apply[M, T](): CandidateMatches[M, T] =
     TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]()(
       Ordering.Tuple2[MessageIdxs, PatternIdx](using defaultSeqOrderingForMessageIdxs)

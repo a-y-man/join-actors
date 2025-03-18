@@ -3,7 +3,7 @@ package join_patterns.matching.lazy_mutable
 import join_actors.actor.ActorRef
 import join_patterns.matching.CandidateMatch
 import join_patterns.matching.functions.*
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, messageIdxOrdering}
+import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
 
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}

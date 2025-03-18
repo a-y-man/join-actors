@@ -10,48 +10,35 @@ import scala.collection.mutable.Builder
 
 type MessageIdx  = Int
 
-final case class MessageIdxs (delegate: ArraySeq[MessageIdx]) extends Iterable[MessageIdx]:
-  export delegate.{:+ as _, apply, iterator, contains, combinations}
-
-  override def size: Int = delegate.size
-
-  override def forall(p: MessageIdx => Boolean): Boolean = delegate.forall(p)
-
-  def sorted: MessageIdxs = MessageIdxs(delegate.sorted)
-
-  @targetName("colonPlus")
-  infix def :+(e: MessageIdx): MessageIdxs =
-    MessageIdxs(delegate :+ e)
+type MessageIdxs = ArraySeq[MessageIdx]
 
 object MessageIdxs extends Factory[MessageIdx, MessageIdxs]:
-  def apply(elems: MessageIdx*): MessageIdxs = MessageIdxs(ArraySeq(elems*))
+  def apply(elems: MessageIdx*): MessageIdxs = ArraySeq(elems*)
 
   def fromSpecific(it: IterableOnce[MessageIdx]): MessageIdxs =
-    MessageIdxs(it.iterator.to(ArraySeq))
+    it.iterator.to(ArraySeq)
 
   def newBuilder: Builder[MessageIdx, MessageIdxs] =
-    ArraySeq.newBuilder[MessageIdx].mapResult(MessageIdxs.apply)
+    ArraySeq.newBuilder[MessageIdx]
 
 
 type PatternIdx  = Int
-final case class PatternIdxs private (delegate: ArraySeq[PatternIdx])
-  extends Iterable[PatternIdx]:
-  export delegate.{apply, iterator}
 
-  override def size: Int = delegate.size
+type PatternIdxs = ArraySeq[PatternIdx]
 
 object PatternIdxs extends Factory[PatternIdx, PatternIdxs]:
-  def apply(elems: PatternIdx*): PatternIdxs = PatternIdxs(ArraySeq(elems*))
+  def apply(elems: PatternIdx*): PatternIdxs = ArraySeq(elems*)
 
   def fromSpecific(it: IterableOnce[PatternIdx]): PatternIdxs =
-    PatternIdxs(it.iterator.to(ArraySeq))
+    it.iterator.to(ArraySeq)
 
   def newBuilder: Builder[PatternIdx, PatternIdxs] =
-    ArraySeq.newBuilder[PatternIdx].mapResult(PatternIdxs.apply)
+    ArraySeq.newBuilder[PatternIdx]
 
-given patternIdxOrdering: Ordering[PatternIdxs] with
-  def compare(x: PatternIdxs, y: PatternIdxs): Int =
-    val sizeComp = x.size.compareTo(y.size) // compare by size first
+
+given sizeBiasedOrdering: Ordering[ArraySeq[PatternIdx]] with
+  def compare(x: ArraySeq[PatternIdx], y: ArraySeq[PatternIdx]): Int =
+    val sizeComp = Integer.compare(x.length, y.length) // compare by size first
     if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
     else
       var acc = 0
@@ -59,21 +46,7 @@ given patternIdxOrdering: Ordering[PatternIdxs] with
       while i < x.size && i < y.size && acc == 0 do
         val a = x(i)
         val b = y(i)
-        if a != b then acc = Ordering[Int].compare(a, b)
-        i += 1
-      acc
-
-given messageIdxOrdering: Ordering[MessageIdxs] with
-  def compare(x: MessageIdxs, y: MessageIdxs): Int =
-    val sizeComp = x.size.compareTo(y.size) // compare by size first
-    if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
-    else
-      var acc = 0
-      var i = 0
-      while i < x.size && i < y.size && acc == 0 do
-        val a = x(i)
-        val b = y(i)
-        if a != b then acc = Ordering[Int].compare(a, b)
+        if a != b then acc = Integer.compare(a, b)
         i += 1
       acc
 

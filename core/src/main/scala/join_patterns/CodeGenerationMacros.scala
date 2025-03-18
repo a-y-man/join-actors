@@ -284,7 +284,7 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
         val (mQ, mQidx)        = m // Take the newest msg from the queue
         val mTree              = pState
         val mIdxs              = MessageIdxs(mQidx)
-        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, MTree(PatternIdxs(0) -> mIdxs)(using patternIdxOrdering)))
+        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, MTree(PatternIdxs(0) -> mIdxs)))
         else Some(mTree)
       }
 

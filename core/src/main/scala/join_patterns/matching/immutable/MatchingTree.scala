@@ -1,7 +1,6 @@
 package join_patterns.matching.immutable
 
-import join_patterns.types.*
-import join_patterns.types.messageIdxOrdering
+import join_patterns.types.{*, given}
 
 import scala.Console
 import scala.collection.immutable.*
@@ -12,7 +11,7 @@ import scala.collection.immutable.*
 type MatchingTree = TreeMap[MessageIdxs, PatternBins]
 object MatchingTree:
   def apply(elems: (MessageIdxs, PatternBins)*): TreeMap[MessageIdxs, PatternBins] =
-    TreeMap[MessageIdxs, PatternBins](elems*)(messageIdxOrdering)
+    TreeMap[MessageIdxs, PatternBins](elems*)
 
 def ppTree(mtree: MatchingTree): String =
   mtree

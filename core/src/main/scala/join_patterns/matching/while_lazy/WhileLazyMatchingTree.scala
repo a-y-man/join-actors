@@ -3,7 +3,7 @@ package join_patterns.matching.while_lazy
 import join_actors.actor.ActorRef
 import join_patterns.matching.CandidateMatch
 import join_patterns.matching.functions.*
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, messageIdxOrdering}
+import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
 import join_patterns.util.*
 
 import scala.collection.immutable.ArraySeq
