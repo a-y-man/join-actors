@@ -86,10 +86,10 @@ private def computeSubsts[M](
  *   The fairest match for the given join pattern.
  */
 def findFairestMatch[M, T](
-                      validPermutations: Iterator[List[(Int, M => LookupEnv)]],
-                      messages: MutMap[Int, M],
-                      pattern: JoinPattern[M, T]
-                    ) =
+                            validPermutations: Iterator[List[(Int, M => LookupEnv)]],
+                            messages: MutMap[Int, M],
+                            pattern: JoinPattern[M, T]
+                          ) =
   var bestMatchSubsts: LookupEnv = null
   var bestMatchIdxs: MessageIdxs = null
   validPermutations.find { possibleFit =>
@@ -99,7 +99,7 @@ def findFairestMatch[M, T](
       true
     else false
   }
-  if bestMatchIdxs != null && bestMatchSubsts != null then Some((bestMatchIdxs, bestMatchSubsts))
+  if bestMatchIdxs != null && bestMatchSubsts != null then Some((bestMatchIdxs.sorted, bestMatchSubsts))
   else None
 
 /** Removes processed messages from the mailbox.

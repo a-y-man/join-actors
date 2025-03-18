@@ -6,11 +6,11 @@ import join_patterns.matching.immutable.StatefulTreeMatcher
 import join_patterns.matching.lazy_mutable.LazyMutableTreeMatcher
 import join_patterns.matching.mutable.MutableStatefulTreeMatcher
 import join_patterns.matching.while_lazy.WhileLazyTreeMatcher
-import join_patterns.types.{*, given}
+import join_patterns.types.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.Console
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.{ArraySeq, TreeMap}
 
 type RHSFnClosure[M, T] = (LookupEnv, ActorRef[M]) => T
 
@@ -47,10 +47,17 @@ type CandidateMatch[M, T] = Option[(MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))]
 type CandidateMatches[M, T] =
   TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]
 
+val defaultSeqOrderingForMessageIdxs = new Ordering[MessageIdxs]():
+  override def compare(x: MessageIdxs, y: MessageIdxs): MessageIdx =
+    import math.Ordering.Implicits.seqOrdering
+
+    val o = seqOrdering(using Ordering[Int])
+    o.compare(x.delegate, y.delegate)
+
 object CandidateMatches:
   def apply[M, T](): CandidateMatches[M, T] =
     TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]()(
-      Ordering.Tuple2[MessageIdxs, PatternIdx]
+      Ordering.Tuple2[MessageIdxs, PatternIdx](using defaultSeqOrderingForMessageIdxs)
     )
 
   def logCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]) =
