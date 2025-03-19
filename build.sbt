@@ -14,7 +14,9 @@ lazy val versions = new {
 lazy val commonDependencies = Seq(
   "com.lihaoyi"         %% "os-lib"   % versions.osLib,
   "com.lihaoyi"         %% "mainargs" % versions.mainargs,
-  "com.google.code.gson" % "gson"     % versions.gson
+  "com.google.code.gson" % "gson"     % versions.gson,
+  "it.unimi.dsi" % "fastutil-core" % "8.5.15",
+  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
 )
 lazy val testDependencies = Seq(
   "org.scalacheck"    %% "scalacheck"         % versions.scalaCheck,

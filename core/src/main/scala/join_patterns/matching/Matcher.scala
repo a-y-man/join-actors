@@ -4,7 +4,7 @@ import join_actors.actor.ActorRef
 import join_patterns.matching.brute_force.BruteForceMatcher
 import join_patterns.matching.immutable.StatefulTreeMatcher
 import join_patterns.matching.lazy_mutable.LazyMutableTreeMatcher
-import join_patterns.matching.mutable.MutableStatefulTreeMatcher
+import join_patterns.matching.mutable.MutableStatefulMatcher
 import join_patterns.matching.while_lazy.WhileLazyTreeMatcher
 import join_patterns.types.*
 
@@ -103,6 +103,6 @@ object SelectMatcher:
     algorithm match
       case BruteForceAlgorithm        => BruteForceMatcher(patterns)
       case StatefulTreeBasedAlgorithm => StatefulTreeMatcher(patterns)
-      case MutableStatefulAlgorithm   => MutableStatefulTreeMatcher(patterns)
+      case MutableStatefulAlgorithm   => MutableStatefulMatcher(patterns)
       case LazyMutableAlgorithm       => LazyMutableTreeMatcher(patterns)
       case WhileLazyAlgorithm         => WhileLazyTreeMatcher(patterns)
