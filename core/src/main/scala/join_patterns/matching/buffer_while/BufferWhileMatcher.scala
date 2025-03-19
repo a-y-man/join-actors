@@ -1,4 +1,4 @@
-package join_patterns.matching.while_lazy
+package join_patterns.matching.buffer_while
 
 import join_actors.actor.ActorRef
 import join_patterns.matching.{CandidateMatch, CandidateMatches, Matcher}
@@ -8,13 +8,13 @@ import join_patterns.util.*
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
 
-class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class BufferWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
-  private val matchingTrees: List[WhileLazyMatchingTree[M, T]] =
-    patterns.zipWithIndex.map(WhileLazyMatchingTree(_, _))
+  private val matchingArrays: List[WhileMatchingBuffer[M, T]] =
+    patterns.zipWithIndex.map(WhileMatchingBuffer(_, _))
 
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
@@ -29,7 +29,7 @@ class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) 
       messages.update(index, msg)
 
       val matches = ArrayBuffer[CandidateMatch[M, T]]()
-      for tree <- matchingTrees.fast do matches.append(tree.findMatch(index, msg, messages))
+      for arr <- matchingArrays.fast do matches.append(arr.findMatch(index, msg, messages))
 
       val candidateMatches: CandidateMatches[M, T] =
         matches.foldLeft(CandidateMatches[M, T]()) {
@@ -44,7 +44,7 @@ class WhileLazyTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) 
         result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
-        for tree <- matchingTrees.fast do
+        for tree <- matchingArrays.fast do
           tree.pruneTree(candidateQidxs)
 
         // Remove selected message indices from messages

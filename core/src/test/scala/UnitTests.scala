@@ -31,7 +31,9 @@ val matchingAlgos = Table(
   MatchingAlgorithm.StatefulTreeBasedAlgorithm,
   MatchingAlgorithm.MutableStatefulAlgorithm,
   MatchingAlgorithm.LazyMutableAlgorithm,
-  MatchingAlgorithm.WhileLazyAlgorithm
+  MatchingAlgorithm.WhileLazyAlgorithm,
+  MatchingAlgorithm.ArrayWhileAlgorithm,
+  MatchingAlgorithm.BufferWhileAlgorithm,
 )
 
 class SingletonPatterns extends AnyFunSuite:

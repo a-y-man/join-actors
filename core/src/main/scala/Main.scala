@@ -16,6 +16,8 @@ object Main:
         case Some("mutable")  => Right(MutableStatefulAlgorithm)
         case Some("lazy-mutable") => Right(LazyMutableAlgorithm)
         case Some("while-lazy") => Right(WhileLazyAlgorithm)
+        case Some("array-while") => Right(ArrayWhileAlgorithm)
+        case Some("buffer-while") => Right(BufferWhileAlgorithm)
         case _                => Left("Invalid algorithm")
 
   @main

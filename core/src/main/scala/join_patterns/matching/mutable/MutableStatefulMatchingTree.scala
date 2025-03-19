@@ -8,7 +8,7 @@ import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, Pa
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
 
-class MutableMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
+class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 //  private val msgTypeCheckers = patternExtractors.map{ case (key, (typeChecker, _)) => (key, typeChecker) }
 
