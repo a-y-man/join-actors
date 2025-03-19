@@ -7,7 +7,7 @@ import join_patterns.types.JoinPattern
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.HashMap as MutableHashMap
 
-class LazyMutableTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class LazyMutableMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0

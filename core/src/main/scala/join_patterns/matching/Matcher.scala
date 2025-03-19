@@ -3,9 +3,9 @@ package join_patterns.matching
 import join_actors.actor.ActorRef
 import join_patterns.matching.brute_force.BruteForceMatcher
 import join_patterns.matching.immutable.StatefulTreeMatcher
-import join_patterns.matching.lazy_mutable.LazyMutableTreeMatcher
+import join_patterns.matching.lazy_mutable.LazyMutableMatcher
 import join_patterns.matching.mutable.MutableStatefulMatcher
-import join_patterns.matching.while_lazy.WhileLazyTreeMatcher
+import join_patterns.matching.while_lazy.WhileLazyMatcher
 import join_patterns.types.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
@@ -104,5 +104,5 @@ object SelectMatcher:
       case BruteForceAlgorithm        => BruteForceMatcher(patterns)
       case StatefulTreeBasedAlgorithm => StatefulTreeMatcher(patterns)
       case MutableStatefulAlgorithm   => MutableStatefulMatcher(patterns)
-      case LazyMutableAlgorithm       => LazyMutableTreeMatcher(patterns)
-      case WhileLazyAlgorithm         => WhileLazyTreeMatcher(patterns)
+      case LazyMutableAlgorithm       => LazyMutableMatcher(patterns)
+      case WhileLazyAlgorithm         => WhileLazyMatcher(patterns)
