@@ -3,7 +3,7 @@ package join_patterns.matching
 import join_actors.actor.ActorRef
 import join_patterns.matching.brute_force.BruteForceMatcher
 import join_patterns.matching.eager_parallel.EagerParallelMatcher
-import join_patterns.matching.eager_while.WhileEagerMatcher
+import join_patterns.matching.while_eager.WhileEagerMatcher
 import join_patterns.matching.immutable.StatefulTreeMatcher
 import join_patterns.matching.lazy_mutable.LazyMutableMatcher
 import join_patterns.matching.mutable.MutableStatefulMatcher

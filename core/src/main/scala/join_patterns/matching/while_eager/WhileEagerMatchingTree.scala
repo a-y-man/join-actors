@@ -1,4 +1,4 @@
-package join_patterns.matching.eager_while
+package join_patterns.matching.while_eager
 
 import join_actors.actor.ActorRef
 import join_patterns.matching.CandidateMatch
