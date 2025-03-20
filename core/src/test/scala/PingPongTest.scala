@@ -24,7 +24,9 @@ val matchingAlgos = Table(
   MatchingAlgorithm.StatefulTreeBasedAlgorithm,
   MatchingAlgorithm.MutableStatefulAlgorithm,
   MatchingAlgorithm.LazyMutableAlgorithm,
-  MatchingAlgorithm.WhileLazyAlgorithm
+  MatchingAlgorithm.WhileLazyAlgorithm,
+  MatchingAlgorithm.WhileEagerAlgorithm,
+  MatchingAlgorithm.EagerParallelAlgorithm
 )
 
 class PingPongTest extends AnyFunSuite:

@@ -16,6 +16,8 @@ object Main:
         case Some("mutable")  => Right(MutableStatefulAlgorithm)
         case Some("lazy-mutable") => Right(LazyMutableAlgorithm)
         case Some("while-lazy") => Right(WhileLazyAlgorithm)
+        case Some("while-eager") => Right(WhileEagerAlgorithm)
+        case Some("eager-parallel") => Right(EagerParallelAlgorithm)
         case _                => Left("Invalid algorithm")
 
   @main

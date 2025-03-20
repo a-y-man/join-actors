@@ -2,6 +2,8 @@ package join_patterns.matching
 
 import join_actors.actor.ActorRef
 import join_patterns.matching.brute_force.BruteForceMatcher
+import join_patterns.matching.eager_parallel.EagerParallelMatcher
+import join_patterns.matching.eager_while.WhileEagerMatcher
 import join_patterns.matching.immutable.StatefulTreeMatcher
 import join_patterns.matching.lazy_mutable.LazyMutableMatcher
 import join_patterns.matching.mutable.MutableStatefulMatcher
@@ -106,3 +108,5 @@ object SelectMatcher:
       case MutableStatefulAlgorithm   => MutableStatefulMatcher(patterns)
       case LazyMutableAlgorithm       => LazyMutableMatcher(patterns)
       case WhileLazyAlgorithm         => WhileLazyMatcher(patterns)
+      case WhileEagerAlgorithm        => WhileEagerMatcher(patterns)
+      case EagerParallelAlgorithm     => EagerParallelMatcher(patterns)

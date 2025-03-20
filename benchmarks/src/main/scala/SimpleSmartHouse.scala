@@ -132,11 +132,13 @@ def runSimpleSmartHouseBenchmark(
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(
-      MatchingAlgorithm.BruteForceAlgorithm,
+//      MatchingAlgorithm.BruteForceAlgorithm,
 //      MatchingAlgorithm.StatefulTreeBasedAlgorithm,
-      MatchingAlgorithm.MutableStatefulAlgorithm,
-      MatchingAlgorithm.LazyMutableAlgorithm,
-      MatchingAlgorithm.WhileLazyAlgorithm
+//      MatchingAlgorithm.MutableStatefulAlgorithm,
+//      MatchingAlgorithm.LazyMutableAlgorithm,
+//      MatchingAlgorithm.WhileLazyAlgorithm,
+//      MatchingAlgorithm.WhileEagerAlgorithm,
+      MatchingAlgorithm.EagerParallelAlgorithm
     )
 
   val rangeOfRandomMsgs =

@@ -115,4 +115,11 @@ case class JoinPattern[M, T](
 )
 
 enum MatchingAlgorithm:
-  case BruteForceAlgorithm, StatefulTreeBasedAlgorithm, MutableStatefulAlgorithm, LazyMutableAlgorithm, WhileLazyAlgorithm
+  case
+    BruteForceAlgorithm,
+    StatefulTreeBasedAlgorithm,
+    MutableStatefulAlgorithm,
+    LazyMutableAlgorithm,
+    WhileLazyAlgorithm,
+    WhileEagerAlgorithm,
+    EagerParallelAlgorithm
