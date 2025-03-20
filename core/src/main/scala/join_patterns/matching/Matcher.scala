@@ -58,7 +58,7 @@ object CandidateMatches:
       Ordering.Tuple2[MessageIdxs, PatternIdx](using defaultSeqOrderingForMessageIdxs)
     )
 
-  def logCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]) =
+  def logCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]): Unit =
     val stringifiedMatches =
       candidateMatches
         .map { case ((msgIdxs, patIdx), (substs, _)) =>
@@ -98,6 +98,16 @@ trait Matcher[M, T]:
     *   The result of the join pattern.
     */
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
+
+enum MatchingAlgorithm:
+  case
+    BruteForceAlgorithm,
+    StatefulTreeBasedAlgorithm,
+    MutableStatefulAlgorithm,
+    LazyMutableAlgorithm,
+    WhileLazyAlgorithm,
+    WhileEagerAlgorithm,
+    EagerParallelAlgorithm
 
 object SelectMatcher:
   import MatchingAlgorithm.*

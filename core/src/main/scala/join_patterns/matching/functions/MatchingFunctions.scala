@@ -2,7 +2,7 @@ package join_patterns.matching.functions
 
 import join_patterns.matching.*
 import join_patterns.matching.immutable.MatchingTree
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternExtractors, given}
+import join_patterns.types.{*, given}
 
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.Map as MutMap
@@ -25,7 +25,7 @@ private def crossProduct[A](
 
 private def computeValidCombinations(
                               patternBins: PatternBins
-                            ) =
+                            ): LazyList[LazyList[(PatternIdx, Int)]] =
   val combs = patternBins.view
     .flatMap((patternShape, messageIdxs) =>
       val msgsPermutation = messageIdxs
@@ -89,7 +89,7 @@ def findFairestMatch[M, T](
                             validPermutations: Iterator[List[(Int, M => LookupEnv)]],
                             messages: MutMap[Int, M],
                             pattern: JoinPattern[M, T]
-                          ) =
+                          ): Option[(MessageIdxs, LookupEnv)] =
   var bestMatchSubsts: LookupEnv = null
   var bestMatchIdxs: MessageIdxs = null
   validPermutations.find { possibleFit =>
@@ -111,7 +111,7 @@ def findFairestMatch[M, T](
  * @return
  *   The filtered list of messages without the processed messages.
  */
-def removeProcessedMsgs[M](messages: MutMap[Int, M], processedMsgs: MessageIdxs) =
+def removeProcessedMsgs[M](messages: MutMap[Int, M], processedMsgs: MessageIdxs): MutMap[Int, M] =
   // messages.filterNot((_, idx) => processedMsgs.contains(idx))
   messages --= processedMsgs
 
