@@ -277,23 +277,11 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
         generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(LookupEnv, ActorRef[M]) => T]
       val size = 1
 
-      val updatedMTree = '{ (m: (M, Int), pState: MatchingTree) =>
-        val patInfo            = ${ patternInfo }
-        val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
-        val checkMsgType       = patExtractors(0)._1
-        val (mQ, mQidx)        = m // Take the newest msg from the queue
-        val mTree              = pState
-        val mIdxs              = MessageIdxs(mQidx)
-        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, MTree(PatternIdxs(0) -> mIdxs)))
-        else Some(mTree)
-      }
-
       '{
         JoinPattern(
           $predicate,
           $rhs,
           ${ Expr(size) },
-          $updatedMTree,
           ${ patternInfo }
         )
       }
@@ -366,40 +354,11 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
     generateRhs[M, T](_rhs, inners, self).asExprOf[(LookupEnv, ActorRef[M]) => T]
   val size = outers.size
 
-  val updatedMTree: Expr[
-    (
-        (M, Int),
-        MatchingTree
-    ) => Option[MatchingTree]
-  ] =
-    '{ (m: (M, Int), mTree: MatchingTree) =>
-      val (mQ, mQidx) = m // Take the newest msg from the queue
-      val patInfo     = ${ patternInfo }
-
-      val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
-
-      val isMsgInPat = msgTypesInPattern.exists { case ((checkMsgType, _), _) => checkMsgType(mQ) }
-
-      if isMsgInPat then
-        val matches = msgTypesInPattern
-          .filter { case ((checkMsgType, _), _) =>
-            checkMsgType(mQ)
-          }
-          .map(_._2)
-          .to(PatternIdxs)
-
-        val updatedMTree = updateMTree(mTree, mQidx, matches)
-        Some(updatedMTree)
-      else Some(mTree)
-    }
-
   '{
     JoinPattern(
       $predicate,
       $rhs,
       ${ Expr(size) },
-      $updatedMTree,
       ${ patternInfo }
     )
   }
@@ -432,10 +391,6 @@ private def generateWildcardPattern[M, T](using
   }
   val size = 1
 
-  val updatedMTree = '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
-    None
-  }
-
   val patternInfo: Expr[PatternInfo[M]] = '{
     PatternInfo(
       patternBins = MTree(),
@@ -448,7 +403,6 @@ private def generateWildcardPattern[M, T](using
       $predicate,
       $rhs,
       ${ Expr(size) },
-      $updatedMTree,
       ${ patternInfo }
     )
   }

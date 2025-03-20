@@ -107,10 +107,6 @@ case class JoinPattern[M, T](
     guard: LookupEnv => Boolean,
     rhs: (LookupEnv, ActorRef[M]) => T,
     size: Int,
-    updateMTree: (
-        (M, Int),
-        MatchingTree
-    ) => Option[MatchingTree],
     getPatternInfo: PatternInfo[M]
 )
 
