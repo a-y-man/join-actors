@@ -21,7 +21,10 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
   private val nodes = JavaTreeMap[MessageIdxs, PatternBins](sizeBiasedOrdering)
   nodes.put(MessageIdxs(), pattern.getPatternInfo.patternBins)
 
-  private val NUM_THREADS = 4
+  type Node = (MessageIdxs, PatternBins)
+  type IterResult = (ArrayBuffer[Node], ArrayBuffer[Node])
+
+  private val NUM_THREADS = 2
   private val executionContext: ExecutionContext =
     ExecutionContext.fromExecutorService(
       Executors.newFixedThreadPool(NUM_THREADS, Thread.ofVirtual().factory())
@@ -35,9 +38,7 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
 
     if matchingConstructorIdxs.isEmpty then MutableTreeMap()
     else
-      val additions = ConcurrentLinkedDeque[(MessageIdxs, PatternBins)]()
-      val completePatterns = ConcurrentLinkedDeque[(MessageIdxs, PatternBins)]()
-      val promises = ArrayBuffer[Promise[Unit]]()
+      val promises = ArrayBuffer[Promise[IterResult]]()
 
       val treeSize = nodes.size
       val q = ArrayDeque(nodes.entrySet().spliterator())
@@ -54,11 +55,14 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
           q.prepend(newSpliterator)
 
       while q.nonEmpty do
-        val promise = Promise[Unit]()
+        val promise = Promise[IterResult]()
         promises.append(promise)
 
         val range = q.removeLast(false)
         executionContext.execute: () =>
+          val additions = ArrayBuffer[Node]()
+          val completePatterns = ArrayBuffer[Node]()
+
           range.forEachRemaining: entry =>
             val messageIdxsMatched = entry.getKey
             val bins = entry.getValue
@@ -73,18 +77,23 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
                   val newMessageIdxs = messageIdxsMatched :+ newMessageIdx
                   val newPatternBins = bins.updated(matchingConstructorIdxs, mappedMessageIdxs :+ newMessageIdx)
                   val newNode = (newMessageIdxs, newPatternBins)
-                  additions.add(newNode)
+                  additions.append(newNode)
 
                   if newMessageIdxs.size == pattern.size
                     && newPatternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
-                  then completePatterns.add(newNode)
+                  then completePatterns.append(newNode)
 
-          promise.success(())
+          promise.success((additions, completePatterns))
+
+      val finalCompletePatterns = MutableTreeMap[MessageIdxs, PatternBins]()
 
       for promise <- promises.fast do Await.ready(promise.future, Duration.Inf)
-      nodes.asScala.addAll(additions.iterator().asScala)
+      for promise <- promises.fast do
+        val (additions, completePatterns) = Await.result(promise.future, Duration.Inf)
+        nodes.asScala.addAll(additions)
+        finalCompletePatterns.addAll(completePatterns)
 
-      completePatterns.iterator().asScala.to(MutableTreeMap)
+      finalCompletePatterns
 
   def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
     val completePatterns = updateTree(index, msg)
