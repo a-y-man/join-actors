@@ -1,6 +1,7 @@
 package test
 
 import join_actors.api.*
+import join_actors.api.MatchingAlgorithm.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers.*
 import org.scalatest.prop.TableDrivenPropertyChecks.*
@@ -27,13 +28,14 @@ implicit val ec: ExecutionContext =
 
 val matchingAlgos = Table(
   "MatchingAlgorithm",
-  MatchingAlgorithm.BruteForceAlgorithm,
-  MatchingAlgorithm.StatefulTreeBasedAlgorithm,
-  MatchingAlgorithm.MutableStatefulAlgorithm,
-  MatchingAlgorithm.LazyMutableAlgorithm,
-  MatchingAlgorithm.WhileLazyAlgorithm,
-  MatchingAlgorithm.WhileEagerAlgorithm,
-  MatchingAlgorithm.EagerParallelAlgorithm
+  BruteForceAlgorithm,
+  StatefulTreeBasedAlgorithm,
+  MutableStatefulAlgorithm,
+  LazyMutableAlgorithm,
+  WhileLazyAlgorithm,
+  WhileEagerAlgorithm,
+  EagerParallelAlgorithm(2),
+  LazyParallelAlgorithm(2)
 )
 
 class SingletonPatterns extends AnyFunSuite:

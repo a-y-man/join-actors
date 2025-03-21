@@ -1,7 +1,7 @@
 package join_patterns.matching.while_eager
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.CandidateMatch
+import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.functions.*
 import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
 import join_patterns.util.*
@@ -48,7 +48,7 @@ class WhileEagerMatchingTree[M, T](private val pattern: JoinPattern[M, T], priva
 
       completePatterns
 
-  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
     val completePatterns = updateTree(index, msg)
 
     if completePatterns.isEmpty then return None

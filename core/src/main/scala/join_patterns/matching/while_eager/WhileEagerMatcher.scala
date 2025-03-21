@@ -1,7 +1,7 @@
 package join_patterns.matching.while_eager
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatch, CandidateMatches, Matcher}
+import join_patterns.matching.{CandidateMatchOpt, CandidateMatches, Matcher}
 import join_patterns.types.JoinPattern
 import join_patterns.util.*
 
@@ -22,13 +22,12 @@ class WhileEagerMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 
     while result.isEmpty do
       val msg = q.take()
-//      println(s"Received message $msg")
       val index = nextMessageIndex
       nextMessageIndex += 1
 
       messages.update(index, msg)
 
-      val matches = ArrayBuffer[CandidateMatch[M, T]]()
+      val matches = ArrayBuffer[CandidateMatchOpt[M, T]]()
       for tree <- matchingTrees.fast do matches.append(tree.findMatch(index, msg, messages))
 
       val candidateMatches: CandidateMatches[M, T] =

@@ -1,4 +1,4 @@
-package join_patterns.matching.eager_parallel
+package join_patterns.matching.lazy_parallel
 
 import join_actors.actor.ActorRef
 import join_patterns.matching.{CandidateMatchOpt, CandidateMatches, Matcher}
@@ -8,13 +8,13 @@ import join_patterns.util.*
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
 
-class EagerParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], numThreads: Int) extends Matcher[M, T]:
+class LazyParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], numThreads: Int) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
-  private val matchingTrees: List[EagerParallelMatchingTree[M, T]] =
-    patterns.zipWithIndex.map(EagerParallelMatchingTree(_, _, numThreads))
+  private val matchingTrees: List[LazyParallelMatchingTree[M, T]] =
+    patterns.zipWithIndex.map(LazyParallelMatchingTree(_, _, numThreads))
 
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =

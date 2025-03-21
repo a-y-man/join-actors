@@ -37,7 +37,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
   private def findMatch(
       newMsg: (M, Int),
       patternState: PatternState[M, T]
-  ): (PatternState[M, T], CandidateMatch[M, T]) =
+  ): (PatternState[M, T], CandidateMatchOpt[M, T]) =
 
     val (mQ, mQidx)                               = newMsg
     val ((pattern, patternIdx), (mTree, patInfo)) = patternState
@@ -80,7 +80,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
   private def collectCandidateMatches(
       newMsg: (M, Int),
       patternStates: List[PatternState[M, T]]
-  ): List[(PatternState[M, T], CandidateMatch[M, T])] =
+  ): List[(PatternState[M, T], CandidateMatchOpt[M, T])] =
     patternStates flatMap { patternState =>
       List(findMatch(newMsg, patternState))
     }

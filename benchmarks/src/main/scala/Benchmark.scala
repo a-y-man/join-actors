@@ -70,7 +70,8 @@ class Benchmark(
 
     val nullPassElapsed = nullPassMeasurements.map(Measurement.time).reduce(_ + _)
     val nullPassMatches = nullPassMeasurements.map(Measurement.matches).sum
-    val nullPassAverage = nullPassElapsed / warmupRepetitions
+//    val nullPassAverage = nullPassElapsed / warmupRepetitions
+    val nullPassAverage = nullPassElapsed
 
     println(
       Console.YELLOW + f"Null Pass $nullName" + Console.RESET +

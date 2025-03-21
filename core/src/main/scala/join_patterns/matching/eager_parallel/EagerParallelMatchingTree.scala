@@ -1,33 +1,32 @@
 package join_patterns.matching.eager_parallel
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.CandidateMatch
+import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.functions.*
 import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
 import join_patterns.util.*
 
 import java.util.concurrent.{ConcurrentLinkedDeque, Executors, ThreadFactory}
-import java.util.TreeMap as JavaTreeMap
+import java.util.{Map, Spliterator, TreeMap as JavaTreeMap}
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap, ArrayDeque}
+import scala.collection.mutable.{ArrayBuffer, ArrayDeque, Map as MutableMap, TreeMap as MutableTreeMap}
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters.*
 import scala.concurrent.{Await, ExecutionContext, Promise}
 
-class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
+class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 
   private val nodes = JavaTreeMap[MessageIdxs, PatternBins](sizeBiasedOrdering)
   nodes.put(MessageIdxs(), pattern.getPatternInfo.patternBins)
 
-  type Node = (MessageIdxs, PatternBins)
-  type IterResult = (ArrayBuffer[Node], ArrayBuffer[Node])
+  private type Node = (MessageIdxs, PatternBins)
+  private type IterResult = (ArrayBuffer[Node], ArrayBuffer[Node])
 
-  private val NUM_THREADS = 2
   private val executionContext: ExecutionContext =
     ExecutionContext.fromExecutorService(
-      Executors.newFixedThreadPool(NUM_THREADS, Thread.ofVirtual().factory())
+      Executors.newFixedThreadPool(numThreads)
     )
 
   private def updateTree(newMessageIdx: Int, msg: M): MutableMap[MessageIdxs, PatternBins] =
@@ -40,25 +39,13 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
     else
       val promises = ArrayBuffer[Promise[IterResult]]()
 
-      val treeSize = nodes.size
-      val q = ArrayDeque(nodes.entrySet().spliterator())
-      var exhausted = false
-      while q.length < NUM_THREADS && !exhausted do
-        val spliterator = q.removeLast(false)
-        val newSpliterator = spliterator.trySplit()
-
-        if newSpliterator == null then
-          q.prepend(spliterator)
-          exhausted = true
-        else
-          q.prepend(spliterator)
-          q.prepend(newSpliterator)
+      val q = divideSpliterator(nodes.entrySet().spliterator(), numThreads)
 
       while q.nonEmpty do
         val promise = Promise[IterResult]()
         promises.append(promise)
 
-        val range = q.removeLast(false)
+        val range = q.removeHead(false)
         executionContext.execute: () =>
           val additions = ArrayBuffer[Node]()
           val completePatterns = ArrayBuffer[Node]()
@@ -95,7 +82,7 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
 
       finalCompletePatterns
 
-  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
     val completePatterns = updateTree(index, msg)
 
     if completePatterns.isEmpty then return None
@@ -121,11 +108,11 @@ class EagerParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pr
 
         Some((bestMatchIdxs, patternIdx), selectedMatch)
       case None =>
-        for k <- completePatterns.keySet do
+        for k <- completePatterns.keySet.fast do
           nodes.remove(k)
 
         None
 
   def pruneTree(messageIdxsToRemove: MessageIdxs): Unit =
-    nodes.asScala.filterInPlace: (messageIdxs, _) =>
-      messageIdxsToRemove.forall(i => !messageIdxs.contains(i))
+    nodes.keySet().removeIf: messageIdxs =>
+      messageIdxsToRemove.exists(i => messageIdxs.contains(i))

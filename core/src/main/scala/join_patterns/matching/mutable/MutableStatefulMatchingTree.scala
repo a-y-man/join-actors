@@ -1,7 +1,7 @@
 package join_patterns.matching.mutable
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.CandidateMatch
+import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.functions.*
 import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
 
@@ -10,7 +10,6 @@ import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as Muta
 
 class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
-//  private val msgTypeCheckers = patternExtractors.map{ case (key, (typeChecker, _)) => (key, typeChecker) }
 
   private val nodes = MutableTreeMap[MessageIdxs, PatternBins](MessageIdxs() -> pattern.getPatternInfo.patternBins)
 
@@ -47,7 +46,7 @@ class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], 
 
       completePatterns
 
-  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
     val completePatterns = updateTree(index, msg)
 
     if completePatterns.isEmpty then return None

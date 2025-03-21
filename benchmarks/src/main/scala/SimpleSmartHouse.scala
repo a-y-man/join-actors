@@ -1,6 +1,7 @@
 package benchmarks
 
 import join_actors.api.*
+import join_patterns.matching.MatchingAlgorithm.*
 import os.*
 
 import java.text.SimpleDateFormat
@@ -132,13 +133,20 @@ def runSimpleSmartHouseBenchmark(
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(
-//      MatchingAlgorithm.BruteForceAlgorithm,
-//      MatchingAlgorithm.StatefulTreeBasedAlgorithm,
-//      MatchingAlgorithm.MutableStatefulAlgorithm,
-//      MatchingAlgorithm.LazyMutableAlgorithm,
-//      MatchingAlgorithm.WhileLazyAlgorithm,
-//      MatchingAlgorithm.WhileEagerAlgorithm,
-      MatchingAlgorithm.EagerParallelAlgorithm
+//      BruteForceAlgorithm,
+//      StatefulTreeBasedAlgorithm,
+//      MutableStatefulAlgorithm,
+//      LazyMutableAlgorithm,
+//      WhileEagerAlgorithm,
+//      EagerParallelAlgorithm(2),
+//      EagerParallelAlgorithm(4),
+//      EagerParallelAlgorithm(6),
+//      EagerParallelAlgorithm(8),
+      WhileLazyAlgorithm,
+      LazyParallelAlgorithm(2),
+      LazyParallelAlgorithm(4),
+      LazyParallelAlgorithm(6),
+      LazyParallelAlgorithm(8)
     )
 
   val rangeOfRandomMsgs =

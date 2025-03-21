@@ -6,6 +6,7 @@ import join_patterns.matching.eager_parallel.EagerParallelMatcher
 import join_patterns.matching.while_eager.WhileEagerMatcher
 import join_patterns.matching.immutable.StatefulTreeMatcher
 import join_patterns.matching.lazy_mutable.LazyMutableMatcher
+import join_patterns.matching.lazy_parallel.LazyParallelMatcher
 import join_patterns.matching.mutable.MutableStatefulMatcher
 import join_patterns.matching.while_lazy.WhileLazyMatcher
 import join_patterns.types.*
@@ -35,7 +36,8 @@ type MatchIdxs = (MessageIdxs, PatternIdx)
   * @tparam T
   *   The type of the RHS of the join pattern.
   */
-type CandidateMatch[M, T] = Option[(MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))]
+type CandidateMatch[M, T] = (MatchIdxs, (LookupEnv, RHSFnClosure[M, T]))
+type CandidateMatchOpt[M, T] = Option[CandidateMatch[M, T]]
 
 /** A map of candidate matches in the join definition where the key is a sub-sequence of message
   * indices that are the fairest match for a join pattern and the value is a tuple of the
@@ -100,14 +102,25 @@ trait Matcher[M, T]:
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
 enum MatchingAlgorithm:
-  case
-    BruteForceAlgorithm,
-    StatefulTreeBasedAlgorithm,
-    MutableStatefulAlgorithm,
-    LazyMutableAlgorithm,
-    WhileLazyAlgorithm,
-    WhileEagerAlgorithm,
-    EagerParallelAlgorithm
+  case BruteForceAlgorithm
+  case StatefulTreeBasedAlgorithm
+  case MutableStatefulAlgorithm
+  case LazyMutableAlgorithm
+  case WhileLazyAlgorithm
+  case WhileEagerAlgorithm
+  case EagerParallelAlgorithm(numThreads: Int)
+  case LazyParallelAlgorithm(numThreads: Int)
+
+  override def toString: String =
+    this match
+      case MatchingAlgorithm.BruteForceAlgorithm => "BruteForceAlgorithm"
+      case MatchingAlgorithm.StatefulTreeBasedAlgorithm => "StatefulTreeBasedAlgorithm"
+      case MatchingAlgorithm.MutableStatefulAlgorithm => "MutableStatefulAlgorithm"
+      case MatchingAlgorithm.LazyMutableAlgorithm => "LazyMutableAlgorithm"
+      case MatchingAlgorithm.WhileLazyAlgorithm => "WhileLazyAlgorithm"
+      case MatchingAlgorithm.WhileEagerAlgorithm => "WhileEagerAlgorithm"
+      case MatchingAlgorithm.EagerParallelAlgorithm(numThreads) => s"EagerParallelAlgorithm_$numThreads"
+      case MatchingAlgorithm.LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
 
 object SelectMatcher:
   import MatchingAlgorithm.*
@@ -119,4 +132,5 @@ object SelectMatcher:
       case LazyMutableAlgorithm       => LazyMutableMatcher(patterns)
       case WhileLazyAlgorithm         => WhileLazyMatcher(patterns)
       case WhileEagerAlgorithm        => WhileEagerMatcher(patterns)
-      case EagerParallelAlgorithm     => EagerParallelMatcher(patterns)
+      case EagerParallelAlgorithm(numThreads)     => EagerParallelMatcher(patterns, numThreads)
+      case LazyParallelAlgorithm(numThreads)      => LazyParallelMatcher(patterns, numThreads)
