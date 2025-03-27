@@ -35,15 +35,25 @@ private def saveToFile(
   val algorithmNames = results.map(_._1.toString)
   val headers = paramName +: algorithmNames
 
-  val stringedResults = results.flatMap: (algo, algoResults) =>
-    val repetitionColumns = algoResults.head.data.indices.map: repIdx =>
-      s"$algo (rep $repIdx)" +: algoResults.map: repRes =>
-        repRes.data(repIdx).toString
 
-    val averageColumn = s"$algo avg" +: algoResults.map: repRes =>
-      repRes.average.toString
+  val repetitions = results.head._2.head.data.size
+  val stringedResults = if repetitions > 1 then
+    results.flatMap: (algo, algoResults) =>
+      val repetitionColumns = algoResults.head.data.indices.map: repIdx =>
+        s"$algo (rep $repIdx)" +: algoResults.map: repRes =>
+          repRes.data(repIdx).toString
 
-    repetitionColumns :+ averageColumn
+      val averageColumn = s"$algo (avg)" +: algoResults.map: repRes =>
+        repRes.average.toString
+
+      repetitionColumns :+ averageColumn
+  else
+    results.map: (algo, algoResults) =>
+      val dataColumn = s"$algo" +: algoResults.map: repRes =>
+        repRes.average.toString
+
+      dataColumn
+
   val table = stringedResults.transpose
 
   val sep = ", "

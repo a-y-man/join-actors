@@ -17,18 +17,24 @@ def runBenchmarkPass(benchmark: Benchmark[?], param: Int): FiniteDuration =
 
 type Repetitions = Seq[FiniteDuration]
 def runBenchmarkRepetitions(benchmark: Benchmark[?], param: Int, repetitions: Int): Repetitions =
-  for rep <- 0 until repetitions yield
-    print(s"\t\tRepetition $rep...")
-    val res = runBenchmarkPass(benchmark, param)
-    println(s"\tresult: ${res.toMillis} ms")
+  if repetitions > 1 then
+    println()
+    for rep <- 0 until repetitions yield
+      print(s"\t\tRepetition $rep... ")
+      val res = runBenchmarkPass(benchmark, param)
+      println(s"result: ${res.toMillis} ms")
 
-    res
+      res
+  else
+    val res = runBenchmarkPass(benchmark, param)
+    println(s"result: ${res.toMillis} ms")
+    Seq(res)
 
 type BenchmarkResults = Seq[Repetitions]
 def runBenchmark(benchmark: Benchmark[?], paramRange: Range, repetitions: Int, paramName: String)
 : BenchmarkResults =
   for param <- paramRange yield
-    println(s"\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
+    print(s"\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     runBenchmarkRepetitions(benchmark, param, repetitions)
 
 type BenchmarkSeriesResults = Seq[(MatchingAlgorithm, BenchmarkResults)]

@@ -135,8 +135,8 @@ def runSimpleSmartHouseBenchmark(
     List(
 //      BruteForceAlgorithm,
 //      StatefulTreeBasedAlgorithm,
-//      MutableStatefulAlgorithm,
-//      LazyMutableAlgorithm,
+      MutableStatefulAlgorithm,
+      LazyMutableAlgorithm,
 //      WhileEagerAlgorithm,
 //      EagerParallelAlgorithm(2),
 //      EagerParallelAlgorithm(4),

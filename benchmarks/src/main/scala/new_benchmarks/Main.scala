@@ -50,20 +50,20 @@ object Main:
   ): Unit =
     val algorithms: List[MatchingAlgorithm] =
       List(
-        BruteForceAlgorithm,
+//        BruteForceAlgorithm,
   //            StatefulTreeBasedAlgorithm,
-  //            MutableStatefulAlgorithm,
-  //            LazyMutableAlgorithm,
+              MutableStatefulAlgorithm,
+              LazyMutableAlgorithm,
   //            WhileEagerAlgorithm,
   //            EagerParallelAlgorithm(2),
   //            EagerParallelAlgorithm(4),
   //            EagerParallelAlgorithm(6),
   //            EagerParallelAlgorithm(8),
-  //            WhileLazyAlgorithm,
+              WhileLazyAlgorithm,
   //            LazyParallelAlgorithm(2),
   //            LazyParallelAlgorithm(4),
   //            LazyParallelAlgorithm(6),
-  //            LazyParallelAlgorithm(8)
+              LazyParallelAlgorithm(8)
       )
     val paramRange = runConfig.minParam to runConfig.maxParam by runConfig.paramStep
 
