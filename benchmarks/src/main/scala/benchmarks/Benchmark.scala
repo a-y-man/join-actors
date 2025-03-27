@@ -3,13 +3,9 @@ package benchmarks
 import join_actors.api.MatchingAlgorithm
 import os.Path
 
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.{Executors, TimeUnit}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
@@ -120,9 +116,10 @@ def toFile(
     results: List[(String, Seq[Measurement])],
     dataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  import java.util.Date
-  import java.text.SimpleDateFormat
   import os.*
+
+  import java.text.SimpleDateFormat
+  import java.util.Date
 
   val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
   val folderFile = dataDir / s"${timestamp}_${benchmarkName}"

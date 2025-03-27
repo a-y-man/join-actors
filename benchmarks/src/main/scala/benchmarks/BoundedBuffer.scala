@@ -189,7 +189,22 @@ def runBBBenchmark(
     }
 
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+    List(
+      BruteForceAlgorithm,
+      StatefulTreeBasedAlgorithm,
+      MutableStatefulAlgorithm,
+      LazyMutableAlgorithm,
+      WhileEagerAlgorithm,
+      //      EagerParallelAlgorithm(2),
+      //      EagerParallelAlgorithm(4),
+      //      EagerParallelAlgorithm(6),
+      EagerParallelAlgorithm(8),
+      WhileLazyAlgorithm,
+      //      LazyParallelAlgorithm(2),
+      //      LazyParallelAlgorithm(4),
+      //      LazyParallelAlgorithm(6),
+      LazyParallelAlgorithm(8)
+    )
 
   val measurements = algorithms map { algorithm =>
     println(

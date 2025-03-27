@@ -133,7 +133,7 @@ def runSimpleSmartHouseBenchmark(
 ) =
   val algorithms: List[MatchingAlgorithm] =
     List(
-//      BruteForceAlgorithm,
+      BruteForceAlgorithm,
 //      StatefulTreeBasedAlgorithm,
 //      MutableStatefulAlgorithm,
 //      LazyMutableAlgorithm,
@@ -143,9 +143,9 @@ def runSimpleSmartHouseBenchmark(
 //      EagerParallelAlgorithm(6),
 //      EagerParallelAlgorithm(8),
       WhileLazyAlgorithm,
-      LazyParallelAlgorithm(2),
-      LazyParallelAlgorithm(4),
-      LazyParallelAlgorithm(6),
+//      LazyParallelAlgorithm(2),
+//      LazyParallelAlgorithm(4),
+//      LazyParallelAlgorithm(6),
       LazyParallelAlgorithm(8)
     )
 
@@ -188,7 +188,8 @@ def runSimpleSmartHouseBenchmark(
   val timestamp    = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
   val jsonDataFile = pathToJsonDataFile / s"${timestamp}_smartHouseData.json"
 
-//  write(jsonDataFile, msgsAsJson)
+  os.makeDir.all(pathToJsonDataFile)
+  write(jsonDataFile, msgsAsJson)
 
   val measurements = algorithms map { algorithm =>
     println(
