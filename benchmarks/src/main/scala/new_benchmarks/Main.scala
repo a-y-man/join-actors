@@ -33,6 +33,7 @@ object Main:
     benchmarkFactory: BenchmarkFactory,
     config: benchmarkFactory.Config,
     paramRange: Range,
+    repetitions: Int,
     benchmarkName: String,
     paramName: String,
     outputDir: Path
@@ -40,7 +41,7 @@ object Main:
       val algorithms: List[MatchingAlgorithm] =
           List(
             BruteForceAlgorithm,
-//            StatefulTreeBasedAlgorithm,
+////            StatefulTreeBasedAlgorithm,
 //            MutableStatefulAlgorithm,
 //            LazyMutableAlgorithm,
 //            WhileEagerAlgorithm,
@@ -52,13 +53,13 @@ object Main:
 //      //      LazyParallelAlgorithm(2),
 //      //      LazyParallelAlgorithm(4),
 //      //      LazyParallelAlgorithm(6),
-            LazyParallelAlgorithm(8)
+//            LazyParallelAlgorithm(8)
           )
+      val results = runBenchmarkSeries(benchmarkFactory, config, algorithms, paramRange, repetitions, paramName)
 
+      val processedResults = processBenchmarkSeriesResults(results)
 
-      val results = runBenchmarkSeries(benchmarkFactory, config, algorithms, paramRange, paramName)
-
-      writeResults(benchmarkName, paramName, paramRange, results, outputDir)
+      saveResults(benchmarkName, paramName, paramRange, processedResults, outputDir)
 
 
 
@@ -89,6 +90,7 @@ object Main:
       SimpleSmartHouse,
       config,
       minPrefixMsgs to maxPrefixMsgs by prefixMsgsStep,
+      runConfig.repetitions,
       "Simple Smart House",
       "Number of prefix messages per match",
       benchmarkDataPath

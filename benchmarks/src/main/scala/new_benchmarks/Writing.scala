@@ -2,7 +2,7 @@ package new_benchmarks
 
 import join_patterns.matching.MatchingAlgorithm
 import org.jfree.chart.renderer.category.LineAndShapeRenderer
-import org.jfree.chart.ui.HorizontalAlignment
+import org.jfree.chart.ui.{HorizontalAlignment, RectangleInsets}
 import org.jfree.chart.{ChartFactory, ChartUtils}
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import os.{Path, write}
@@ -12,11 +12,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import scala.concurrent.duration.FiniteDuration
 
-def writeResults(
+def saveResults(
             benchmarkName: String,
             paramName: String,
             paramRange: Range,
-            results: Seq[(MatchingAlgorithm, Seq[FiniteDuration])],
+            results: ProcessedBenchmarkSeriesResults,
             dataDir: Path = os.pwd / "benchmarks" / "data"
           ): Unit =
   val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
@@ -28,21 +28,27 @@ private def saveToFile(
             benchmarkName: String,
             paramName: String,
             paramRange: Range,
-            results: Seq[(MatchingAlgorithm, Seq[FiniteDuration])],
+            results: ProcessedBenchmarkSeriesResults,
             dataDir: Path = os.pwd / "benchmarks" / "data",
             timestamp: String
           ): Unit =
   val algorithmNames = results.map(_._1.toString)
   val headers = paramName +: algorithmNames
 
-  val resultsByPass = results
-    .map { (algo, algoResults) => algoResults }
-  val paramsAndResults = paramRange.map(_.toLong) +: resultsByPass.map(_.map(_.toMillis))
-  val table = paramsAndResults.transpose
+  val stringedResults = results.flatMap: (algo, algoResults) =>
+    val repetitionColumns = algoResults.head.data.indices.map: repIdx =>
+      s"$algo (rep $repIdx)" +: algoResults.map: repRes =>
+        repRes.data(repIdx).toString
+
+    val averageColumn = s"$algo avg" +: algoResults.map: repRes =>
+      repRes.average.toString
+
+    repetitionColumns :+ averageColumn
+  val table = stringedResults.transpose
 
   val sep = ", "
 
-  val linesToWrite = Seq(headers.mkString(sep)) ++ table.map(_.mkString(sep))
+  val linesToWrite = table.map(_.mkString(sep))
   val strToWrite = linesToWrite.mkString(System.lineSeparator())
 
   val file = dataDir / f"${timestamp}_${benchmarkName}.csv"
@@ -54,7 +60,7 @@ private def saveToPlot(
             benchmarkName: String,
             paramName: String,
             paramRange: Range,
-            results: Seq[(MatchingAlgorithm, Seq[FiniteDuration])],
+            results: ProcessedBenchmarkSeriesResults,
             dataDir: Path = os.pwd / "benchmarks" / "data",
             timestamp: String
           ): Unit =
@@ -64,28 +70,29 @@ private def saveToPlot(
 
   val titleFont = chart.getTitle.getFont.deriveFont(Font.PLAIN, 45f)
   chart.getTitle.setFont(titleFont)
+  chart.getTitle.setPadding(15, 15, 15, 15)
 
   val legend = chart.getLegend()
   val legendFont = legend.getItemFont.deriveFont(20f)
   legend.setItemFont(legendFont)
   legend.setHorizontalAlignment(HorizontalAlignment.CENTER)
+  legend.setItemLabelPadding(RectangleInsets(0, 20, 0, 20))
 
   val plot = chart.getCategoryPlot
   val tickFont = plot.getDomainAxis.getTickLabelFont.deriveFont(Font.PLAIN, 20f)
   val labelFont = plot.getDomainAxis.getLabelFont.deriveFont(Font.PLAIN, 25f)
+  println(plot.getDomainAxis.getLabelPaint)
   plot.getDomainAxis.setTickLabelFont(tickFont)
   plot.getRangeAxis.setTickLabelFont(tickFont)
   plot.getDomainAxis.setLabelFont(labelFont)
   plot.getRangeAxis.setLabelFont(labelFont)
 
-  plot.getDomainAxis.setCategoryMargin(1)
+  plot.getDomainAxis.setUpperMargin(0)
+  plot.getDomainAxis.setLowerMargin(0)
 
   plot.setBackgroundPaint(Color.WHITE)
   plot.setRangeGridlinePaint(Color.LIGHT_GRAY)
   plot.setRangeGridlineStroke(BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
-
-  plot.setDomainCrosshairVisible(false)
-  plot.setRangeCrosshairVisible(false)
 
   val renderer = plot.getRenderer.asInstanceOf[LineAndShapeRenderer]
   renderer.setDefaultStroke(BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
@@ -97,14 +104,14 @@ private def saveToPlot(
   ChartUtils.saveChartAsPNG(file.toIO, chart, 1700, 1000)
   println(s"Saved plot to $file")
 
-private def makeDatasetFrom(xAxis: Seq[Int], results: Seq[(MatchingAlgorithm, Seq[FiniteDuration])]): CategoryDataset =
+private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesResults): CategoryDataset =
   val dataset = DefaultCategoryDataset()
 
   for
-    (category, catResults) <- results
-    (x, y) <- xAxis.zip(catResults)
+    (algo, algoResults) <- results
+    (x, y) <- xAxis.zip(algoResults.map(_.average))
   do
-    dataset.addValue(y.toMillis, category.toString, x)
+    dataset.addValue(y, algo.toString, x)
 
   dataset
 
