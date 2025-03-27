@@ -38,9 +38,17 @@ def runBenchmarkSeries(
   algorithms: Seq[MatchingAlgorithm],
   paramRange: Range,
   repetitions: Int,
+  warmupSegment: Int,
   paramName: String,
   ): BenchmarkSeriesResults =
   for algo <- algorithms yield
-    println(s"Running benchmark for $algo")
     val benchmark = benchmarkFactory(algo, config)
+
+    if warmupSegment > 0 then
+      println(s"Running warmup for $algo")
+      runBenchmark(benchmark, paramRange.take(warmupSegment), repetitions, paramName)
+    else
+      println("Skipping warmup")
+
+    println(s"Running benchmark for $algo")
     (algo, runBenchmark(benchmark, paramRange, repetitions, paramName))

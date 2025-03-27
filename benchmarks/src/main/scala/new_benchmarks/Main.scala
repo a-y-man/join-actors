@@ -18,99 +18,103 @@ import scala.concurrent.duration.FiniteDuration
 
 object Main:
   @main
-  case class Config(
-      @arg(doc = "repetitions")
-      repetitions: Int = 2,
-      @arg(doc = "warmup repetitions")
-      warmup: Int = 2,
-      @arg(short = 'p', doc = "The file path to write the benchmark data")
-      dataOutputFilePath: String
+  case class CommonRunConfig(
+    @arg(
+      short = 'f',
+      doc = "The minimum parameter value"
+    )
+    minParam: Int = 0,
+    @arg(short = 's', doc = "The step by which the parameter value should increase")
+    paramStep: Int = 4,
+    @arg(
+      short = 'r',
+      doc = "The maximum parameter value"
+    )
+    maxParam: Int = 20,
+    @arg(doc = "The number of repetitions for each parameter value")
+    repetitions: Int = 2,
+    @arg(doc = "The number of parameter values to copy as warmup repetitions")
+    warmup: Int = 2,
+    @arg(short = 'p', doc = "The folder path in which to write the benchmark data")
+    outputPath: String
   )
 
-  implicit def configParser: ParserForClass[Config] = ParserForClass[Config]
+  implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
 
   def runAndOutput(
+    runConfig: CommonRunConfig,
     benchmarkFactory: BenchmarkFactory,
     config: benchmarkFactory.Config,
-    paramRange: Range,
-    repetitions: Int,
     benchmarkName: String,
-    paramName: String,
-    outputDir: Path
-    ): Unit =
-      val algorithms: List[MatchingAlgorithm] =
-          List(
-            BruteForceAlgorithm,
-////            StatefulTreeBasedAlgorithm,
-//            MutableStatefulAlgorithm,
-//            LazyMutableAlgorithm,
-//            WhileEagerAlgorithm,
-//      //      EagerParallelAlgorithm(2),
-//      //      EagerParallelAlgorithm(4),
-//      //      EagerParallelAlgorithm(6),
-//            EagerParallelAlgorithm(8),
-//            WhileLazyAlgorithm,
-//      //      LazyParallelAlgorithm(2),
-//      //      LazyParallelAlgorithm(4),
-//      //      LazyParallelAlgorithm(6),
-//            LazyParallelAlgorithm(8)
-          )
-      val results = runBenchmarkSeries(benchmarkFactory, config, algorithms, paramRange, repetitions, paramName)
+    paramName: String
+  ): Unit =
+    val algorithms: List[MatchingAlgorithm] =
+      List(
+        BruteForceAlgorithm,
+  //            StatefulTreeBasedAlgorithm,
+  //            MutableStatefulAlgorithm,
+  //            LazyMutableAlgorithm,
+  //            WhileEagerAlgorithm,
+  //            EagerParallelAlgorithm(2),
+  //            EagerParallelAlgorithm(4),
+  //            EagerParallelAlgorithm(6),
+  //            EagerParallelAlgorithm(8),
+  //            WhileLazyAlgorithm,
+  //            LazyParallelAlgorithm(2),
+  //            LazyParallelAlgorithm(4),
+  //            LazyParallelAlgorithm(6),
+  //            LazyParallelAlgorithm(8)
+      )
+    val paramRange = runConfig.minParam to runConfig.maxParam by runConfig.paramStep
 
-      val processedResults = processBenchmarkSeriesResults(results)
+    val results = runBenchmarkSeries(
+      benchmarkFactory,
+      config,
+      algorithms,
+      paramRange,
+      runConfig.repetitions,
+      runConfig.warmup,
+      paramName
+    )
 
-      saveResults(benchmarkName, paramName, paramRange, processedResults, outputDir)
+    val processedResults = processBenchmarkSeriesResults(results)
 
-
+    val outputPathResolved = os.RelPath(runConfig.outputPath).resolveFrom(os.pwd)
+    saveResults(benchmarkName, paramName, paramRange, processedResults, outputPathResolved)
 
   @main
   def simpleSmartHouse(
-    runConfig: Config,
+    runConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
     matches: Int = 100,
-    @arg(
-      short = 'f',
-      doc = "The minimum number of prefix messages the smart house actor should process"
-    )
-    minPrefixMsgs: Int = 0,
-    @arg(
-      short = 'r',
-      doc = "The maximum number of prefix messages the smart house actor should process"
-    )
-    maxPrefixMsgs: Int = 20,
-    @arg(short = 's', doc = "The step by which the number of prefix messages should increase")
-    prefixMsgsStep: Int = 4,
     @arg(short = 'g', doc = "Whether to use heavy guards")
     withHeavyGuard: Boolean = false,
   ): Unit =
     val config = SimpleSmartHouseConfig(withHeavyGuard, matches)
-    val benchmarkDataPath = os.RelPath(runConfig.dataOutputFilePath).resolveFrom(os.pwd)
 
     runAndOutput(
+      runConfig,
       SimpleSmartHouse,
       config,
-      minPrefixMsgs to maxPrefixMsgs by prefixMsgsStep,
-      runConfig.repetitions,
       "Simple Smart House",
-      "Number of prefix messages per match",
-      benchmarkDataPath
+      "Number of prefix messages per match"
     )
 
   @main
   def smartHouseConfig(
-                        config: Config,
-                        @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
-                        matches: Int = 100,
-                        @arg(
-                          short = 'r',
-                          doc = "The maximum number of random messages the smart house actor should process"
-                        )
-                        randomMsgs: Int = 32,
-                        @arg(short = 's', doc = "The step by which the number of random messages should increase")
-                        rndMsgsStep: Int = 4,
-                        @arg(short = 'p', doc = "The file path to write the benchmark data")
-                        dataOutputFilePath: String
-                      ): Unit =
+    config: CommonRunConfig,
+    @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
+    matches: Int = 100,
+    @arg(
+    short = 'r',
+    doc = "The maximum number of random messages the smart house actor should process"
+    )
+    randomMsgs: Int = 32,
+    @arg(short = 's', doc = "The step by which the number of random messages should increase")
+    rndMsgsStep: Int = 4,
+    @arg(short = 'p', doc = "The file path to write the benchmark data")
+    dataOutputFilePath: String
+  ): Unit =
     ???
 
 

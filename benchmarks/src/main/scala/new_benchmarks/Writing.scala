@@ -81,7 +81,6 @@ private def saveToPlot(
   val plot = chart.getCategoryPlot
   val tickFont = plot.getDomainAxis.getTickLabelFont.deriveFont(Font.PLAIN, 20f)
   val labelFont = plot.getDomainAxis.getLabelFont.deriveFont(Font.PLAIN, 25f)
-  println(plot.getDomainAxis.getLabelPaint)
   plot.getDomainAxis.setTickLabelFont(tickFont)
   plot.getRangeAxis.setTickLabelFont(tickFont)
   plot.getDomainAxis.setLabelFont(labelFont)
