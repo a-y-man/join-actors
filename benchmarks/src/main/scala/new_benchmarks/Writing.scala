@@ -1,10 +1,10 @@
 package new_benchmarks
 
-import join_patterns.matching.MatchingAlgorithm
-import org.jfree.chart.renderer.category.LineAndShapeRenderer
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
 import org.jfree.chart.ui.{HorizontalAlignment, RectangleInsets}
 import org.jfree.chart.{ChartFactory, ChartUtils}
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
+import org.jfree.data.xy.{DefaultXYDataset, XYDataset, XYSeries}
 import os.{Path, write}
 
 import java.awt.{BasicStroke, Color, Font, Paint}
@@ -78,7 +78,7 @@ private def saveToPlot(
           ): Unit =
   val dataset = makeDatasetFrom(paramRange, results)
 
-  val chart = ChartFactory.createLineChart(benchmarkName, paramName, "Time (ms)", dataset)
+  val chart = ChartFactory.createXYLineChart(benchmarkName, paramName, "Time (ms)", dataset)
 
   val titleFont = chart.getTitle.getFont.deriveFont(Font.PLAIN, 45f)
   chart.getTitle.setFont(titleFont)
@@ -90,7 +90,7 @@ private def saveToPlot(
   legend.setHorizontalAlignment(HorizontalAlignment.CENTER)
   legend.setItemLabelPadding(RectangleInsets(0, 20, 0, 20))
 
-  val plot = chart.getCategoryPlot
+  val plot = chart.getXYPlot
   val tickFont = plot.getDomainAxis.getTickLabelFont.deriveFont(Font.PLAIN, 20f)
   val labelFont = plot.getDomainAxis.getLabelFont.deriveFont(Font.PLAIN, 25f)
   plot.getDomainAxis.setTickLabelFont(tickFont)
@@ -105,7 +105,7 @@ private def saveToPlot(
   plot.setRangeGridlinePaint(Color.LIGHT_GRAY)
   plot.setRangeGridlineStroke(BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
 
-  val renderer = plot.getRenderer.asInstanceOf[LineAndShapeRenderer]
+  val renderer = plot.getRenderer.asInstanceOf[XYLineAndShapeRenderer]
   renderer.setDefaultStroke(BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
   renderer.setAutoPopulateSeriesStroke(false)
 
@@ -115,14 +115,12 @@ private def saveToPlot(
   ChartUtils.saveChartAsPNG(file.toIO, chart, 1700, 1000)
   println(s"Saved plot to $file")
 
-private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesResults): CategoryDataset =
-  val dataset = DefaultCategoryDataset()
+private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesResults): XYDataset =
+  val dataset = DefaultXYDataset()
+  val xArray = xAxis.map(_.toDouble).toArray
 
-  for
-    (algo, algoResults) <- results
-    (x, y) <- xAxis.zip(algoResults.map(_.average))
-  do
-    dataset.addValue(y, algo.toString, x)
+  for (algo, algoResults) <- results do
+    dataset.addSeries(algo.toString, Array(xArray, algoResults.map(_.average.toDouble).toArray))
 
   dataset
 
