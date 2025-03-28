@@ -9,10 +9,12 @@ import java.util.Date
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.Future
 import join_patterns.util.*
+import new_benchmarks.mixin.MessageFeedBenchmark
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 
-class SimpleSmartHouse(private val algorithm: MatchingAlgorithm, private val config: Config) extends Benchmark[PassPrereqs]:
+class SimpleSmartHouse(private val algorithm: MatchingAlgorithm, private val config: Config) extends MessageFeedBenchmark[Action]:
   override def prepare(n: Int): (Future[(Long, Int)], ActorRef[Action], ArraySeq[Action]) =
     val allMsgsForNRndMsgs =
       ArraySeq.fill(config.matches)(simpleSmartHouseMsgsWithPreMatches(n))
@@ -22,14 +24,6 @@ class SimpleSmartHouse(private val algorithm: MatchingAlgorithm, private val con
     val (result, ref) = getSmartHouseActor(algorithm, config.withHeavyGuard).start()
 
     (result, ref, msgs)
-
-  override def run(passConfig: PassPrereqs): Unit =
-    val (result, ref, msgs) = passConfig
-
-    for msg <- msgs.fast do
-      ref ! msg
-    
-    Await.result(result, Duration.Inf)
 
   private def getSmartHouseActor(algorithm: MatchingAlgorithm, withHeavyGuard: Boolean) =
     var lastNotification = Date(0L)
@@ -96,7 +90,7 @@ object SimpleSmartHouse extends BenchmarkFactory:
   override def apply(algorithm: MatchingAlgorithm, config: SimpleSmartHouseConfig): InstanceType = new SimpleSmartHouse(algorithm, config)
   
   override type Config = SimpleSmartHouseConfig
-  override type PassPrereqs = (Future[(Long, Int)], ActorRef[Action], ArraySeq[Action])
+  override type PassPrereqs = (Future[?], ActorRef[Action], ArraySeq[Action])
   override type InstanceType = SimpleSmartHouse
 
 

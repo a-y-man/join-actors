@@ -3,6 +3,7 @@ package new_benchmarks
 import join_actors.api.*
 import mainargs.*
 import new_benchmarks.bounded_buffer.{BoundedBuffer, BoundedBufferConfig}
+import new_benchmarks.complex_smart_house.{ComplexSmartHouse, ComplexSmartHouseConfig}
 import new_benchmarks.simple_smart_house.SimpleSmartHouse
 
 import scala.concurrent.Await
@@ -52,19 +53,19 @@ object Main:
     val algorithms: List[MatchingAlgorithm] =
       List(
 //        BruteForceAlgorithm,
-//        StatefulTreeBasedAlgorithm,
-//        MutableStatefulAlgorithm,
-//        LazyMutableAlgorithm,
-//        WhileEagerAlgorithm,
+        StatefulTreeBasedAlgorithm,
+        MutableStatefulAlgorithm,
+        LazyMutableAlgorithm,
+        WhileEagerAlgorithm,
 //        EagerParallelAlgorithm(2),
 //        EagerParallelAlgorithm(4),
 //        EagerParallelAlgorithm(6),
-//        EagerParallelAlgorithm(8),
+        EagerParallelAlgorithm(8),
         WhileLazyAlgorithm,
 //        LazyParallelAlgorithm(2),
 //        LazyParallelAlgorithm(4),
 //        LazyParallelAlgorithm(6),
-//        LazyParallelAlgorithm(8)
+        LazyParallelAlgorithm(8)
       )
     val paramRange = runConfig.minParam to runConfig.maxParam by runConfig.paramStep
 
@@ -120,21 +121,20 @@ object Main:
     )
 
   @main
-  def smartHouseConfig(
-    config: CommonRunConfig,
+  def complexSmartHouse(
+    runConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
     matches: Int = 100,
-    @arg(
-    short = 'r',
-    doc = "The maximum number of random messages the smart house actor should process"
-    )
-    randomMsgs: Int = 32,
-    @arg(short = 's', doc = "The step by which the number of random messages should increase")
-    rndMsgsStep: Int = 4,
-    @arg(short = 'p', doc = "The file path to write the benchmark data")
-    dataOutputFilePath: String
   ): Unit =
-    ???
+    val config = ComplexSmartHouseConfig(matches)
+
+    runAndOutput(
+      runConfig,
+      ComplexSmartHouse,
+      config,
+      "Complex Smart House",
+      "Number of random messages per match"
+    )
 
 
   def main(args: Array[String]): Unit =
