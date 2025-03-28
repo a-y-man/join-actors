@@ -54,7 +54,9 @@ private def saveToFile(
 
       dataColumn
 
-  val table = stringedResults.transpose
+  val paramsAndResults = (paramName +: paramRange.map(_.toString)) +: stringedResults
+
+  val table = paramsAndResults.transpose
 
   val sep = ", "
 
