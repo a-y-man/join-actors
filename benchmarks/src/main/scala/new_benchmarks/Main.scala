@@ -10,6 +10,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import new_benchmarks.simple_smart_house.SimpleSmartHouseConfig
 import new_benchmarks.size.{Size, SizeConfig}
+import new_benchmarks.size_with_guards.{GuardedSize, GuardedSizeConfig, GuardedSizeVariant}
 import os.Path
 import os.*
 
@@ -54,14 +55,14 @@ object Main:
     val algorithms: List[MatchingAlgorithm] =
       List(
 //        BruteForceAlgorithm,
-//        StatefulTreeBasedAlgorithm,
+        StatefulTreeBasedAlgorithm,
         MutableStatefulAlgorithm,
         LazyMutableAlgorithm,
         WhileEagerAlgorithm,
 //        EagerParallelAlgorithm(2),
 //        EagerParallelAlgorithm(4),
 //        EagerParallelAlgorithm(6),
-        EagerParallelAlgorithm(8),
+//        EagerParallelAlgorithm(8),
         WhileLazyAlgorithm,
 //        LazyParallelAlgorithm(2),
 //        LazyParallelAlgorithm(4),
@@ -91,15 +92,15 @@ object Main:
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
     matches: Int = 100,
     @arg(short = 'g', doc = "Whether to use a heavy guard")
-    withHeavyGuard: Boolean = false,
+    heavyGuard: Flag,
   ): Unit =
-    val config = SimpleSmartHouseConfig(withHeavyGuard, matches)
+    val config = SimpleSmartHouseConfig(heavyGuard.value, matches)
 
     runAndOutput(
       commonConfig,
       SimpleSmartHouse,
       config,
-      "Simple Smart House" + (if withHeavyGuard then " with a heavy guard" else ""),
+      "Simple Smart House" + (if heavyGuard.value then " with a heavy guard" else ""),
       "Number of prefix messages per match"
     )
 
@@ -169,6 +170,48 @@ object Main:
       "Arity of join pattern"
     )
 
+  @main
+  def sizeWithGuards(
+    commonConfig: CommonRunConfig,
+    @arg(short = 'm', doc = "The number of matches the size actor should perform")
+    matches: Int = 100,
+    @arg(short = 'v', doc = "The benchmark variant to run: either \"normal\", \"noisy\", or \"non-matching\"")
+    variant: String = "normal"
+  ): Unit =
+    val min =
+      if commonConfig.minParam >= 1 then commonConfig.minParam
+      else
+        println("The size benchmark does not accept a minimum parameter less than 1, setting to 1")
+        1
+
+    val max =
+      if commonConfig.maxParam <= 6 then commonConfig.minParam
+      else
+        println("The size benchmark does not accept a maximum parameter more than 6, setting to 6")
+        6
+
+    val newCommonConfig = commonConfig.copy(minParam = min, maxParam = max)
+
+    val variantEnum = variant match
+      case "normal" => GuardedSizeVariant.Normal
+      case "noisy" => GuardedSizeVariant.Noisy
+      case "non-matching" => GuardedSizeVariant.NonMatchingPayloads
+      case _ => throw MatchError(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-matching\"")
+
+    val config = GuardedSizeConfig(matches, variantEnum)
+
+    val descriptor = variantEnum match
+      case GuardedSizeVariant.Normal => ""
+      case GuardedSizeVariant.Noisy => " with noise"
+      case GuardedSizeVariant.NonMatchingPayloads => " with non-matching payloads"
+
+    runAndOutput(
+      newCommonConfig,
+      GuardedSize,
+      config,
+      "Size with guards" + descriptor,
+      "Arity of join pattern"
+    )
 
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)
