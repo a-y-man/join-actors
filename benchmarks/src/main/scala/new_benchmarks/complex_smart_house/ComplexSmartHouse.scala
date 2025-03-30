@@ -7,6 +7,8 @@ import new_benchmarks.mixin.MessageFeedBenchmark
 import new_benchmarks.{Benchmark, BenchmarkFactory}
 import new_benchmarks.simple_smart_house.*
 import new_benchmarks.complex_smart_house.ComplexSmartHouse.*
+import new_benchmarks.*
+import new_benchmarks.mixin.MessageFeedBenchmark.MessageFeedTriplet
 
 import java.util.Date
 import scala.collection.immutable.ArraySeq
@@ -15,7 +17,7 @@ import scala.concurrent.duration.Duration
 import scala.util.Random
 
 class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val config: Config) extends MessageFeedBenchmark[Action]:
-  override def prepare(n: Int): (Future[(Long, Int)], ActorRef[Action], ArraySeq[Action]) =
+  override def prepare(n: Int): MessageFeedTriplet[Action] =
     val allMsgsForNRndMsgs =
       Vector.fill(config.matches)(smartHouseMsgs(n)(GenerateActions.genActionsOfSizeN))
 
@@ -150,27 +152,11 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
 
     intercalateCorrectMsgs(correctMsgs, randomMsgs)
 
-  private def intercalateCorrectMsgs[A](
-                                 correctMsgs: Vector[A],
-                                 randomMsgs: Vector[A]
-                               ): Vector[A] =
-    val randomMsgsSize = randomMsgs.size
-    val correctMsgsSize = correctMsgs.size
-    if randomMsgsSize >= correctMsgsSize then
-      val groupSize = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
-      randomMsgs
-        .grouped(groupSize) // Chunk the random messages into chunks of size groupSize
-        .zipAll(correctMsgs, randomMsgs, randomMsgs.headOption.getOrElse(correctMsgs.last))
-        .flatMap { case (randomChunk, correctMsg) => randomChunk :+ correctMsg }
-        .toVector
-    else randomMsgs ++ correctMsgs
-  
-
 object ComplexSmartHouse extends BenchmarkFactory:
   override def apply(algorithm: MatchingAlgorithm, config: ComplexSmartHouseConfig): InstanceType = new ComplexSmartHouse(algorithm, config)
   
   override type Config = ComplexSmartHouseConfig
-  override type PassPrereqs = (Future[?], ActorRef[Action], ArraySeq[Action])
+  override type PassPrereqs = MessageFeedTriplet[Action]
   override type InstanceType = ComplexSmartHouse
 
 

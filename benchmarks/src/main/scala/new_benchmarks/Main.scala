@@ -9,6 +9,7 @@ import new_benchmarks.simple_smart_house.SimpleSmartHouse
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import new_benchmarks.simple_smart_house.SimpleSmartHouseConfig
+import new_benchmarks.size.{Size, SizeConfig}
 import os.Path
 import os.*
 
@@ -44,7 +45,7 @@ object Main:
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
 
   def runAndOutput(
-    runConfig: CommonRunConfig,
+    commonConfig: CommonRunConfig,
     benchmarkFactory: BenchmarkFactory,
     config: benchmarkFactory.Config,
     benchmarkName: String,
@@ -53,7 +54,7 @@ object Main:
     val algorithms: List[MatchingAlgorithm] =
       List(
 //        BruteForceAlgorithm,
-        StatefulTreeBasedAlgorithm,
+//        StatefulTreeBasedAlgorithm,
         MutableStatefulAlgorithm,
         LazyMutableAlgorithm,
         WhileEagerAlgorithm,
@@ -67,44 +68,44 @@ object Main:
 //        LazyParallelAlgorithm(6),
         LazyParallelAlgorithm(8)
       )
-    val paramRange = runConfig.minParam to runConfig.maxParam by runConfig.paramStep
+    val paramRange = commonConfig.minParam to commonConfig.maxParam by commonConfig.paramStep
 
     val results = runBenchmarkSeries(
       benchmarkFactory,
       config,
       algorithms,
       paramRange,
-      runConfig.repetitions,
-      runConfig.warmup,
+      commonConfig.repetitions,
+      commonConfig.warmup,
       paramName
     )
 
     val processedResults = processBenchmarkSeriesResults(results)
 
-    val outputPathResolved = os.RelPath(runConfig.outputPath).resolveFrom(os.pwd)
+    val outputPathResolved = os.RelPath(commonConfig.outputPath).resolveFrom(os.pwd)
     saveResults(benchmarkName, paramName, paramRange, processedResults, outputPathResolved)
 
   @main
   def simpleSmartHouse(
-    runConfig: CommonRunConfig,
+    commonConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
     matches: Int = 100,
-    @arg(short = 'g', doc = "Whether to use heavy guards")
+    @arg(short = 'g', doc = "Whether to use a heavy guard")
     withHeavyGuard: Boolean = false,
   ): Unit =
     val config = SimpleSmartHouseConfig(withHeavyGuard, matches)
 
     runAndOutput(
-      runConfig,
+      commonConfig,
       SimpleSmartHouse,
       config,
-      "Simple Smart House",
+      "Simple Smart House" + (if withHeavyGuard then " with a heavy guard" else ""),
       "Number of prefix messages per match"
     )
 
   @main
   def boundedBuffer(
-    runConfig: CommonRunConfig,
+    commonConfig: CommonRunConfig,
     @arg(short = 'b', doc = "The buffer bound")
     bufferBound: Int = 100,
     @arg(doc = "The number of puts/gets performed by each producer and consumer")
@@ -113,7 +114,7 @@ object Main:
     val config = BoundedBufferConfig(bufferBound, count)
 
     runAndOutput(
-      runConfig,
+      commonConfig,
       BoundedBuffer,
       config,
       "Bounded Buffer",
@@ -122,18 +123,50 @@ object Main:
 
   @main
   def complexSmartHouse(
-    runConfig: CommonRunConfig,
+    commonConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
     matches: Int = 100,
   ): Unit =
     val config = ComplexSmartHouseConfig(matches)
 
     runAndOutput(
-      runConfig,
+      commonConfig,
       ComplexSmartHouse,
       config,
       "Complex Smart House",
       "Number of random messages per match"
+    )
+
+  @main
+  def size(
+    commonConfig: CommonRunConfig,
+    @arg(short = 'm', doc = "The number of matches the size actor should perform")
+    matches: Int = 100,
+    @arg(short = 'n', doc = "Whether to include noise in the messages")
+    noise: Flag
+  ): Unit =
+    val min =
+      if commonConfig.minParam >= 1 then commonConfig.minParam
+      else
+        println("The size benchmark does not accept a minimum parameter less than 1, setting to 1")
+        1
+
+    val max =
+      if commonConfig.maxParam <= 6 then commonConfig.minParam
+      else
+        println("The size benchmark does not accept a maximum parameter more than 6, setting to 6")
+        6
+
+    val newCommonConfig = commonConfig.copy(minParam = min, maxParam = max)
+
+    val config = SizeConfig(matches, noise.value)
+
+    runAndOutput(
+      newCommonConfig,
+      Size,
+      config,
+      "Size" + (if noise.value then " with noise" else ""),
+      "Arity of join pattern"
     )
 
 

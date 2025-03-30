@@ -10,12 +10,13 @@ import scala.collection.immutable.ArraySeq
 import scala.concurrent.Future
 import join_patterns.util.*
 import new_benchmarks.mixin.MessageFeedBenchmark
+import new_benchmarks.mixin.MessageFeedBenchmark.MessageFeedTriplet
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 
 class SimpleSmartHouse(private val algorithm: MatchingAlgorithm, private val config: Config) extends MessageFeedBenchmark[Action]:
-  override def prepare(n: Int): (Future[(Long, Int)], ActorRef[Action], ArraySeq[Action]) =
+  override def prepare(n: Int): MessageFeedTriplet[Action] =
     val allMsgsForNRndMsgs =
       ArraySeq.fill(config.matches)(simpleSmartHouseMsgsWithPreMatches(n))
 
@@ -90,7 +91,7 @@ object SimpleSmartHouse extends BenchmarkFactory:
   override def apply(algorithm: MatchingAlgorithm, config: SimpleSmartHouseConfig): InstanceType = new SimpleSmartHouse(algorithm, config)
   
   override type Config = SimpleSmartHouseConfig
-  override type PassPrereqs = (Future[?], ActorRef[Action], ArraySeq[Action])
+  override type PassPrereqs = MessageFeedTriplet[Action]
   override type InstanceType = SimpleSmartHouse
 
 
