@@ -153,7 +153,7 @@ object Main:
         1
 
     val max =
-      if commonConfig.maxParam <= 6 then commonConfig.minParam
+      if commonConfig.maxParam <= 6 then commonConfig.maxParam
       else
         println("The size benchmark does not accept a maximum parameter more than 6, setting to 6")
         6
@@ -181,13 +181,13 @@ object Main:
     val min =
       if commonConfig.minParam >= 1 then commonConfig.minParam
       else
-        println("The size benchmark does not accept a minimum parameter less than 1, setting to 1")
+        println("The size with guards benchmark does not accept a minimum parameter less than 1, setting to 1")
         1
 
     val max =
-      if commonConfig.maxParam <= 6 then commonConfig.minParam
+      if commonConfig.maxParam <= 6 then commonConfig.maxParam
       else
-        println("The size benchmark does not accept a maximum parameter more than 6, setting to 6")
+        println("The size with guards benchmark does not accept a maximum parameter more than 6, setting to 6")
         6
 
     val newCommonConfig = commonConfig.copy(minParam = min, maxParam = max)
