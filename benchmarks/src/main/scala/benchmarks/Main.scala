@@ -192,6 +192,6 @@ object Main:
       outputDataDir = benchmarkDataPath
     )
 
-  def main(args: Array[String]): Unit =
-    val config = ParserForMethods(this).runOrExit(args)
-    println(config)
+//  def main(args: Array[String]): Unit =
+//    val config = ParserForMethods(this).runOrExit(args)
+//    println(config)

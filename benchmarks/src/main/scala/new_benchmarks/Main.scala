@@ -23,7 +23,8 @@ import scala.concurrent.duration.FiniteDuration
 object Main:
   @main
   case class CommonRunConfig(
-    @arg(doc = "The algorithms to use separated by commas and enclosed in quotes, or \"all\" for all algorithms, default all")
+    @arg(doc = "The algorithms to use separated by commas and enclosed in quotes, or \"all\" for all algorithms, default all. " +
+      "Algorithm options: " + MatchingAlgorithm.CMD_STRINGS.mkString(", "))
     algorithms: String = "all",
     @arg(doc = "Algorithms to exclude, separated by commas and enclosed in quotes")
     exclude: String = "",
