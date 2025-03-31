@@ -101,27 +101,6 @@ trait Matcher[M, T]:
     */
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
-enum MatchingAlgorithm:
-  case BruteForceAlgorithm
-  case StatefulTreeBasedAlgorithm
-  case MutableStatefulAlgorithm
-  case LazyMutableAlgorithm
-  case WhileLazyAlgorithm
-  case WhileEagerAlgorithm
-  case EagerParallelAlgorithm(numThreads: Int)
-  case LazyParallelAlgorithm(numThreads: Int)
-
-  override def toString: String =
-    this match
-      case MatchingAlgorithm.BruteForceAlgorithm => "BruteForceAlgorithm"
-      case MatchingAlgorithm.StatefulTreeBasedAlgorithm => "StatefulTreeBasedAlgorithm"
-      case MatchingAlgorithm.MutableStatefulAlgorithm => "MutableStatefulAlgorithm"
-      case MatchingAlgorithm.LazyMutableAlgorithm => "LazyMutableAlgorithm"
-      case MatchingAlgorithm.WhileLazyAlgorithm => "WhileLazyAlgorithm"
-      case MatchingAlgorithm.WhileEagerAlgorithm => "WhileEagerAlgorithm"
-      case MatchingAlgorithm.EagerParallelAlgorithm(numThreads) => s"EagerParallelAlgorithm_$numThreads"
-      case MatchingAlgorithm.LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
-
 object SelectMatcher:
   import MatchingAlgorithm.*
   def apply[M, T](algorithm: MatchingAlgorithm, patterns: List[JoinPattern[M, T]]): Matcher[M, T] =

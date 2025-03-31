@@ -50,6 +50,7 @@ def runBenchmarkSeries(
   for algo <- algorithms yield
     val benchmark = benchmarkFactory(algo, config)
 
+    println()
     if warmupSegment > 0 then
       println(s"Running warmup for $algo")
       runBenchmark(benchmark, paramRange.take(warmupSegment), repetitions, paramName)

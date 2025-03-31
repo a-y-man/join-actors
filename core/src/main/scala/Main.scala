@@ -10,16 +10,7 @@ object Main:
   implicit object MatchingAlgorithmParser extends TokensReader.Simple[MatchingAlgorithm]:
     def shortName: String = "algorithm"
     def read(tokens: Seq[String]) =
-      tokens.headOption match
-        case Some("brute")    => Right(BruteForceAlgorithm)
-        case Some("stateful") => Right(StatefulTreeBasedAlgorithm)
-        case Some("mutable")  => Right(MutableStatefulAlgorithm)
-        case Some("lazy-mutable") => Right(LazyMutableAlgorithm)
-        case Some("while-lazy") => Right(WhileLazyAlgorithm)
-        case Some("while-eager") => Right(WhileEagerAlgorithm)
-        case Some("eager-parallel") => Right(EagerParallelAlgorithm(2))
-        case Some("lazy-parallel") => Right(LazyParallelAlgorithm(2))
-        case _                => Left("Invalid algorithm")
+      tokens.headOption.flatMap(MatchingAlgorithm.parseFromCmdString).toRight("Invalid algorithm")
 
   @main
   def boundedBuffer(

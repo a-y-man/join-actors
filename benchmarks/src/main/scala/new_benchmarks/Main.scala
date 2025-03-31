@@ -17,27 +17,31 @@ import os.*
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
-import scala.collection.immutable.ArraySeq
+import scala.collection.immutable.{ArraySeq, Queue}
 import scala.concurrent.duration.FiniteDuration
 
 object Main:
   @main
   case class CommonRunConfig(
+    @arg(doc = "The algorithms to use separated by commas and enclosed in quotes, or \"all\" for all algorithms, default all")
+    algorithms: String = "all",
+    @arg(doc = "Algorithms to exclude, separated by commas and enclosed in quotes")
+    exclude: String = "",
     @arg(
       short = 'f',
-      doc = "The minimum parameter value"
+      doc = "The minimum parameter value, default 0"
     )
     minParam: Int = 0,
-    @arg(short = 's', doc = "The step by which the parameter value should increase")
+    @arg(short = 's', doc = "The step by which the parameter value should increase, default 1")
     paramStep: Int = 1,
     @arg(
       short = 'r',
-      doc = "The maximum parameter value"
+      doc = "The maximum parameter value, default 20"
     )
     maxParam: Int = 20,
-    @arg(doc = "The number of repetitions for each parameter value")
+    @arg(doc = "The number of repetitions for each parameter value, default 1")
     repetitions: Int = 1,
-    @arg(doc = "The number of parameter values to copy as warmup repetitions")
+    @arg(doc = "The number of parameter values to copy as warmup repetitions, default 10")
     warmup: Int = 10,
     @arg(short = 'p', doc = "The folder path in which to write the benchmark data")
     outputPath: String
@@ -45,30 +49,36 @@ object Main:
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
 
-  def runAndOutput(
+  private def parseAlgoListCmdString(algorithms: String): Seq[MatchingAlgorithm] =
+    algorithms.split(",").iterator
+      .map(_.trim)
+      .foldLeft(Queue()): (acc, str) =>
+        MatchingAlgorithm.parseFromCmdString(str) match
+          case Some(algo) => acc :+ algo
+          case None => throw IllegalArgumentException(
+            s"$str is not a valid matching algorithm, should be one of the following: "
+              + System.lineSeparator() + MatchingAlgorithm.CMD_STRINGS.mkString(", ")
+          )
+
+  private def runAndOutput(
     commonConfig: CommonRunConfig,
     benchmarkFactory: BenchmarkFactory,
     config: benchmarkFactory.Config,
     benchmarkName: String,
     paramName: String
   ): Unit =
-    val algorithms: List[MatchingAlgorithm] =
-      List(
-//        BruteForceAlgorithm,
-        StatefulTreeBasedAlgorithm,
-        MutableStatefulAlgorithm,
-        LazyMutableAlgorithm,
-        WhileEagerAlgorithm,
-//        EagerParallelAlgorithm(2),
-//        EagerParallelAlgorithm(4),
-//        EagerParallelAlgorithm(6),
-//        EagerParallelAlgorithm(8),
-        WhileLazyAlgorithm,
-//        LazyParallelAlgorithm(2),
-//        LazyParallelAlgorithm(4),
-//        LazyParallelAlgorithm(6),
-        LazyParallelAlgorithm(8)
-      )
+    val algorithms =
+      val algorithmsPreExclusion =
+        if commonConfig.algorithms == "all" then MatchingAlgorithm.ALGORITHMS
+        else parseAlgoListCmdString(commonConfig.algorithms)
+
+      if commonConfig.exclude == "" then algorithmsPreExclusion
+      else
+        val toExclude = parseAlgoListCmdString(commonConfig.exclude)
+        algorithmsPreExclusion.filterNot(toExclude.contains(_))
+
+    println(s"Running benchmark $benchmarkName with the following algorithms: " + algorithms.mkString(", "))
+
     val paramRange = commonConfig.minParam to commonConfig.maxParam by commonConfig.paramStep
 
     val results = runBenchmarkSeries(
