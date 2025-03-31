@@ -23,6 +23,15 @@ case class E()                                      extends Msg
 case class F(b: Int, a: String)                     extends Msg
 case class G(b: Int, a: String, c: Int, d: Boolean) extends Msg
 
+enum MsgPlain:
+  case M1()
+  case M2()
+  case M3()
+  case M4()
+  case M5()
+
+import MsgPlain.*
+
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
 
@@ -719,5 +728,68 @@ class FairMatchingTests extends AnyFunSuite:
       val expected = 2
 
       assert(actual == expected)
+    }
+  }
+
+  test("Prefer (1, 3, 5) over (1, 5)") {
+    val msgs = List[MsgPlain](M1(), M2(), M3(), M4(), M5())
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[MsgPlain, Boolean] {
+        receive { (_: ActorRef[MsgPlain]) => {
+          case M1() &&& M3() &&& M5() => Stop(true)
+          case M1() &&& M5() => Stop(false)
+        }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val res = Await.result(futureResult, Duration.Inf)
+
+      assert(res)
+    }
+  }
+
+  test("Prefer (1, 2) over (2)") {
+    val msgs = List[MsgPlain](M1(), M2())
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[MsgPlain, Boolean] {
+        receive { (_: ActorRef[MsgPlain]) => {
+          case M1() &&& M2() => Stop(true)
+          case M2() => Stop(false)
+        }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val res = Await.result(futureResult, Duration.Inf)
+
+      assert(res)
+    }
+  }
+
+  test("Prefer (1, 4) over (2, 3, 4)") {
+    val msgs = List[MsgPlain](M1(), M2(), M3(), M4())
+
+    forAll(matchingAlgos) { algorithm =>
+      val actor = Actor[MsgPlain, Boolean] {
+        receive { (_: ActorRef[MsgPlain]) => {
+          case M1() &&& M4() => Stop(true)
+          case M2() &&& M3() &&& M4() => Stop(false)
+        }
+        }(algorithm)
+      }
+      val (futureResult, actorRef) = actor.start()
+
+      msgs.foreach(actorRef ! _)
+
+      val res = Await.result(futureResult, Duration.Inf)
+
+      assert(res)
     }
   }
