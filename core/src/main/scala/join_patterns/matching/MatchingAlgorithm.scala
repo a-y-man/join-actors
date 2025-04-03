@@ -22,7 +22,7 @@ enum MatchingAlgorithm:
       case MatchingAlgorithm.LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
 
 object MatchingAlgorithm:
-  private val cmdStringToAlgorithm = Map(
+  private val cmdStringsAndAlgorithms = List(
     "brute" -> BruteForceAlgorithm,
     "stateful" -> StatefulTreeBasedAlgorithm,
     "mutable" -> MutableStatefulAlgorithm,
@@ -33,8 +33,10 @@ object MatchingAlgorithm:
     "lazy-parallel" -> LazyParallelAlgorithm(8)
   )
 
+  private val cmdStringToAlgorithm = cmdStringsAndAlgorithms.toMap
+
   def parseFromCmdString(algorithmStr: String): Option[MatchingAlgorithm] =
     cmdStringToAlgorithm.get(algorithmStr)
 
-  val CMD_STRINGS: Seq[String] = cmdStringToAlgorithm.keySet.toSeq
-  val ALGORITHMS: Seq[MatchingAlgorithm] = cmdStringToAlgorithm.values.toSeq
+  val CMD_STRINGS: Seq[String] = cmdStringsAndAlgorithms.map(_._1)
+  val ALGORITHMS: Seq[MatchingAlgorithm] = cmdStringsAndAlgorithms.map(_._2)
