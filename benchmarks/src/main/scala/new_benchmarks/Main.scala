@@ -4,6 +4,7 @@ import join_actors.api.*
 import mainargs.*
 import new_benchmarks.bounded_buffer.{BoundedBuffer, BoundedBufferConfig}
 import new_benchmarks.complex_smart_house.{ComplexSmartHouse, ComplexSmartHouseConfig}
+import new_benchmarks.payment.Payment
 import new_benchmarks.simple_smart_house.SimpleSmartHouse
 
 import scala.concurrent.Await
@@ -207,7 +208,7 @@ object Main:
       case "normal" => GuardedSizeVariant.Normal
       case "noisy" => GuardedSizeVariant.Noisy
       case "non-matching" => GuardedSizeVariant.NonMatchingPayloads
-      case _ => throw MatchError(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-matching\"")
+      case _ => throw IllegalArgumentException(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-matching\"")
 
     val config = GuardedSizeConfig(matches, variantEnum)
 
@@ -222,6 +223,18 @@ object Main:
       config,
       "Size with guards" + descriptor,
       "Arity of join pattern"
+    )
+
+  @main
+  def payment(
+    commonRunConfig: CommonRunConfig
+  ): Unit =
+    runAndOutput(
+      commonRunConfig,
+      Payment,
+      (),
+      "Payment microservices",
+      "Number of payment and token requests sent"
     )
 
   def main(args: Array[String]): Unit =
