@@ -35,33 +35,32 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
     def isSorted: Seq[Date] => Boolean = times =>
       times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
 
-    def bathroomOccupied =
-      (
+    def bathroomOccupied(
         times: Seq[Date],
         rooms: Seq[String],
         mStatus: Boolean,
         lStatus: Boolean,
         value: Int
-      ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
+    ) = isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
-    def occupiedHome = (
-                         times: Seq[Date],
-                         statuses: Seq[Boolean],
-                         mRoom0: String,
-                         mRoom1: String,
-                         cRoom: String
-                       ) =>
+    def occupiedHome(
+      times: Seq[Date],
+      statuses: Seq[Boolean],
+      mRoom0: String,
+      mRoom1: String,
+      cRoom: String
+    ) =
       isSorted(times) && statuses.forall(
         _ == true
       ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
-    def emptyHome = (
+    def emptyHome(
                       times: Seq[Date],
                       statuses: Seq[Boolean],
                       mRoom0: String,
                       mRoom1: String,
                       cRoom: String
-                    ) =>
+                    ) =
       isSorted(times) && statuses.forall(
         _ == true
       ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
@@ -75,13 +74,8 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
           AmbientLight(_: Int, value: Int, alRoom: String, t1: Date),
           Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
           )
-          if bathroomOccupied(
-            List(t0, t1, t2),
-            List(mRoom, lRoom, alRoom),
-            mStatus,
-            lStatus,
-            value
-          ) =>
+          if isSorted(List(t0, t1, t2)) && List(mRoom, lRoom, alRoom).forall(_ == "bathroom") && mStatus && !lStatus && value <= 40 =>
+
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
           actions += 1
@@ -92,13 +86,9 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
           Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
           Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
           )
-          if occupiedHome(
-            List(t0, t1, t2),
-            List(mStatus0, mStatus1, cStatus),
-            mRoom0,
-            mRoom1,
-            cRoom
-          ) =>
+          if isSorted(List(t0, t1, t2)) && List(mStatus0, mStatus1, cStatus).forall(
+            _ == true
+          ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"  =>
           lastNotification = Date()
           actions += 1
           Continue
@@ -107,13 +97,9 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
           Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
           Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
           )
-          if emptyHome(
-            List(t0, t1, t2),
-            List(mStatus0, mStatus1, cStatus),
-            mRoom0,
-            mRoom1,
-            cRoom
-          ) =>
+          if isSorted(List(t0, t1, t2)) && List(mStatus0, mStatus1, cStatus).forall(
+            _ == true
+          ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door" =>
           lastNotification = Date()
           actions += 1
           Continue

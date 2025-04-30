@@ -6,20 +6,22 @@ enum MatchingAlgorithm:
   case MutableStatefulAlgorithm
   case LazyMutableAlgorithm
   case WhileLazyAlgorithm
+  case FilteringWhileAlgorithm
   case WhileEagerAlgorithm
   case EagerParallelAlgorithm(numThreads: Int)
   case LazyParallelAlgorithm(numThreads: Int)
 
   override def toString: String =
     this match
-      case MatchingAlgorithm.BruteForceAlgorithm => "BruteForceAlgorithm"
-      case MatchingAlgorithm.StatefulTreeBasedAlgorithm => "StatefulTreeBasedAlgorithm"
-      case MatchingAlgorithm.MutableStatefulAlgorithm => "MutableStatefulAlgorithm"
-      case MatchingAlgorithm.LazyMutableAlgorithm => "LazyMutableAlgorithm"
-      case MatchingAlgorithm.WhileLazyAlgorithm => "WhileLazyAlgorithm"
-      case MatchingAlgorithm.WhileEagerAlgorithm => "WhileEagerAlgorithm"
-      case MatchingAlgorithm.EagerParallelAlgorithm(numThreads) => s"EagerParallelAlgorithm_$numThreads"
-      case MatchingAlgorithm.LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
+      case BruteForceAlgorithm => "BruteForceAlgorithm"
+      case StatefulTreeBasedAlgorithm => "StatefulTreeBasedAlgorithm"
+      case MutableStatefulAlgorithm => "MutableStatefulAlgorithm"
+      case LazyMutableAlgorithm => "LazyMutableAlgorithm"
+      case WhileLazyAlgorithm => "WhileLazyAlgorithm"
+      case FilteringWhileAlgorithm => "FilteringWhileAlgorithm"
+      case WhileEagerAlgorithm => "WhileEagerAlgorithm"
+      case EagerParallelAlgorithm(numThreads) => s"EagerParallelAlgorithm_$numThreads"
+      case LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
 
 object MatchingAlgorithm:
   private val cmdStringsAndAlgorithms = List(
@@ -28,6 +30,7 @@ object MatchingAlgorithm:
     "mutable" -> MutableStatefulAlgorithm,
     "lazy-mutable" -> LazyMutableAlgorithm,
     "while-lazy" -> WhileLazyAlgorithm,
+    "filtering-while" -> FilteringWhileAlgorithm,
     "while-eager" -> WhileEagerAlgorithm,
     "eager-parallel" -> EagerParallelAlgorithm(8),
     "lazy-parallel" -> LazyParallelAlgorithm(8)

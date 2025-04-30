@@ -107,7 +107,7 @@ object Main:
    @arg(doc = "The join pattern matching algorithm to use")
    algorithm: MatchingAlgorithm
   ) =
-    example00(algorithm)
+    exampleFilter(algorithm)
 
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

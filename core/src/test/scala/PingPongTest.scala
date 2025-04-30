@@ -25,6 +25,7 @@ val matchingAlgos = Table(
   MutableStatefulAlgorithm,
   LazyMutableAlgorithm,
   WhileLazyAlgorithm,
+  FilteringWhileAlgorithm,
   WhileEagerAlgorithm,
   EagerParallelAlgorithm(2),
   LazyParallelAlgorithm(2)

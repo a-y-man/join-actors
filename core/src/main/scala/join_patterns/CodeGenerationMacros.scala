@@ -9,7 +9,6 @@ import join_patterns.util.*
 import java.util.stream.Collectors
 import scala.collection
 import scala.collection.immutable.{TreeMap as MTree, *}
-import scala.collection.mutable.LinkedHashSet
 import scala.quoted.{Expr, Quotes, Type, Varargs}
 import scala.jdk.StreamConverters.*
 
@@ -221,21 +220,22 @@ private def generateGuard(using quotes: Quotes)(
           .toScala(Seq)
 
         println(s"All types: ${typesData.map(_._1.typeSymbol.name)}")
-        println(s"Types appearing once: ${typesAppearingOnce}")
+        println(s"Types appearing once: $typesAppearingOnce")
 
         val typeNamesAndFilteringClauses =
           for t <- typesAppearingOnce yield
             val clauses =
-              // Find the names of bound variables in this inner
-              typeNamesAndVariables.find(_._1 == t) match
-                case Some((_, innerBoundVars)) =>
-                  // Find clauses where every bound variable is taken from this inner
-                  for
-                    (c, clauseVars) <- clausesAndVariableNames
-                    if clauseVars.forall(innerBoundVars.contains(_))
-                  yield c
+              // Find the names of bound variables in all other outers
+              val variablesFromOthers = typeNamesAndVariables.iterator
+                .filter(_._1 != t)
+                .flatMap(_._2)
+                .toList
 
-                case None => throw MatchError("Could not find type")
+              // Find clauses where no bound variables are taken from the other outers
+              for
+                (c, clauseVars) <- clausesAndVariableNames
+                if clauseVars.forall(!variablesFromOthers.contains(_))
+              yield c
 
             t -> clauses
 
@@ -244,10 +244,12 @@ private def generateGuard(using quotes: Quotes)(
         val typeNamesAndFilterExpressions = typeNamesAndFilteringClauses.map: (t, cs) =>
           (t, reconstructConjunctionTree(cs))
 
+        println(s"Type names and filter expressions: ${typeNamesAndFilterExpressions.map((t, e) => (t, e.asTerm))}")
+
         // Construct filtering lambdas
         filteringLambdas = typeNamesAndFilterExpressions.iterator
           .map { (t, exp) =>
-            val rhsFn = (sym: Symbol, params: List[Tree]) =>
+            val filterRhsFn = (sym: Symbol, params: List[Tree]) =>
               val lookupEnvIdent = params.head.asInstanceOf[Ident]
 
               val transform = new TreeMap:
@@ -265,12 +267,14 @@ private def generateGuard(using quotes: Quotes)(
             val lambda = Lambda(
               owner = Symbol.spliceOwner,
               tpe = MethodType(List("_"))(_ => List(TypeRepr.of[LookupEnv]), _ => TypeRepr.of[Boolean]),
-              rhsFn = _rhsFn
+              rhsFn = filterRhsFn
             )
 
             (t, lambda.asExprOf[GuardFilter])
           }
           .toMap
+
+        println(s"Type names and filter lambdas: ${filteringLambdas.map((t, e) => (t, e.asTerm))}")
 
 
 //        val filteringClauses = typeNamesAndFilteringClauses.flatMap(_._2)
