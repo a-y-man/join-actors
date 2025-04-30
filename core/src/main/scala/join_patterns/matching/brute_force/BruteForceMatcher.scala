@@ -89,7 +89,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
       // Associate each message index with the list of pattern indices that match it
       .map { case (idx, msg) =>
         val matches =
-          msgPatterns.filter { case (_idx, (checkMsgType, _fieldExtractor)) => checkMsgType(msg) }.keys.to(PatternIdxs)
+          msgPatterns.filter { case (_idx, PatternIdxInfo(checkMsgType, _fieldExtractor, _)) => checkMsgType(msg) }.keys.to(PatternIdxs)
         (idx, matches)
       }
       // Take only the results with at least one matching pattern

@@ -47,7 +47,7 @@ def getMsgIdxsWithPayloadExtractor[M](
     combination <- validCombinations
     validCombination = combination.sortBy(_._1)
   yield validCombination.map { case (pidx, msgIdx) =>
-    val (_, extractField) = patExtractors(pidx)
+    val PatternIdxInfo(_, extractField, _) = patExtractors(pidx)
     (msgIdx, extractField)
   }.toList
 

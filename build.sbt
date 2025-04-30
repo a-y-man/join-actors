@@ -25,7 +25,8 @@ lazy val testDependencies = Seq(
   "org.scalatestplus" %% "scalacheck-1-18"    % s"${versions.scalaTest}.0" % Test,
   "org.scalatest"     %% "scalatest"          % versions.scalaTest         % Test,
   "org.scalatest"     %% "scalatest-funsuite" % versions.scalaTest         % Test,
-  "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile
+  "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile,
+  "com.google.guava" % "guava" % "33.4.8-jre" % Compile,
 )
 
 // Common settings for all projects
