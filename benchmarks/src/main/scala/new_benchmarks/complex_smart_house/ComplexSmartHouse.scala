@@ -55,12 +55,12 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
       ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
     def emptyHome(
-                      times: Seq[Date],
-                      statuses: Seq[Boolean],
-                      mRoom0: String,
-                      mRoom1: String,
-                      cRoom: String
-                    ) =
+      times: Seq[Date],
+      statuses: Seq[Boolean],
+      mRoom0: String,
+      mRoom1: String,
+      cRoom: String
+    ) =
       isSorted(times) && statuses.forall(
         _ == true
       ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"

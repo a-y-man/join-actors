@@ -28,7 +28,8 @@ val matchingAlgos = Table(
   FilteringWhileAlgorithm,
   WhileEagerAlgorithm,
   EagerParallelAlgorithm(2),
-  LazyParallelAlgorithm(2)
+  LazyParallelAlgorithm(2),
+  FilteringParallelAlgorithm(2)
 )
 
 class PingPongTest extends AnyFunSuite:
