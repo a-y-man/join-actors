@@ -166,6 +166,25 @@ private def getAllVariableNames(using quotes: Quotes)(term: quotes.reflect.Term)
 
 type GuardFilter = LookupEnv => Boolean
 
+private def replaceInnersWithLookupEnv[T](using quotes: Quotes, tt: Type[T])(
+  exp: Expr[T],
+  inners: List[(String, Type[?])],
+  lookupEnvExpr: Expr[LookupEnv]
+): Expr[T] =
+  import quotes.reflect.*
+
+  val transform = new TreeMap:
+    override def transformTerm(term: Term)(owner: Symbol): Term =
+      term match
+        case Ident(n) if inners.exists(_._1 == n) =>
+          val inner = '{ (${ lookupEnvExpr })(${ Expr(n) }) }
+          inners.find(_._1 == n).get._2 match
+            case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
+        case x =>
+          super.transformTerm(x)(owner)
+
+  transform.transformTerm(exp.asTerm)(Symbol.spliceOwner).asExprOf[T]
+
 /** Creates a guard function.
   *
   * @param guard
@@ -182,130 +201,85 @@ private def generateGuard(using quotes: Quotes)(
   import quotes.reflect.*
 
   val inners = typesData.flatMap(_._2)
-
-  val _transform = new TreeMap:
-    override def transformTerm(term: Term)(owner: Symbol): Term = super.transformTerm(term)(owner)
-
-  var _rhsFn = (sym: Symbol, _: List[Tree]) =>
-    _transform.transformTerm('{ true }.asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
+  val innersForSplice = inners.map((n, t) => (n, t.asType))
 
   var filteringLambdas = Map[String, Expr[GuardFilter]]()
 
-  guard match
-    case Some(apply: Apply) =>
-      if inners.isEmpty then
-        _rhsFn = (sym: Symbol, _: List[Tree]) =>
-          _transform.transformTerm(apply.changeOwner(sym))(sym)
-      else
-        val clauses = extractClauses(apply.asExprOf[Boolean])
+  val guardLambda =
+    guard match
+      case None          => '{ (_: LookupEnv) => true }
+      case Some(term: Term) =>
+        if inners.isEmpty then
+          '{ (_: LookupEnv) => ${ term.asExprOf[Boolean] }}
+        else
+          val clauses = extractClauses(term.asExprOf[Boolean])
 
-        for c <- clauses do
-          println(c.asTerm)
-          println(s"\t${getAllVariableNames(c.asTerm)}")
+          for c <- clauses do
+            println(c.asTerm)
+            println(s"\t${getAllVariableNames(c.asTerm)}")
 
-        val clausesAndVariableNames =
-          for c <- clauses yield
-            (c, getAllVariableNames(c.asTerm))
+          val clausesAndVariableNames =
+            for c <- clauses yield
+              (c, getAllVariableNames(c.asTerm))
 
-        val typeNamesAndVariables = typesData.map((repr, lst) => (repr.typeSymbol.name, lst.map(_._1)))
+          val typeNamesAndVariables = typesData.map((repr, lst) => (repr.typeSymbol.name, lst.map(_._1)))
 
-        val typesAppearingOnce = typeNamesAndVariables
-          .asJavaSeqStream
-          .map(_._1)
-          .collect(Collectors.toCollection(() => LinkedHashMultiset.create[String]()))
-          .entrySet()
-          .stream()
-          .filter(_.getCount == 1)
-          .map(_.getElement)
-          .toScala(Seq)
+          val typesAppearingOnce = typeNamesAndVariables
+            .asJavaSeqStream
+            .map(_._1)
+            .collect(Collectors.toCollection(() => LinkedHashMultiset.create[String]()))
+            .entrySet()
+            .stream()
+            .filter(_.getCount == 1)
+            .map(_.getElement)
+            .toScala(Seq)
 
-        println(s"All types: ${typesData.map(_._1.typeSymbol.name)}")
-        println(s"Types appearing once: $typesAppearingOnce")
+          println(s"All types: ${typesData.map(_._1.typeSymbol.name)}")
+          println(s"Types appearing once: $typesAppearingOnce")
 
-        val typeNamesAndFilteringClauses =
-          for t <- typesAppearingOnce yield
-            val clauses =
-              // Find the names of bound variables in all other outers
-              val variablesFromOthers = typeNamesAndVariables.iterator
-                .filter(_._1 != t)
-                .flatMap(_._2)
-                .toList
+          val typeNamesAndFilteringClauses =
+            for t <- typesAppearingOnce yield
+              val clauses =
+                // Find the names of bound variables in all other outers
+                val variablesFromOthers = typeNamesAndVariables.iterator
+                  .filter(_._1 != t)
+                  .flatMap(_._2)
+                  .toList
 
-              // Find clauses where no bound variables are taken from the other outers
-              for
-                (c, clauseVars) <- clausesAndVariableNames
-                if clauseVars.forall(!variablesFromOthers.contains(_))
-              yield c
+                // Find clauses where no bound variables are taken from the other outers
+                for
+                  (c, clauseVars) <- clausesAndVariableNames
+                  if clauseVars.forall(!variablesFromOthers.contains(_))
+                yield c
 
-            t -> clauses
+              t -> clauses
 
-        println(s"Type names and filtering clauses: ${typeNamesAndFilteringClauses.map{ (t, c) => (t, c.map(_.asTerm)) }}")
+          println(s"Type names and filtering clauses: ${typeNamesAndFilteringClauses.map{ (t, c) => (t, c.map(_.asTerm)) }}")
 
-        val typeNamesAndFilterExpressions = typeNamesAndFilteringClauses.map: (t, cs) =>
-          (t, reconstructConjunctionTree(cs))
+          val typeNamesAndFilterExpressions = typeNamesAndFilteringClauses.map: (t, cs) =>
+            (t, reconstructConjunctionTree(cs))
 
-        println(s"Type names and filter expressions: ${typeNamesAndFilterExpressions.map((t, e) => (t, e.asTerm))}")
+          println(s"Type names and filter expressions: ${typeNamesAndFilterExpressions.map((t, e) => (t, e.asTerm))}")
 
-        // Construct filtering lambdas
-        filteringLambdas = typeNamesAndFilterExpressions.iterator
-          .map { (t, exp) =>
-            val filterRhsFn = (sym: Symbol, params: List[Tree]) =>
-              val lookupEnvIdent = params.head.asInstanceOf[Ident]
+          // Construct filtering lambdas
+          filteringLambdas = typeNamesAndFilterExpressions.iterator
+            .map { (t, exp) =>
+              val lambda = '{ (lookupEnv: LookupEnv) => ${ replaceInnersWithLookupEnv(exp, innersForSplice, 'lookupEnv) }}
 
-              val transform = new TreeMap:
-                override def transformTerm(term: Term)(owner: Symbol): Term =
-                  term match
-                    case Ident(n) if inners.exists(_._1 == n) =>
-                      val inner = '{ (${ lookupEnvIdent.asExprOf[LookupEnv] })(${ Expr(n) }) }
-                      inners.find(_._1 == n).get._2.asType match
-                        case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-                    case x =>
-                      super.transformTerm(x)(owner)
+              (t, lambda)
+            }
+            .toMap
 
-              transform.transformTerm(exp.asTerm.changeOwner(sym))(sym)
-
-            val lambda = Lambda(
-              owner = Symbol.spliceOwner,
-              tpe = MethodType(List("_"))(_ => List(TypeRepr.of[LookupEnv]), _ => TypeRepr.of[Boolean]),
-              rhsFn = filterRhsFn
-            )
-
-            (t, lambda.asExprOf[GuardFilter])
-          }
-          .toMap
-
-        println(s"Type names and filter lambdas: ${filteringLambdas.map((t, e) => (t, e.asTerm))}")
+          println(s"Type names and filter lambdas: ${filteringLambdas.map((t, e) => (t, e.asTerm))}")
 
 
-//        val filteringClauses = typeNamesAndFilteringClauses.flatMap(_._2)
-//        val finalGuardClauses = clauses.filterNot(filteringClauses.contains(_))
-//        val finalGuardExpression = reconstructConjunctionTree(finalGuardClauses)
+  //        val filteringClauses = typeNamesAndFilteringClauses.flatMap(_._2)
+  //        val finalGuardClauses = clauses.filterNot(filteringClauses.contains(_))
+  //        val finalGuardExpression = reconstructConjunctionTree(finalGuardClauses)
 
-        _rhsFn = (sym: Symbol, params: List[Tree]) =>
-          val p0 = params.head.asInstanceOf[Ident]
+          '{ (lookupEnv: LookupEnv) => ${ replaceInnersWithLookupEnv(term.asExprOf[Boolean], innersForSplice, 'lookupEnv) }}
 
-          val transform = new TreeMap:
-            override def transformTerm(term: Term)(owner: Symbol): Term =
-              term match
-                case Ident(n) if inners.exists(_._1 == n) =>
-                  val inner = '{ (${ p0.asExprOf[LookupEnv] })(${ Expr(n) }) }
-                  inners.find(_._1 == n).get._2.asType match
-                    case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-                case x =>
-                  super.transformTerm(x)(owner)
-
-          transform.transformTerm(apply.changeOwner(sym))(sym)
-
-    case None          => ()
-    case Some(default) => error("Unsupported guard", default, Some(default.pos))
-
-  val guardLambda = Lambda(
-    owner = Symbol.spliceOwner,
-    tpe = MethodType(List("_"))(_ => List(TypeRepr.of[LookupEnv]), _ => TypeRepr.of[Boolean]),
-    rhsFn = _rhsFn
-  )
-
-  (guardLambda.asExprOf[GuardFilter], filteringLambdas)
+  (guardLambda, filteringLambdas)
 
 /** Creates the right-hand side function.
   *
