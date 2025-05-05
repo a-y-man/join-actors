@@ -35,31 +35,31 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
     def isSorted: Seq[Date] => Boolean = times =>
       times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
 
-    def bathroomOccupied(
-        times: Seq[Date],
-        rooms: Seq[String],
-        mStatus: Boolean,
-        lStatus: Boolean,
-        value: Int
+    inline def bathroomOccupied(
+      inline times: Seq[Date],
+      inline rooms: Seq[String],
+      inline mStatus: Boolean,
+      inline lStatus: Boolean,
+      inline value: Int
     ) = isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
-    def occupiedHome(
-      times: Seq[Date],
-      statuses: Seq[Boolean],
-      mRoom0: String,
-      mRoom1: String,
-      cRoom: String
+    inline def occupiedHome(
+      inline times: Seq[Date],
+      inline statuses: Seq[Boolean],
+      inline mRoom0: String,
+      inline mRoom1: String,
+      inline cRoom: String
     ) =
       isSorted(times) && statuses.forall(
         _ == true
       ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
-    def emptyHome(
-      times: Seq[Date],
-      statuses: Seq[Boolean],
-      mRoom0: String,
-      mRoom1: String,
-      cRoom: String
+    inline def emptyHome(
+      inline times: Seq[Date],
+      inline statuses: Seq[Boolean],
+      inline mRoom0: String,
+      inline mRoom1: String,
+      inline cRoom: String
     ) =
       isSorted(times) && statuses.forall(
         _ == true
@@ -73,36 +73,50 @@ class ComplexSmartHouse(private val algorithm: MatchingAlgorithm, private val co
           Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date),
           AmbientLight(_: Int, value: Int, alRoom: String, t1: Date),
           Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
-          )
-          if isSorted(List(t0, t1, t2)) && List(mRoom, lRoom, alRoom).forall(_ == "bathroom") && mStatus && !lStatus && value <= 40 =>
+        ) if bathroomOccupied(
+            List(t0, t1, t2),
+            List(mRoom, lRoom, alRoom),
+            mStatus,
+            lStatus,
+            value
+        ) =>
 
           lastNotification = Date()
           lastMotionInBathroom = lastNotification
           actions += 1
           Continue
+
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
         case (
           Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
           Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
           Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-          )
-          if isSorted(List(t0, t1, t2)) && List(mStatus0, mStatus1, cStatus).forall(
-            _ == true
-          ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"  =>
+        ) if occupiedHome(
+          List(t0, t1, t2),
+          List(mStatus0, mStatus1, cStatus),
+          mRoom0,
+          mRoom1,
+          cRoom
+        ) =>
           lastNotification = Date()
           actions += 1
           Continue
+
         case (
           Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
           Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
           Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-          )
-          if isSorted(List(t0, t1, t2)) && List(mStatus0, mStatus1, cStatus).forall(
-            _ == true
-          ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door" =>
+        ) if emptyHome(
+          List(t0, t1, t2),
+          List(mStatus0, mStatus1, cStatus),
+          mRoom0,
+          mRoom1,
+          cRoom
+        ) =>
           lastNotification = Date()
           actions += 1
           Continue
+
         case ShutOff() =>
           Stop((System.currentTimeMillis(), actions))
       }
