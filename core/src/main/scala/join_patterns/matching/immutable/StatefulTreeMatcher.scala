@@ -134,7 +134,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
     val extractors = patInfo.patternExtractors
 
     val matchingMsgIdxsInPattern = extractors.iterator
-      .filter { case (_idx, (checkMsgType, _extract)) =>
+      .filter { case (_idx, PatternIdxInfo(checkMsgType, _extract, _)) =>
         checkMsgType(msg)
       }
       .map(_._1)

@@ -29,24 +29,18 @@ object Main:
     algorithms: String = "all",
     @arg(doc = "Algorithms to exclude, separated by commas and enclosed in quotes")
     exclude: String = "",
-    @arg(
-      short = 'f',
-      doc = "The minimum parameter value, default 0"
-    )
+    @arg(doc = "The minimum parameter value, default 0")
     minParam: Int = 0,
-    @arg(short = 's', doc = "The step by which the parameter value should increase, default 1")
+    @arg(doc = "The step by which the parameter value should increase, default 1")
     paramStep: Int = 1,
-    @arg(
-      short = 'r',
-      doc = "The maximum parameter value, default 20"
-    )
+    @arg(doc = "The maximum parameter value, default 20")
     maxParam: Int = 20,
     @arg(doc = "The number of repetitions for each parameter value, default 1")
     repetitions: Int = 1,
     @arg(doc = "The number of parameter values to copy as warmup repetitions, default 10")
     warmup: Int = 10,
     @arg(short = 'p', doc = "The folder path in which to write the benchmark data")
-    outputPath: String
+    path: String
   )
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
@@ -95,14 +89,16 @@ object Main:
 
     val processedResults = processBenchmarkSeriesResults(results)
 
-    val outputPathResolved = os.RelPath(commonConfig.outputPath).resolveFrom(os.pwd)
+    val outputPathResolved = os.RelPath(commonConfig.path).resolveFrom(os.pwd)
     saveResults(benchmarkName, paramName, paramRange, processedResults, outputPathResolved)
+
+  private def describeMatches(matches: Int) = s" with $matches matches"
 
   @main
   def simpleSmartHouse(
     commonConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
-    matches: Int = 100,
+    matches: Int = 25,
     @arg(short = 'g', doc = "Whether to use a heavy guard")
     heavyGuard: Flag,
   ): Unit =
@@ -112,14 +108,14 @@ object Main:
       commonConfig,
       SimpleSmartHouse,
       config,
-      "Simple Smart House" + (if heavyGuard.value then " with a heavy guard" else ""),
+      "Simple Smart House" + (if heavyGuard.value then " with a heavy guard" else "") + describeMatches(matches),
       "Number of prefix messages per match"
     )
 
   @main
   def boundedBuffer(
     commonConfig: CommonRunConfig,
-    @arg(short = 'b', doc = "The buffer bound")
+    @arg(doc = "The buffer bound")
     bufferBound: Int = 100,
     @arg(doc = "The number of puts/gets performed by each producer and consumer")
     count: Int = 100
@@ -130,7 +126,7 @@ object Main:
       commonConfig,
       BoundedBuffer,
       config,
-      "Bounded Buffer",
+      s"Bounded Buffer with bufferBound $bufferBound and count $count",
       "Number of producers and consumers"
     )
 
@@ -138,7 +134,7 @@ object Main:
   def complexSmartHouse(
     commonConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The maximum number of matches the smart house actor should perform")
-    matches: Int = 100,
+    matches: Int = 25,
   ): Unit =
     val config = ComplexSmartHouseConfig(matches)
 
@@ -146,7 +142,7 @@ object Main:
       commonConfig,
       ComplexSmartHouse,
       config,
-      "Complex Smart House",
+      "Complex Smart House" + describeMatches(matches),
       "Number of random messages per match"
     )
 
@@ -178,7 +174,7 @@ object Main:
       newCommonConfig,
       Size,
       config,
-      "Size" + (if noise.value then " with noise" else ""),
+      "Size" + (if noise.value then " with noise" else "") + describeMatches(matches),
       "Arity of join pattern"
     )
 
@@ -186,7 +182,7 @@ object Main:
   def sizeWithGuards(
     commonConfig: CommonRunConfig,
     @arg(short = 'm', doc = "The number of matches the size actor should perform")
-    matches: Int = 100,
+    matches: Int = 3,
     @arg(short = 'v', doc = "The benchmark variant to run: either \"normal\", \"noisy\", or \"non-matching\"")
     variant: String = "normal"
   ): Unit =
@@ -214,14 +210,14 @@ object Main:
 
     val descriptor = variantEnum match
       case GuardedSizeVariant.Normal => ""
-      case GuardedSizeVariant.Noisy => " with noise"
-      case GuardedSizeVariant.NonMatchingPayloads => " with non-matching payloads"
+      case GuardedSizeVariant.Noisy => " and noise"
+      case GuardedSizeVariant.NonMatchingPayloads => " and non-matching payloads"
 
     runAndOutput(
       newCommonConfig,
       GuardedSize,
       config,
-      "Size with guards" + descriptor,
+      "Size with guards" + descriptor + describeMatches(matches),
       "Arity of join pattern"
     )
 

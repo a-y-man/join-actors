@@ -6,35 +6,43 @@ enum MatchingAlgorithm:
   case MutableStatefulAlgorithm
   case LazyMutableAlgorithm
   case WhileLazyAlgorithm
+  case FilteringWhileAlgorithm
   case WhileEagerAlgorithm
   case EagerParallelAlgorithm(numThreads: Int)
   case LazyParallelAlgorithm(numThreads: Int)
+  case FilteringParallelAlgorithm(numThreads: Int)
 
   override def toString: String =
     this match
-      case MatchingAlgorithm.BruteForceAlgorithm => "BruteForceAlgorithm"
-      case MatchingAlgorithm.StatefulTreeBasedAlgorithm => "StatefulTreeBasedAlgorithm"
-      case MatchingAlgorithm.MutableStatefulAlgorithm => "MutableStatefulAlgorithm"
-      case MatchingAlgorithm.LazyMutableAlgorithm => "LazyMutableAlgorithm"
-      case MatchingAlgorithm.WhileLazyAlgorithm => "WhileLazyAlgorithm"
-      case MatchingAlgorithm.WhileEagerAlgorithm => "WhileEagerAlgorithm"
-      case MatchingAlgorithm.EagerParallelAlgorithm(numThreads) => s"EagerParallelAlgorithm_$numThreads"
-      case MatchingAlgorithm.LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
+      case BruteForceAlgorithm => "BruteForceAlgorithm"
+      case StatefulTreeBasedAlgorithm => "StatefulTreeBasedAlgorithm"
+      case MutableStatefulAlgorithm => "MutableStatefulAlgorithm"
+      case LazyMutableAlgorithm => "LazyMutableAlgorithm"
+      case WhileLazyAlgorithm => "WhileLazyAlgorithm"
+      case FilteringWhileAlgorithm => "FilteringWhileAlgorithm"
+      case WhileEagerAlgorithm => "WhileEagerAlgorithm"
+      case EagerParallelAlgorithm(numThreads) => s"EagerParallelAlgorithm_$numThreads"
+      case LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
+      case FilteringParallelAlgorithm(numThreads) => s"FilteringParallelAlgorithm_$numThreads"
 
 object MatchingAlgorithm:
-  private val cmdStringToAlgorithm = Map(
+  private val cmdStringsAndAlgorithms = List(
     "brute" -> BruteForceAlgorithm,
     "stateful" -> StatefulTreeBasedAlgorithm,
     "mutable" -> MutableStatefulAlgorithm,
     "lazy-mutable" -> LazyMutableAlgorithm,
     "while-lazy" -> WhileLazyAlgorithm,
+    "filtering-while" -> FilteringWhileAlgorithm,
     "while-eager" -> WhileEagerAlgorithm,
     "eager-parallel" -> EagerParallelAlgorithm(8),
-    "lazy-parallel" -> LazyParallelAlgorithm(8)
+    "lazy-parallel" -> LazyParallelAlgorithm(8),
+    "filtering-parallel" -> FilteringParallelAlgorithm(8)
   )
+
+  private val cmdStringToAlgorithm = cmdStringsAndAlgorithms.toMap
 
   def parseFromCmdString(algorithmStr: String): Option[MatchingAlgorithm] =
     cmdStringToAlgorithm.get(algorithmStr)
 
-  val CMD_STRINGS: Seq[String] = cmdStringToAlgorithm.keySet.toSeq
-  val ALGORITHMS: Seq[MatchingAlgorithm] = cmdStringToAlgorithm.values.toSeq
+  val CMD_STRINGS: Seq[String] = cmdStringsAndAlgorithms.map(_._1)
+  val ALGORITHMS: Seq[MatchingAlgorithm] = cmdStringsAndAlgorithms.map(_._2)

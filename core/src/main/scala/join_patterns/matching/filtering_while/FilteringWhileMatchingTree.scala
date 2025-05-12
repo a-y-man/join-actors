@@ -1,4 +1,4 @@
-package join_patterns.matching.while_lazy
+package join_patterns.matching.filtering_while
 
 import join_actors.actor.ActorRef
 import join_patterns.matching.CandidateMatchOpt
@@ -11,7 +11,7 @@ import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as Muta
 import scala.util.boundary
 import scala.util.boundary.break
 
-class WhileLazyMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
+class FilteringWhileMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 
   private val nodes = MutableTreeMap[MessageIdxs, PatternBins](MessageIdxs() -> pattern.getPatternInfo.patternBins)
@@ -20,11 +20,27 @@ class WhileLazyMatchingTree[M, T](private val pattern: JoinPattern[M, T], privat
   private def updateTree(newMessageIdx: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
 
     val matchingConstructorIdxs = patternExtractors.iterator
-      .filter { case (_idx, PatternIdxInfo(msgTypeChecker, _msgFieldExtractor, _)) => msgTypeChecker(msg) }
+      .filter { case (_idx, PatternIdxInfo(msgTypeChecker, _msgFieldExtractor, _msgFilter)) => msgTypeChecker(msg) }
       .map { (idx, _) => idx }
       .to(PatternIdxs)
 
-    if matchingConstructorIdxs.isEmpty then None
+    val filterRes =
+//      println("Evaluating filter")
+      if matchingConstructorIdxs.size == 1 then
+//        println(s"Message $msg might be filterable")
+        val PatternIdxInfo(_msgTypeChecker, msgFieldExtractor, msgFilter) = patternExtractors(matchingConstructorIdxs.head)
+
+        val partialLookupEnv = msgFieldExtractor(msg)
+
+        val r = msgFilter(partialLookupEnv)
+//        println(s"Result: $r")
+        r
+      else true
+
+//    if !filterRes then
+//      println(s"Filtered out message ${msg}")
+
+    if matchingConstructorIdxs.isEmpty || !filterRes then None
     else
       val additions = ArrayBuffer[(MessageIdxs, PatternBins)]()
 

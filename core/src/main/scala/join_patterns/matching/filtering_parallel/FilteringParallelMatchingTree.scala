@@ -1,23 +1,22 @@
-package join_patterns.matching.lazy_parallel
+package join_patterns.matching.filtering_parallel
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatch, CandidateMatchOpt}
 import join_patterns.matching.functions.*
+import join_patterns.matching.{CandidateMatch, CandidateMatchOpt}
 import join_patterns.types.{*, given}
 import join_patterns.util.*
 
-import java.util.TreeMap as JavaTreeMap
 import java.util.Map.Entry as MapEntry
+import java.util.TreeMap as JavaTreeMap
 import java.util.concurrent.{Executors, Future}
 import scala.collection.immutable.ArraySeq
-import scala.collection.mutable.ArrayDeque
-import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
+import scala.collection.mutable.{ArrayBuffer, ArrayDeque, Map as MutableMap, TreeMap as MutableTreeMap}
 import scala.concurrent.{ExecutionContext, Promise}
+import scala.jdk.CollectionConverters.*
 import scala.util.boundary
 import scala.util.boundary.break
-import scala.jdk.CollectionConverters.*
 
-class LazyParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int):
+class FilteringParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 
   private val nodes = JavaTreeMap[MessageIdxs, PatternBins](sizeBiasedOrdering)
@@ -35,7 +34,16 @@ class LazyParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], pri
       .map { (idx, _) => idx }
       .to(PatternIdxs)
 
-    if matchingConstructorIdxs.isEmpty then None
+    val filterRes =
+      if matchingConstructorIdxs.size == 1 then
+        val PatternIdxInfo(_msgTypeChecker, msgFieldExtractor, msgFilter) = patternExtractors(matchingConstructorIdxs.head)
+
+        val partialLookupEnv = msgFieldExtractor(msg)
+
+        msgFilter(partialLookupEnv)
+      else true
+
+    if matchingConstructorIdxs.isEmpty || !filterRes then None
     else
       val futures = ArrayDeque[Future[IterResult[M, T]]]()
       val q = divideSpliterator(nodes.entrySet().spliterator(), numThreads)

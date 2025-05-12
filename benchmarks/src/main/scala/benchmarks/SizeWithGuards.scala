@@ -2,6 +2,7 @@ package benchmarks
 
 import benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
 import join_actors.api.*
+import join_patterns.matching.MatchingAlgorithm.WhileLazyAlgorithm
 import org.scalacheck.Gen
 import os.Path
 
@@ -389,7 +390,7 @@ def runSizeWithGuardsBenchmark(
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+    List(WhileLazyAlgorithm)
 
   val measurements = algorithms map { algorithm =>
     println(
@@ -414,7 +415,7 @@ def runSizeWithGuardsWithNoiseBenchmark(
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+    List(WhileLazyAlgorithm)
 
   val measurements = algorithms map { algorithm =>
     println(
@@ -442,10 +443,10 @@ def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
   val algorithms: List[MatchingAlgorithm] =
     List(
       //        BruteForceAlgorithm,
-      StatefulTreeBasedAlgorithm,
-      MutableStatefulAlgorithm,
-      LazyMutableAlgorithm,
-      WhileEagerAlgorithm,
+//      StatefulTreeBasedAlgorithm,
+//      MutableStatefulAlgorithm,
+//      LazyMutableAlgorithm,
+//      WhileEagerAlgorithm,
       //        EagerParallelAlgorithm(2),
       //        EagerParallelAlgorithm(4),
       //        EagerParallelAlgorithm(6),
@@ -454,7 +455,7 @@ def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
       //        LazyParallelAlgorithm(2),
       //        LazyParallelAlgorithm(4),
       //        LazyParallelAlgorithm(6),
-      LazyParallelAlgorithm(8)
+//      LazyParallelAlgorithm(8)
     )
 
   val measurements = algorithms map { algorithm =>

@@ -30,11 +30,12 @@ class BenchmarkPass(
     )
 
   def benchmark(repetitions: Int): Seq[Measurement] =
-    Await
-      .result(
-        Future.sequence((1 to repetitions).map(_ => mainFn())),
-        Duration.Inf
-      )
+    (1 to repetitions).map(_ => Await.result(mainFn(), Duration.Inf))
+//    Await
+//      .result(
+//        Future.sequence((1 to repetitions).map(_ => mainFn())),
+//        Duration.Inf
+//      )
 
   def run(warmupRepetitions: Int, iterations: Int): Seq[Measurement] =
     println(f"-- Pass $name")

@@ -65,14 +65,20 @@ def ppPatternBins(patternBins: PatternBins): String =
     }
     .mkString(", ")
 
-type PatternExtractors[M] = Map[PatternIdx, (M => Boolean, M => LookupEnv)]
+final case class PatternIdxInfo[M](
+  msgTypeChecker: M => Boolean,
+  lookupEnvExtractor: M => LookupEnv,
+  filterer: LookupEnv => Boolean
+)
+
+type PatternExtractors[M] = Map[PatternIdx, PatternIdxInfo[M]]
 object PatternExtractors:
-  def apply[M](elems: (PatternIdx, (M => Boolean, M => LookupEnv))*): PatternExtractors[M] =
-    Map[PatternIdx, (M => Boolean, M => LookupEnv)](elems*)
+  def apply[M](elems: (PatternIdx, PatternIdxInfo[M])*): PatternExtractors[M] =
+    Map[PatternIdx, PatternIdxInfo[M]](elems*)
 
 def ppPatternExtractors[M, T](patternExtractors: PatternExtractors[M]): String =
   patternExtractors
-    .map { case (patternIdx, (checkMsgType, fieldExtractor)) =>
+    .map { case (patternIdx, PatternIdxInfo(checkMsgType, fieldExtractor, _)) =>
       val patternIdxStr = Console.YELLOW + patternIdx.toString + Console.RESET
       s"${patternIdxStr} -> { ${Console.BLUE}M => Boolean${Console.RESET}, ${Console.BLUE}M => LookupEnv${Console.RESET} }"
     }

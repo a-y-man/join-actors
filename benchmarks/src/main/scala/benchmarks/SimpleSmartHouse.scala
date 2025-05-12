@@ -142,11 +142,11 @@ def runSimpleSmartHouseBenchmark(
 //      EagerParallelAlgorithm(4),
 //      EagerParallelAlgorithm(6),
 //      EagerParallelAlgorithm(8),
-//      WhileLazyAlgorithm,
+      WhileLazyAlgorithm,
 //      LazyParallelAlgorithm(2),
 //      LazyParallelAlgorithm(4),
 //      LazyParallelAlgorithm(6),
-      LazyParallelAlgorithm(8)
+//      LazyParallelAlgorithm(8)
     )
 
   val rangeOfRandomMsgs =

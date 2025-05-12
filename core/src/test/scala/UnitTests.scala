@@ -42,9 +42,11 @@ val matchingAlgos = Table(
   MutableStatefulAlgorithm,
   LazyMutableAlgorithm,
   WhileLazyAlgorithm,
+  FilteringWhileAlgorithm,
   WhileEagerAlgorithm,
   EagerParallelAlgorithm(2),
-  LazyParallelAlgorithm(2)
+  LazyParallelAlgorithm(2),
+  FilteringParallelAlgorithm(2)
 )
 
 class SingletonPatterns extends AnyFunSuite:
@@ -150,7 +152,7 @@ class SingletonPatterns extends AnyFunSuite:
 
   test("Single Message, One String Member, Predicate") {
     val expected   = "test"
-    val ifNotEmpty = (i: String) => !i.isEmpty
+    val ifNotEmpty = (i: String) => i.nonEmpty
 
     forAll(matchingAlgos) { algorithm =>
       val actor = Actor[Msg, String] {
