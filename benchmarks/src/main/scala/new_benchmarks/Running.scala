@@ -8,10 +8,12 @@ def runBenchmarkPass(benchmark: Benchmark[?], param: Int): FiniteDuration =
   val prereqs = benchmark.prepare(param)
 
   val startTime = System.nanoTime()
+  log(s"Running benchmark with parameter $param at $startTime")
 
   benchmark.run(prereqs)
 
   val endTime = System.nanoTime()
+  log(s"Finished benchmark with parameter $param in ${endTime - startTime} ns at $endTime")
 
   FiniteDuration(endTime - startTime, TimeUnit.NANOSECONDS)
 

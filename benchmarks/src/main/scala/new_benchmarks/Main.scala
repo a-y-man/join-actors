@@ -232,6 +232,7 @@ object Main:
       "Payment microservices",
       "Number of payment and token requests sent"
     )
+    writeLog()
 
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

@@ -2,7 +2,7 @@ package new_benchmarks.payment
 
 import join_actors.api.*
 import join_patterns.util.*
-import new_benchmarks.{Benchmark, BenchmarkFactory, intercalate}
+import new_benchmarks.{Benchmark, BenchmarkFactory, intercalate, log}
 import new_benchmarks.mixin.MessageFeedBenchmark
 import new_benchmarks.mixin.MessageFeedBenchmark.MessageFeedTriplet
 import new_benchmarks.payment.Payment.*
@@ -50,7 +50,8 @@ class Payment(private val algorithm: MatchingAlgorithm) extends Benchmark[Paymen
         &&& CustomerValidated(id3)
         if (id1 == id2) && (id2 == id3) =>
         coreService.get ! PaymentSuceeded(id1)
-//        println(s"Handled id $id1")
+
+        log(s"Payment service handled payment request $id1")
         Continue
       case Shutdown() => Stop(())
     }}(algorithm)
@@ -61,12 +62,18 @@ class Payment(private val algorithm: MatchingAlgorithm) extends Benchmark[Paymen
     val matcher = receive { selfRef => {
       case PaymentRequested(id) =>
         paymentService.get ! MerchantValidated(id)
+
+        log(s"Account service validated merchant for payment request $id")
         Continue
       case TokenConsumed(id) =>
         paymentService.get ! CustomerValidated(id)
+
+        log(s"Account service validated customer for payment request $id")
         Continue
       case TokenGenerationRequested(id) =>
         tokenService.get ! CustomerValidated(id)
+
+        log(s"Account service validated customer for token request $id")
         Continue
       case Shutdown() => Stop(())
     }}(algorithm)
@@ -77,11 +84,15 @@ class Payment(private val algorithm: MatchingAlgorithm) extends Benchmark[Paymen
     val matcher = receive { selfRef => {
       case PaymentRequested(id) =>
         accountService.get ! TokenConsumed(id)
+
+        log(s"Token service consumed token for payment request $id")
         Continue
       case TokenGenerationRequested(id1)
         &&& CustomerValidated(id2)
         if id1 == id2 =>
         coreService.get ! TokenGenerated(id1)
+
+        log(s"Token service generated token for token request $id1")
         Continue
       case Shutdown() => Stop(())
     }}(algorithm)
@@ -102,33 +113,43 @@ class Payment(private val algorithm: MatchingAlgorithm) extends Benchmark[Paymen
     val matcher = receive { selfRef => {
       case ExternalPaymentRequest() =>
         val event = PaymentRequested(nextId)
-        nextId += 1
         accountService.get ! event
         paymentService.get ! event
         tokenService.get ! event
+
+        log(s"Core service handled external payment request $nextId")
+        nextId += 1
         Continue
       case ExternalTokenGenerationRequest() =>
         val event = TokenGenerationRequested(nextId)
-        nextId += 1
         tokenService.get ! event
         accountService.get ! event
+
+        log(s"Core service handled external token request $nextId")
+        nextId += 1
         Continue
       case PaymentSuceeded(id) =>
         paymentsProcessed += 1
         if paymentsProcessed == numRequests && tokensProcessed == numRequests then
+          log(s"Core service received last PaymentSucceeded for id $id, shutting down")
           accountService.get ! Shutdown()
           tokenService.get ! Shutdown()
           paymentService.get ! Shutdown()
           Stop(())
-        else Continue
+        else
+          log(s"Core service received PaymentSucceeded for id $id, continuing")
+          Continue
       case TokenGenerated(id) =>
         tokensProcessed += 1
         if paymentsProcessed == numRequests && tokensProcessed == numRequests then
+          log(s"Core service received last TokenGenerated for id $id, shutting down")
           accountService.get ! Shutdown()
           tokenService.get ! Shutdown()
           paymentService.get ! Shutdown()
           Stop(())
-        else Continue
+        else
+          log(s"Core service received TokenGenerated for id $id, continuing")
+          Continue
     }}(algorithm)
 
     Actor(matcher)
