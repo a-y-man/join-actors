@@ -202,15 +202,15 @@ object Main:
     val variantEnum = variant match
       case "normal" => GuardedSizeVariant.Normal
       case "noisy" => GuardedSizeVariant.Noisy
-      case "non-matching" => GuardedSizeVariant.NonMatchingPayloads
-      case _ => throw MatchError(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-matching\"")
+      case "non-satisfying" => GuardedSizeVariant.NonMatchingPayloads
+      case _ => throw MatchError(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-satisfying\"")
 
     val config = GuardedSizeConfig(matches, variantEnum)
 
     val descriptor = variantEnum match
       case GuardedSizeVariant.Normal => ""
       case GuardedSizeVariant.Noisy => " and noise"
-      case GuardedSizeVariant.NonMatchingPayloads => " and non-matching payloads"
+      case GuardedSizeVariant.NonMatchingPayloads => " and non-satisfying payloads"
 
     runAndOutput(
       newCommonConfig,

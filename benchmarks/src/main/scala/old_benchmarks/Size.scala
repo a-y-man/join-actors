@@ -1,4 +1,4 @@
-package benchmarks
+package old_benchmarks
 
 import join_actors.api.*
 import join_patterns.matching.MatchingAlgorithm.WhileLazyAlgorithm

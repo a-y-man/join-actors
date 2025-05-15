@@ -1,6 +1,6 @@
-package benchmarks
+package old_benchmarks
 
-import benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
+import old_benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
 import join_actors.api.*
 import join_patterns.matching.MatchingAlgorithm.WhileLazyAlgorithm
 import org.scalacheck.Gen

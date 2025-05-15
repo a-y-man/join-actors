@@ -1,6 +1,6 @@
-package benchmarks
+package old_benchmarks
 
-import benchmarks.GenerateGuardedSizeMsgs.*
+import old_benchmarks.GenerateGuardedSizeMsgs.*
 import org.scalatest.Assertions.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
