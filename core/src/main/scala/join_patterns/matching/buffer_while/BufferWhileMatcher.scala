@@ -1,7 +1,7 @@
 package join_patterns.matching.buffer_while
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatch, CandidateMatches, Matcher}
+import join_patterns.matching.{CandidateMatchOpt, CandidateMatches, Matcher}
 import join_patterns.types.JoinPattern
 import join_patterns.util.*
 
@@ -28,7 +28,7 @@ class BufferWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ex
 
       messages.update(index, msg)
 
-      val matches = ArrayBuffer[CandidateMatch[M, T]]()
+      val matches = ArrayBuffer[CandidateMatchOpt[M, T]]()
       for arr <- matchingArrays.fast do matches.append(arr.findMatch(index, msg, messages))
 
       val candidateMatches: CandidateMatches[M, T] =

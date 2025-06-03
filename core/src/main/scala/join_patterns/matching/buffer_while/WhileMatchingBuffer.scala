@@ -1,7 +1,7 @@
 package join_patterns.matching.buffer_while
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.CandidateMatch
+import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.functions.*
 import join_patterns.types.{*, given}
 import join_patterns.util.*
@@ -20,10 +20,10 @@ class WhileMatchingBuffer[M, T](private val pattern: JoinPattern[M, T], private 
 
   private val additions = ArrayBuffer[Node]()
 
-  private def updateTree(newMessageIdx: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  private def updateTree(newMessageIdx: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
 
     val matchingConstructorIdxs = patternExtractors.iterator
-      .filter { case (_idx, (msgTypeChecker, _msgFieldExtractor)) => msgTypeChecker(msg) }
+      .filter { case (_idx, PatternIdxInfo(msgTypeChecker, _msgFieldExtractor, _)) => msgTypeChecker(msg) }
       .map { (idx, _) => idx }
       .to(PatternIdxs)
 
@@ -75,7 +75,7 @@ class WhileMatchingBuffer[M, T](private val pattern: JoinPattern[M, T], private 
           sortedMerge(nodes, additions)
           None
 
-  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
     updateTree(index, msg, messages)
 
   private def findBestValidPermutation(patternBins: PatternBins, messages: MutableMap[Int, M]): Option[(MessageIdxs, LookupEnv)] =

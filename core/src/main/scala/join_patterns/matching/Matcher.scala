@@ -119,5 +119,5 @@ object SelectMatcher:
       case EagerParallelAlgorithm(numThreads)     => EagerParallelMatcher(patterns, numThreads)
       case LazyParallelAlgorithm(numThreads)      => LazyParallelMatcher(patterns, numThreads)
       case FilteringParallelAlgorithm(numThreads) => FilteringParallelMatcher(patterns, numThreads)
-      case ArrayWhileAlgorithm        => ArrayWhileMatcher(patterns)
-      case BufferWhileAlgorithm       => BufferWhileMatcher(patterns)
+      case ArrayWhileAlgorithm => ArrayWhileMatcher(patterns)
+      case BufferWhileAlgorithm => BufferWhileMatcher(patterns)
