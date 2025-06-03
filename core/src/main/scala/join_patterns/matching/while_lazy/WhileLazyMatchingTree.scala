@@ -1,9 +1,9 @@
 package join_patterns.matching.while_lazy
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.CandidateMatch
+import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.functions.*
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
+import join_patterns.types.{*, given}
 import join_patterns.util.*
 
 import scala.collection.immutable.ArraySeq
@@ -13,15 +13,14 @@ import scala.util.boundary.break
 
 class WhileLazyMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
-//  private val msgTypeCheckers = patternExtractors.map{ case (key, (typeChecker, _)) => (key, typeChecker) }
 
   private val nodes = MutableTreeMap[MessageIdxs, PatternBins](MessageIdxs() -> pattern.getPatternInfo.patternBins)
 
 
-  private def updateTree(newMessageIdx: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  private def updateTree(newMessageIdx: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
 
     val matchingConstructorIdxs = patternExtractors.iterator
-      .filter { case (_idx, (msgTypeChecker, _msgFieldExtractor)) => msgTypeChecker(msg) }
+      .filter { case (_idx, PatternIdxInfo(msgTypeChecker, _msgFieldExtractor, _)) => msgTypeChecker(msg) }
       .map { (idx, _) => idx }
       .to(PatternIdxs)
 
@@ -73,7 +72,7 @@ class WhileLazyMatchingTree[M, T](private val pattern: JoinPattern[M, T], privat
           nodes.addAll(additions)
           None
 
-  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
+  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
     updateTree(index, msg, messages)
 
   private def findBestValidPermutation(patternBins: PatternBins, messages: MutableMap[Int, M]): Option[(MessageIdxs, LookupEnv)] =

@@ -317,3 +317,26 @@ def exampleWithRandomMsgs(algorithm: MatchingAlgorithm): Unit =
   result.onComplete(printResult)
 
   println("\n======================================================\n\n")
+
+def exampleFilter(algorithm: MatchingAlgorithm): Unit =
+  println(s"Using ${algorithm}\n\n")
+
+  val actor = Actor(
+    receive[Msg, Unit] { (_) =>
+    {
+      case A() &&& D(i) if i == 1 =>
+        Stop(())
+    }
+    }(algorithm)
+  )
+  val (futureResult, actorRef) = actor.start()
+
+  val q = (10 to 1 by -1).map(D(_)) :+ A()
+
+  q.foreach(actorRef ! _)
+
+  println(s"Q = ${q.zipWithIndex}")
+  val result = Await.ready(futureResult, Duration(1, "minutes"))
+  result.onComplete(printResult)
+
+  println("\n======================================================\n\n")

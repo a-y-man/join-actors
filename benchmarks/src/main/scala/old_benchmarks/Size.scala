@@ -1,6 +1,7 @@
-package benchmarks
+package old_benchmarks
 
 import join_actors.api.*
+import join_patterns.matching.MatchingAlgorithm.WhileLazyAlgorithm
 import org.scalacheck.Gen
 import os.Path
 
@@ -256,7 +257,7 @@ def runSizeBenchmark(
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+    List(WhileLazyAlgorithm)
 
   val measurements = algorithms map { algorithm =>
     println(
@@ -281,7 +282,7 @@ def runSizeWithNoiseBenchmark(
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+    List(WhileLazyAlgorithm)
 
   val measurements = algorithms map { algorithm =>
     println(

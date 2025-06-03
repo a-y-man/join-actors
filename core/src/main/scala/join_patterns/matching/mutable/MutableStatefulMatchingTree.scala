@@ -1,34 +1,24 @@
 package join_patterns.matching.mutable
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.CandidateMatch
+import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.functions.*
-import join_patterns.types.{JoinPattern, LookupEnv, MessageIdxs, PatternBins, PatternIdxs, given}
+import join_patterns.types.{*, given}
 
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
 
 class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
-//  private val msgTypeCheckers = patternExtractors.map{ case (key, (typeChecker, _)) => (key, typeChecker) }
 
   private val nodes = MutableTreeMap[MessageIdxs, PatternBins](MessageIdxs() -> pattern.getPatternInfo.patternBins)
 
 
   private def updateTree(newMessageIdx: Int, msg: M): MutableMap[MessageIdxs, PatternBins] =
-//    println()
-//    println(s"Tree $patternIdx before update")
-//    for tup <- nodes do
-//      println(s"\t$tup")
-
-//    println(s"New message index: $newMessageIdx")
-
     val matchingConstructorIdxs = patternExtractors.iterator
-      .filter { case (_idx, (msgTypeChecker, _msgFieldExtractor)) => msgTypeChecker(msg) }
+      .filter { case (_idx, PatternIdxInfo(msgTypeChecker, _msgFieldExtractor, _)) => msgTypeChecker(msg) }
       .map { (idx, _) => idx }
       .to(PatternIdxs)
-
-//    println(s"Matching constructor indices: $matchingConstructorIdxs")
 
     if matchingConstructorIdxs.isEmpty then MutableTreeMap()
     else
@@ -40,11 +30,8 @@ class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], 
 
         // If the PatternBins contains a key for the constructor type of the new message, we might be able to add a child
         bins.get(matchingConstructorIdxs).foreach { mappedMessageIdxs =>
-//          println(s"Found key for $matchingConstructorIdxs")
-
           // We only add a new node if some of the constructor instances in the pattern don't already have a match
           if mappedMessageIdxs.size < matchingConstructorIdxs.size then
-//            println(s"Adding node for $matchingConstructorIdxs")
             val newMessageIdxs = messageIdxsMatched :+ newMessageIdx
             val newPatternBins = bins.updated(matchingConstructorIdxs, mappedMessageIdxs :+ newMessageIdx)
             val newNode = (newMessageIdxs, newPatternBins)
@@ -55,35 +42,11 @@ class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], 
             then completePatterns.addOne(newNode)
         }
 
-//      println(s"Additions: $additions")
-
       nodes.addAll(additions)
-//      for (k, v) <- additions do
-//        nodes.update(k, v)
-
-//      println(s"Tree $patternIdx after update")
-//      for tup <- nodes do
-//        println(s"\t$tup")
 
       completePatterns
 
-//  def findCompletePatterns(patternSize: Int): MatchingTree =
-//    nodes.view
-//      .filterKeys { messageIdxs =>
-//        messageIdxs.size == patternSize
-//      }
-//      .filter { case (_, patternBins) =>
-//        patternBins.forall((patShapeSize, msgIdxs) => patShapeSize.size == msgIdxs.size)
-//      }
-//      .to(TreeMap)
-
-  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatch[M, T] =
-//    val updated = updateTree(index, msg)
-//
-//    if !updated then return None
-
-//    val completePatterns = findCompletePatterns(pattern.size)
-
+  def findMatch(index: Int, msg: M, messages: MutableMap[Int, M]): CandidateMatchOpt[M, T] =
     val completePatterns = updateTree(index, msg)
 
     if completePatterns.isEmpty then return None
@@ -105,10 +68,7 @@ class MutableStatefulMatchingTree[M, T](private val pattern: JoinPattern[M, T], 
           )
 
         completePatterns.remove(bestMatchIdxs)
-//        val toRemove = completePatterns.removed(bestMatchIdxs).keySet
         nodes.subtractAll(completePatterns.keySet)
-//        for k <- completePatterns.removed(bestMatchIdxs).keySet do
-//          nodes.remove(k)
 
         Some((bestMatchIdxs, patternIdx), selectedMatch)
       case None =>

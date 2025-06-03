@@ -21,7 +21,6 @@ class MutableStatefulMatcher[M, T](private val patterns: List[JoinPattern[M, T]]
 
     while result.isEmpty do
       val msg = q.take()
-//      println(s"Received message $msg")
       val index = nextMessageIndex
       nextMessageIndex += 1
 

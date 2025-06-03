@@ -37,11 +37,11 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
   private def findMatch(
       newMsg: (M, Int),
       patternState: PatternState[M, T]
-  ): (PatternState[M, T], CandidateMatch[M, T]) =
+  ): (PatternState[M, T], CandidateMatchOpt[M, T]) =
 
     val (mQ, mQidx)                               = newMsg
     val ((pattern, patternIdx), (mTree, patInfo)) = patternState
-    val updatedMatchingTree                       = pattern.updateMTree((mQ, mQidx), mTree)
+    val updatedMatchingTree                       = internalUpdateMTree(mTree, patInfo, mQ, mQidx)
 
     updatedMatchingTree match
       case Some(updatedMTree) =>
@@ -80,7 +80,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
   private def collectCandidateMatches(
       newMsg: (M, Int),
       patternStates: List[PatternState[M, T]]
-  ): List[(PatternState[M, T], CandidateMatch[M, T])] =
+  ): List[(PatternState[M, T], CandidateMatchOpt[M, T])] =
     patternStates flatMap { patternState =>
       List(findMatch(newMsg, patternState))
     }
@@ -129,3 +129,20 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
         messages.update(mQidx, mQ)
 
     result.get
+
+  private def internalUpdateMTree(mTree: MatchingTree, patInfo: PatternInfo[M], msg: M, msgIdx: Int): Option[MatchingTree] =
+    val extractors = patInfo.patternExtractors
+
+    val matchingMsgIdxsInPattern = extractors.iterator
+      .filter { case (_idx, PatternIdxInfo(checkMsgType, _extract, _)) =>
+        checkMsgType(msg)
+      }
+      .map(_._1)
+      .to(PatternIdxs)
+
+    matchingMsgIdxsInPattern match
+      case PatternIdxs() => Some(mTree)
+      case matches =>
+        val updatedMTree = updateMTree(mTree, mQidx, matches)
+        Some(updatedMTree)
+

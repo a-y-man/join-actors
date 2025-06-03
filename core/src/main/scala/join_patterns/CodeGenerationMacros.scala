@@ -1,13 +1,16 @@
 package join_patterns.code_generation
 
+import com.google.common.collect.LinkedHashMultiset
 import join_actors.actor.{ActorRef, Result}
 import join_patterns.matching.*
-import join_patterns.matching.immutable.{MatchingTree, updateMTree}
 import join_patterns.types.{*, given}
 import join_patterns.util.*
 
+import java.util.stream.Collectors
+import scala.collection
 import scala.collection.immutable.{TreeMap as MTree, *}
 import scala.quoted.{Expr, Quotes, Type, Varargs}
+import scala.jdk.StreamConverters.*
 
 object `&&&`:
   infix def unapply(arg: Any): Option[(Unit, Unit)] = Some((), ())
@@ -40,10 +43,10 @@ private def extractPayloads(using quotes: Quotes)(
   * @param patterns
   *   the patterns, as a `List[Tree]`.
   * @return
-  *   a list of tuples, containing pattern type representation, and a list of tuples, containing
-  *   types' name and representation. substs: Map[String, Int]
+  *   a list of tuples where the first element is a constructor type representation, and the second
+  *   element is a list of tuples containing the names and type representations of bound variables
   */
-private def extractContructorData(using quotes: Quotes)(
+private def extractConstructorData(using quotes: Quotes)(
     patterns: List[quotes.reflect.Tree]
 ): List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])] =
   import quotes.reflect.*
@@ -121,56 +124,162 @@ private def substInners[T](using quotes: Quotes, tt: Type[T])(
   }
   result
 
+/**
+ * Given a Boolean expression that is a conjunction of clauses a && b && c &&..., returns a list of the clauses
+ * List(a, b, c...)
+ */
+private def extractClauses(using quotes: Quotes)(
+  expr: Expr[Boolean]
+): List[Expr[Boolean]] =
+  import quotes.reflect.*
+
+  expr match
+    case '{ ($a: Boolean) && ($b: Boolean) } =>
+      extractClauses(a) ::: extractClauses(b)
+    case b =>
+      List(b)
+
+/**
+ * Given a list of Boolean clauses, constructs a Boolean expression that is a conjunction of those clauses. The reverse
+ * of extractClauses
+ */
+private def reconstructConjunctionTree(using quotes: Quotes)(
+  clauses: List[Expr[Boolean]]
+): Expr[Boolean] =
+  clauses match
+    case Nil => '{ true }
+    case lst => lst.reduceLeft { (acc, exp) => '{$acc && $exp} }
+
+/**
+ * Returns all variable names used inside of a Term
+ */
+private def getAllVariableNames(using quotes: Quotes)(term: quotes.reflect.Term): List[String] =
+  import quotes.reflect.*
+
+  val folder = new TreeAccumulator[List[String]]:
+    override def foldTree(acc: List[String], tree: Tree)(owner: Symbol): List[String] =
+      tree match
+        case Ident(name) => name :: acc
+        case e => foldOverTree(acc, e)(owner)
+
+  folder.foldTree(List(), term)(Symbol.spliceOwner)
+
+type GuardFilter = LookupEnv => Boolean
+
+private def replaceInnersWithLookupEnv[T](using quotes: Quotes, tt: Type[T])(
+  exp: Expr[T],
+  inners: List[(String, Type[?])],
+  lookupEnvExpr: Expr[LookupEnv]
+): Expr[T] =
+  import quotes.reflect.*
+
+  val transform = new TreeMap:
+    override def transformTerm(term: Term)(owner: Symbol): Term =
+      term match
+        case Ident(n) if inners.exists(_._1 == n) =>
+          val inner = '{ (${ lookupEnvExpr })(${ Expr(n) }) }
+          inners.find(_._1 == n).get._2 match
+            case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
+        case x =>
+          super.transformTerm(x)(owner)
+
+  transform.transformTerm(exp.asTerm)(Symbol.spliceOwner).asExprOf[T]
+
 /** Creates a guard function.
   *
   * @param guard
   *   the optional predicate.
-  * @param inners
-  *   the field types available in this pattern.
+  * @param typesData
+  *   The outer type representations of this pattern, together with a list of inner type names and type representations
   * @return
   *   a `Block` that is the guard.
   */
 private def generateGuard(using quotes: Quotes)(
     guard: Option[quotes.reflect.Term],
-    inners: List[(String, quotes.reflect.TypeRepr)]
-): quotes.reflect.Block =
+    typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])]
+): (Expr[GuardFilter], Map[String, Expr[GuardFilter]]) =
   import quotes.reflect.*
 
-  val _transform = new TreeMap:
-    override def transformTerm(term: Term)(owner: Symbol): Term = super.transformTerm(term)(owner)
+  val inners = typesData.flatMap(_._2)
+  val innersForSplice = inners.map((n, t) => (n, t.asType))
 
-  var _rhsFn = (sym: Symbol, _: List[Tree]) =>
-    _transform.transformTerm('{ true }.asExprOf[Boolean].asTerm.changeOwner(sym))(sym)
+  val emptyFilteringLambdas = Map[String, Expr[GuardFilter]]()
 
   guard match
-    case Some(apply: Apply) =>
+    case None          => ('{ (_: LookupEnv) => true }, emptyFilteringLambdas)
+    case Some(term: Term) =>
       if inners.isEmpty then
-        _rhsFn = (sym: Symbol, _: List[Tree]) =>
-          _transform.transformTerm(apply.changeOwner(sym))(sym)
+        ('{ (_: LookupEnv) => ${ term.asExprOf[Boolean] }}, emptyFilteringLambdas)
       else
-        _rhsFn = (sym: Symbol, params: List[Tree]) =>
-          val p0 = params.head.asInstanceOf[Ident]
+        val clauses = extractClauses(term.asExprOf[Boolean])
 
-          val transform = new TreeMap:
-            override def transformTerm(term: Term)(owner: Symbol): Term =
-              term match
-                case Ident(n) if inners.exists(_._1 == n) =>
-                  val inner = '{ (${ p0.asExprOf[LookupEnv] })(${ Expr(n) }) }
-                  inners.find(_._1 == n).get._2.asType match
-                    case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-                case x =>
-                  super.transformTerm(x)(owner)
+//        for c <- clauses do
+//          println(c.asTerm)
+//          println(s"\t${getAllVariableNames(c.asTerm)}")
 
-          transform.transformTerm(apply.changeOwner(sym))(sym)
+        val clausesAndVariableNames =
+          for c <- clauses yield
+            (c, getAllVariableNames(c.asTerm))
 
-    case None          => ()
-    case Some(default) => error("Unsupported guard", default, Some(default.pos))
+        val typeNamesAndVariables = typesData.map((repr, lst) => (repr.typeSymbol.name, lst.map(_._1)))
 
-  Lambda(
-    owner = Symbol.spliceOwner,
-    tpe = MethodType(List("_"))(_ => List(TypeRepr.of[LookupEnv]), _ => TypeRepr.of[Boolean]),
-    rhsFn = _rhsFn
-  )
+        val typesAppearingOnce = typeNamesAndVariables
+          .asJavaSeqStream
+          .map(_._1)
+          .collect(Collectors.toCollection(() => LinkedHashMultiset.create[String]()))
+          .entrySet()
+          .stream()
+          .filter(_.getCount == 1)
+          .map(_.getElement)
+          .toScala(Seq)
+
+//        println(s"All types: ${typesData.map(_._1.typeSymbol.name)}")
+//        println(s"Types appearing once: $typesAppearingOnce")
+
+        val typeNamesAndFilteringClauses =
+          for t <- typesAppearingOnce yield
+            val clauses =
+              // Find the names of bound variables in all other outers
+              val variablesFromOthers = typeNamesAndVariables.iterator
+                .filter(_._1 != t)
+                .flatMap(_._2)
+                .toList
+
+              // Find clauses where no bound variables are taken from the other outers
+              for
+                (c, clauseVars) <- clausesAndVariableNames
+                if clauseVars.forall(!variablesFromOthers.contains(_))
+              yield c
+
+            t -> clauses
+
+//        println(s"Type names and filtering clauses: ${typeNamesAndFilteringClauses.map{ (t, c) => (t, c.map(_.show)) }}")
+
+        val typeNamesAndFilterExpressions = typeNamesAndFilteringClauses.map: (t, cs) =>
+          (t, reconstructConjunctionTree(cs))
+
+//        println(s"Type names and filter expressions: ${typeNamesAndFilterExpressions.map((t, e) => (t, e.show))}")
+
+        // Construct filtering lambdas
+        val filteringLambdas = typeNamesAndFilterExpressions.iterator
+          .map { (t, exp) =>
+            val lambda = '{ (lookupEnv: LookupEnv) => ${ replaceInnersWithLookupEnv(exp, innersForSplice, 'lookupEnv) }}
+
+            (t, lambda)
+          }
+          .toMap
+
+//        println(s"Type names and filter lambdas: ${filteringLambdas.map((t, e) => (t, e.show))}")
+
+
+//        val filteringClauses = typeNamesAndFilteringClauses.flatMap(_._2)
+//        val finalGuardClauses = clauses.filterNot(filteringClauses.contains(_))
+//        val finalGuardExpression = reconstructConjunctionTree(finalGuardClauses)
+
+        val guardLambda = '{ (lookupEnv: LookupEnv) => ${ replaceInnersWithLookupEnv(term.asExprOf[Boolean], innersForSplice, 'lookupEnv) }}
+
+        (guardLambda, filteringLambdas)
+
 
 /** Creates the right-hand side function.
   *
@@ -241,18 +350,24 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val typesData = extractContructorData(List(dataType))
-  val extractors: List[(Expr[M => Boolean], Expr[M => LookupEnv])] =
+  val typesData = extractConstructorData(List(dataType))
+
+  val (predicate, filters) = generateGuard(guard, typesData)
+
+  val extractors: List[(Expr[M => Boolean], Expr[M => LookupEnv], Expr[GuardFilter])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
       outer.asType match
         case '[ot] =>
+          val filteringLambda = filters.getOrElse(TypeTree.of[ot].symbol.name, '{ (_: LookupEnv) => true })
+
           (
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
               ${ extractor.asExprOf[ot => LookupEnv] }(m.asInstanceOf[ot])
-            }
+            },
+            filteringLambda
           )
     }.toList
 
@@ -262,41 +377,26 @@ private def generateUnaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T]
     val _extractors  = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
     val checkMsgType = _extractors.head._1
     val extractField = _extractors.head._2
+    val filterer = _extractors.head._3
 
     PatternInfo(
       patternBins = MTree(PatternIdxs(0) -> MessageIdxs()),
-      patternExtractors = PatternExtractors(0 -> (checkMsgType, extractField))
+      patternExtractors = PatternExtractors(0 -> PatternIdxInfo(checkMsgType, extractField, filterer))
     )
   }
 
-  outer.asType match
-    case '[ot] =>
-      val predicate: Expr[LookupEnv => Boolean] =
-        generateGuard(guard, inners).asExprOf[LookupEnv => Boolean]
-      val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
-        generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(LookupEnv, ActorRef[M]) => T]
-      val size = 1
+  val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
+    generateRhs[M, T](_rhs, inners, selfRef).asExprOf[(LookupEnv, ActorRef[M]) => T]
+  val size = 1
 
-      val updatedMTree = '{ (m: (M, Int), pState: MatchingTree) =>
-        val patInfo            = ${ patternInfo }
-        val (_, patExtractors) = (patInfo.patternBins, patInfo.patternExtractors)
-        val checkMsgType       = patExtractors(0)._1
-        val (mQ, mQidx)        = m // Take the newest msg from the queue
-        val mTree              = pState
-        val mIdxs              = MessageIdxs(mQidx)
-        if checkMsgType(mQ) then Some(mTree.updated(mIdxs, MTree(PatternIdxs(0) -> mIdxs)))
-        else Some(mTree)
-      }
-
-      '{
-        JoinPattern(
-          $predicate,
-          $rhs,
-          ${ Expr(size) },
-          $updatedMTree,
-          ${ patternInfo }
-        )
-      }
+  '{
+    JoinPattern(
+      $predicate,
+      $rhs,
+      ${ Expr(size) },
+      ${ patternInfo }
+    )
+  }
 
 /** Generates a join pattern for composite patterns e.g. (A(*), B(*), C(*), ...) the asterix
   * represents a potential payload.
@@ -320,19 +420,28 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val typesData = extractContructorData(dataType)
-  val extractors: List[(Expr[String], Expr[M => Boolean], Expr[M => LookupEnv])] =
+  val typesData = extractConstructorData(dataType)
+
+  val (predicate, filters) =
+    generateGuard(guard, typesData)
+
+  val extractors: List[(Expr[String], Expr[M => Boolean], Expr[M => LookupEnv], Expr[GuardFilter])] =
     typesData.map { (outer, inners) =>
       val extractor = generateExtractor(outer, inners.map(_._1))
 
       outer.asType match
         case '[ot] =>
+          val typeName = TypeTree.of[ot].symbol.name
+
+          val filteringLambda = filters.getOrElse(TypeTree.of[ot].symbol.name, '{ (_: LookupEnv) => true })
+
           (
-            Expr(TypeTree.of[ot].symbol.name),
+            Expr(typeName),
             '{ (m: M) => m.isInstanceOf[ot] },
             '{ (m: M) =>
               ${ extractor.asExprOf[ot => LookupEnv] }(m.asInstanceOf[ot])
-            }
+            },
+            filteringLambda
           )
     }.toList
 
@@ -340,10 +449,9 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
 
   val patExtractors: Expr[PatternExtractors[M]] = '{
     val _extractors = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-    _extractors.zipWithIndex.map { case ((_, checkMsgType, extractField), idx) =>
-      idx -> (checkMsgType, extractField)
+    _extractors.zipWithIndex.map { case ((_, checkMsgType, extractField, filterer), idx) =>
+      idx -> PatternIdxInfo(checkMsgType, extractField, filterer)
     }.toMap
-
   }
 
   val patternInfo: Expr[PatternInfo[M]] = '{
@@ -360,46 +468,15 @@ private def generateNaryJP[M, T](using quotes: Quotes, tm: Type[M], tt: Type[T])
     PatternInfo(patternBins = patBins.to(MTree), patternExtractors = $patExtractors)
   }
 
-  val predicate: Expr[LookupEnv => Boolean] =
-    generateGuard(guard, inners).asExprOf[LookupEnv => Boolean]
   val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
     generateRhs[M, T](_rhs, inners, self).asExprOf[(LookupEnv, ActorRef[M]) => T]
   val size = outers.size
-
-  val updatedMTree: Expr[
-    (
-        (M, Int),
-        MatchingTree
-    ) => Option[MatchingTree]
-  ] =
-    '{ (m: (M, Int), mTree: MatchingTree) =>
-      val (mQ, mQidx) = m // Take the newest msg from the queue
-      val patInfo     = ${ patternInfo }
-
-      val _extractors       = ${ Expr.ofList(extractors.map(Expr.ofTuple(_))) }
-      val msgTypesInPattern = _extractors.map(pat => (pat._2, pat._3)).zipWithIndex
-
-      val isMsgInPat = msgTypesInPattern.exists { case ((checkMsgType, _), _) => checkMsgType(mQ) }
-
-      if isMsgInPat then
-        val matches = msgTypesInPattern
-          .filter { case ((checkMsgType, _), _) =>
-            checkMsgType(mQ)
-          }
-          .map(_._2)
-          .to(PatternIdxs)
-
-        val updatedMTree = updateMTree(mTree, mQidx, matches)
-        Some(updatedMTree)
-      else Some(mTree)
-    }
 
   '{
     JoinPattern(
       $predicate,
       $rhs,
       ${ Expr(size) },
-      $updatedMTree,
       ${ patternInfo }
     )
   }
@@ -425,16 +502,12 @@ private def generateWildcardPattern[M, T](using
 )(guard: Option[quotes.reflect.Term], _rhs: quotes.reflect.Term): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val predicate: Expr[LookupEnv => Boolean] =
-    generateGuard(guard, List()).asExprOf[LookupEnv => Boolean]
+  val (predicate, filter) =
+    generateGuard(guard, List())
   val rhs: Expr[(LookupEnv, ActorRef[M]) => T] = '{ (_: LookupEnv, _: ActorRef[M]) =>
     ${ _rhs.asExprOf[T] }
   }
   val size = 1
-
-  val updatedMTree = '{ (m: Tuple2[M, Int], pState: MatchingTree) =>
-    None
-  }
 
   val patternInfo: Expr[PatternInfo[M]] = '{
     PatternInfo(
@@ -448,7 +521,6 @@ private def generateWildcardPattern[M, T](using
       $predicate,
       $rhs,
       ${ Expr(size) },
-      $updatedMTree,
       ${ patternInfo }
     )
   }

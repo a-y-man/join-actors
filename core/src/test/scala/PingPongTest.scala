@@ -1,6 +1,6 @@
 package test.scenario.pingPong
 
-import join_actors.api.MatchingAlgorithm
+import join_actors.api.MatchingAlgorithm.*
 import org.scalatest.Assertions.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers.*
@@ -20,11 +20,16 @@ implicit val ec: ExecutionContext =
 
 val matchingAlgos = Table(
   "MatchingAlgorithm",
-  MatchingAlgorithm.BruteForceAlgorithm,
-  MatchingAlgorithm.StatefulTreeBasedAlgorithm,
-  MatchingAlgorithm.MutableStatefulAlgorithm,
-  MatchingAlgorithm.LazyMutableAlgorithm,
-  MatchingAlgorithm.WhileLazyAlgorithm
+  BruteForceAlgorithm,
+  StatefulTreeBasedAlgorithm,
+  MutableStatefulAlgorithm,
+  LazyMutableAlgorithm,
+  WhileLazyAlgorithm,
+  FilteringWhileAlgorithm,
+  WhileEagerAlgorithm,
+  EagerParallelAlgorithm(2),
+  LazyParallelAlgorithm(2),
+  FilteringParallelAlgorithm(2)
 )
 
 class PingPongTest extends AnyFunSuite:

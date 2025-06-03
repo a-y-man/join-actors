@@ -14,7 +14,10 @@ lazy val versions = new {
 lazy val commonDependencies = Seq(
   "com.lihaoyi"         %% "os-lib"   % versions.osLib,
   "com.lihaoyi"         %% "mainargs" % versions.mainargs,
-  "com.google.code.gson" % "gson"     % versions.gson
+  "com.google.code.gson" % "gson"     % versions.gson,
+//  "it.unimi.dsi" % "fastutil-core" % "8.5.15",
+//  "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0",
+  "org.jfree" % "jfreechart" % "1.5.5"
 )
 lazy val testDependencies = Seq(
   "org.scalacheck"    %% "scalacheck"         % versions.scalaCheck,
@@ -22,7 +25,8 @@ lazy val testDependencies = Seq(
   "org.scalatestplus" %% "scalacheck-1-18"    % s"${versions.scalaTest}.0" % Test,
   "org.scalatest"     %% "scalatest"          % versions.scalaTest         % Test,
   "org.scalatest"     %% "scalatest-funsuite" % versions.scalaTest         % Test,
-  "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile
+  "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile,
+  "com.google.guava" % "guava" % "33.4.8-jre" % Compile,
 )
 
 // Common settings for all projects

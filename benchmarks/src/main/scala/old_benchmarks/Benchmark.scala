@@ -1,15 +1,11 @@
-package benchmarks
+package old_benchmarks
 
 import join_actors.api.MatchingAlgorithm
 import os.Path
 
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.{Executors, TimeUnit}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
@@ -34,11 +30,12 @@ class BenchmarkPass(
     )
 
   def benchmark(repetitions: Int): Seq[Measurement] =
-    Await
-      .result(
-        Future.sequence((1 to repetitions).map(_ => mainFn())),
-        Duration.Inf
-      )
+    (1 to repetitions).map(_ => Await.result(mainFn(), Duration.Inf))
+//    Await
+//      .result(
+//        Future.sequence((1 to repetitions).map(_ => mainFn())),
+//        Duration.Inf
+//      )
 
   def run(warmupRepetitions: Int, iterations: Int): Seq[Measurement] =
     println(f"-- Pass $name")
@@ -70,7 +67,8 @@ class Benchmark(
 
     val nullPassElapsed = nullPassMeasurements.map(Measurement.time).reduce(_ + _)
     val nullPassMatches = nullPassMeasurements.map(Measurement.matches).sum
-    val nullPassAverage = nullPassElapsed / warmupRepetitions
+//    val nullPassAverage = nullPassElapsed / warmupRepetitions
+    val nullPassAverage = nullPassElapsed
 
     println(
       Console.YELLOW + f"Null Pass $nullName" + Console.RESET +
@@ -119,9 +117,10 @@ def toFile(
     results: List[(String, Seq[Measurement])],
     dataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  import java.util.Date
-  import java.text.SimpleDateFormat
   import os.*
+
+  import java.text.SimpleDateFormat
+  import java.util.Date
 
   val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
   val folderFile = dataDir / s"${timestamp}_${benchmarkName}"

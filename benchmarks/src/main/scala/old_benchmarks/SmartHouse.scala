@@ -1,4 +1,4 @@
-package benchmarks
+package old_benchmarks
 
 import join_actors.api.*
 import os.*
@@ -202,7 +202,22 @@ def runSmartHouseBenchmark(
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
   val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.MutableStatefulAlgorithm)
+    List(
+//      BruteForceAlgorithm,
+//      StatefulTreeBasedAlgorithm,
+//      MutableStatefulAlgorithm,
+//      LazyMutableAlgorithm,
+//      WhileEagerAlgorithm,
+//      EagerParallelAlgorithm(2),
+//      EagerParallelAlgorithm(4),
+//      EagerParallelAlgorithm(6),
+//      EagerParallelAlgorithm(8),
+      WhileLazyAlgorithm,
+//      LazyParallelAlgorithm(2),
+//      LazyParallelAlgorithm(4),
+//      LazyParallelAlgorithm(6),
+//      LazyParallelAlgorithm(8)
+    )
 
   val rangeOfRandomMsgs =
     Vector((0 to maxRandomMsgs by rndMsgsStep)*) map { n =>
