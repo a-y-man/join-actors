@@ -24,6 +24,7 @@ def saveResults(
 
   saveToFile(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
   if generatePlot then saveToPlot(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
+  else println("Skipping plot generation")
 
 private def saveToFile(
   benchmarkName: String,

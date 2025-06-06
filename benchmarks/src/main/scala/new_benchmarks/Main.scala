@@ -36,8 +36,8 @@ object Main:
     maxParam: Int = 20,
     @arg(doc = "The number of repetitions for each parameter value, default 1")
     repetitions: Int = 1,
-    @arg(doc = "The number of parameter values to copy as warmup repetitions, default 10")
-    warmup: Int = 10,
+    @arg(doc = "The number of parameter values to copy as warmup repetitions. If not set, it will be the number of parameter values divided by 4")
+    warmup: Option[Int] = None,
     @arg(short = 'p', doc = "The folder path to which to write the benchmark results, default \"data\"")
     path: String = "data",
     @arg(doc = "Generate a plot of the results, default true")
@@ -76,7 +76,18 @@ object Main:
 
     println(s"Running benchmark $benchmarkName with the following algorithms: " + algorithms.mkString(", "))
 
+    if commonConfig.maxParam < commonConfig.minParam then throw IllegalArgumentException(
+      "Maximum parameter value cannot be less than minimum parameter value"
+    )
+    if commonConfig.minParam < 0 then throw IllegalArgumentException(
+      "Minimum parameter value cannot be less than 0"
+    )
+
     val paramRange = commonConfig.minParam to commonConfig.maxParam by commonConfig.paramStep
+
+    val warmup = commonConfig.warmup match
+      case Some(v) => v
+      case None => paramRange.size / 4
 
     val results = runBenchmarkSeries(
       benchmarkFactory,
@@ -84,7 +95,7 @@ object Main:
       algorithms,
       paramRange,
       commonConfig.repetitions,
-      commonConfig.warmup,
+      warmup,
       paramName
     )
 
