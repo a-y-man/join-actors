@@ -38,8 +38,10 @@ object Main:
     repetitions: Int = 1,
     @arg(doc = "The number of parameter values to copy as warmup repetitions, default 10")
     warmup: Int = 10,
-    @arg(short = 'p', doc = "The folder path in which to write the benchmark data")
-    path: String
+    @arg(short = 'p', doc = "The folder path to which to write the benchmark results, default \"data\"")
+    path: String = "data",
+    @arg(doc = "Generate a plot of the results, default true")
+    generatePlot: Boolean = true
   )
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
@@ -89,7 +91,14 @@ object Main:
     val processedResults = processBenchmarkSeriesResults(results)
 
     val outputPathResolved = os.RelPath(commonConfig.path).resolveFrom(os.pwd)
-    saveResults(benchmarkName, paramName, paramRange, processedResults, outputPathResolved)
+    saveResults(
+      benchmarkName,
+      paramName,
+      paramRange,
+      processedResults,
+      outputPathResolved,
+      commonConfig.generatePlot
+    )
 
   private def describeMatches(matches: Int) = s" with $matches matches"
 
