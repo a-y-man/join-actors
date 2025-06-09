@@ -39,7 +39,7 @@ object Main:
     @arg(doc = "The number of parameter values to copy as warmup repetitions. If not set, it will be the number of parameter values divided by 4")
     warmup: Option[Int] = None,
     @arg(short = 'p', doc = "The folder path to which to write the benchmark results, default \"data\"")
-    path: String = "data",
+    path: String = "benchmarks/data",
     @arg(doc = "Generate a plot of the results, default true")
     generatePlot: Boolean = true
   )
