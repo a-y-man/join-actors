@@ -1,37 +1,39 @@
 package new_benchmarks
 
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
+import org.jfree.chart.axis.NumberAxis
+import org.jfree.chart.plot.{PlotOrientation, XYPlot}
+import org.jfree.chart.renderer.xy.{XYErrorRenderer, XYLineAndShapeRenderer}
 import org.jfree.chart.ui.{HorizontalAlignment, RectangleInsets}
-import org.jfree.chart.{ChartFactory, ChartUtils}
-import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
-import org.jfree.data.xy.{DefaultXYDataset, XYDataset, XYSeries}
+import org.jfree.chart.{ChartUtils, JFreeChart, StandardChartTheme}
+import org.jfree.data.xy.{IntervalXYDataset, XYIntervalSeries, XYIntervalSeriesCollection}
 import os.{Path, write}
 
-import java.awt.{BasicStroke, Color, Font, Paint}
+import java.awt.{BasicStroke, Color, Font}
 import java.text.SimpleDateFormat
 import java.util.Date
-import scala.concurrent.duration.FiniteDuration
 
 def saveResults(
-            benchmarkName: String,
-            paramName: String,
-            paramRange: Range,
-            results: ProcessedBenchmarkSeriesResults,
-            dataDir: Path = os.pwd / "benchmarks" / "data"
-          ): Unit =
+  benchmarkName: String,
+  paramName: String,
+  paramRange: Range,
+  results: ProcessedBenchmarkSeriesResults,
+  dataDir: Path,
+  generatePlot: Boolean
+): Unit =
   val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
 
   saveToFile(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
-  saveToPlot(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
+  if generatePlot then saveToPlot(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
+  else println("Skipping plot generation")
 
 private def saveToFile(
-            benchmarkName: String,
-            paramName: String,
-            paramRange: Range,
-            results: ProcessedBenchmarkSeriesResults,
-            dataDir: Path = os.pwd / "benchmarks" / "data",
-            timestamp: String
-          ): Unit =
+  benchmarkName: String,
+  paramName: String,
+  paramRange: Range,
+  results: ProcessedBenchmarkSeriesResults,
+  dataDir: Path,
+  timestamp: String
+): Unit =
   val algorithmNames = results.map(_._1.toString)
   val headers = paramName +: algorithmNames
 
@@ -46,7 +48,10 @@ private def saveToFile(
       val averageColumn = s"$algo (avg)" +: algoResults.map: repRes =>
         repRes.average.toString
 
-      repetitionColumns :+ averageColumn
+      val stdColumn = s"$algo (std)" +: algoResults.map: repRes =>
+        repRes.std.get.toString
+
+      repetitionColumns :+ averageColumn :+ stdColumn
   else
     results.map: (algo, algoResults) =>
       val dataColumn = s"$algo" +: algoResults.map: repRes =>
@@ -68,17 +73,39 @@ private def saveToFile(
   write(file, strToWrite, createFolders = true)
   println(s"Saved results to $file")
 
+private def createXYErrorLineChart(title: String, xAxisLabel: String, yAxisLabel: String, dataset: IntervalXYDataset, includeError: Boolean): JFreeChart =
+  // Adapted from the createXYLineChart method in the ChartFactory class in JFreeChart
+
+  val xAxis = NumberAxis(xAxisLabel)
+  xAxis.setAutoRangeIncludesZero(false)
+  val yAxis = NumberAxis(yAxisLabel)
+
+  val renderer = XYErrorRenderer()
+  renderer.setDefaultLinesVisible(true)
+  renderer.setDefaultShapesVisible(true)
+  renderer.setDrawXError(false)
+  renderer.setDrawYError(includeError)
+
+  val plot = XYPlot(dataset, xAxis, yAxis, renderer)
+  plot.setOrientation(PlotOrientation.VERTICAL)
+
+  val chart = JFreeChart(title, JFreeChart.DEFAULT_TITLE_FONT, plot, true)
+  StandardChartTheme("JFree").apply(chart)
+  chart
+
 private def saveToPlot(
-            benchmarkName: String,
-            paramName: String,
-            paramRange: Range,
-            results: ProcessedBenchmarkSeriesResults,
-            dataDir: Path = os.pwd / "benchmarks" / "data",
-            timestamp: String
-          ): Unit =
+  benchmarkName: String,
+  paramName: String,
+  paramRange: Range,
+  results: ProcessedBenchmarkSeriesResults,
+  dataDir: Path,
+  timestamp: String
+): Unit =
   val dataset = makeDatasetFrom(paramRange, results)
 
-  val chart = ChartFactory.createXYLineChart(benchmarkName, paramName, "Time (ms)", dataset)
+  val hasStd = results.head._2.head.std.isDefined
+
+  val chart = createXYErrorLineChart(benchmarkName, paramName, "Time (ms)", dataset, hasStd)
 
   val titleFont = chart.getTitle.getFont.deriveFont(Font.PLAIN, 45f)
   chart.getTitle.setFont(titleFont)
@@ -98,8 +125,8 @@ private def saveToPlot(
   plot.getDomainAxis.setLabelFont(labelFont)
   plot.getRangeAxis.setLabelFont(labelFont)
 
-  plot.getDomainAxis.setUpperMargin(0)
-  plot.getDomainAxis.setLowerMargin(0)
+  plot.getDomainAxis.setUpperMargin(0.01)
+  plot.getDomainAxis.setLowerMargin(0.01)
 
   plot.setBackgroundPaint(Color.WHITE)
   plot.setRangeGridlinePaint(Color.LIGHT_GRAY)
@@ -112,15 +139,39 @@ private def saveToPlot(
 
   val file = dataDir / f"${timestamp}_${benchmarkName}.png"
 
+  // The folder was necessarily already created by the os.write call used to save the csv data
   ChartUtils.saveChartAsPNG(file.toIO, chart, 1700, 1000)
   println(s"Saved plot to $file")
 
-private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesResults): XYDataset =
-  val dataset = DefaultXYDataset()
-  val xArray = xAxis.map(_.toDouble).toArray
+private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesResults): IntervalXYDataset =
+  val dataset = XYIntervalSeriesCollection()
+  val xDoubles = xAxis.map(_.toDouble)
 
   for (algo, algoResults) <- results do
-    dataset.addSeries(algo.toString, Array(xArray, algoResults.map(_.average.toDouble).toArray))
+    val series = XYIntervalSeries(algo.toString)
+
+    for (x, res) <- xDoubles.zip(algoResults) do
+      res.std match
+        case Some(std) =>
+          series.add(
+            x,
+            x,
+            x,
+            res.average,
+            res.average - std/2,
+            res.average + std/2
+          )
+        case None =>
+          series.add(
+            x,
+            x,
+            x,
+            res.average,
+            0,
+            0
+          )
+
+    dataset.addSeries(series)
 
   dataset
 

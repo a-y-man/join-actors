@@ -68,8 +68,8 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     receive { (selfRef: ActorRef[Action]) =>
       { // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date)
-              &&& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
-              &&& Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
+              &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
+              &:& Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
             if bathroomOccupied(
               List(t0, t1, t2),
               List(mRoom, lRoom, alRoom),

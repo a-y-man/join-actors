@@ -1,4 +1,4 @@
-package benchmarks
+package old_benchmarks
 
 import join_actors.api.*
 import os.Path

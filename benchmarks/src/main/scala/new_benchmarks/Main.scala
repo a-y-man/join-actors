@@ -37,10 +37,12 @@ object Main:
     maxParam: Int = 20,
     @arg(doc = "The number of repetitions for each parameter value, default 1")
     repetitions: Int = 1,
-    @arg(doc = "The number of parameter values to copy as warmup repetitions, default 10")
-    warmup: Int = 10,
-    @arg(short = 'p', doc = "The folder path in which to write the benchmark data")
-    path: String
+    @arg(doc = "The number of parameter values to copy as warmup repetitions. If not set, it will be the number of parameter values divided by 4")
+    warmup: Option[Int] = None,
+    @arg(short = 'p', doc = "The folder path to which to write the benchmark results, default \"data\"")
+    path: String = "benchmarks/data",
+    @arg(doc = "Prevent generation of a plot of the results")
+    suppressPlot: Flag
   )
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
@@ -75,7 +77,18 @@ object Main:
 
     println(s"Running benchmark $benchmarkName with the following algorithms: " + algorithms.mkString(", "))
 
+    if commonConfig.maxParam < commonConfig.minParam then throw IllegalArgumentException(
+      "Maximum parameter value cannot be less than minimum parameter value"
+    )
+    if commonConfig.minParam < 0 then throw IllegalArgumentException(
+      "Minimum parameter value cannot be less than 0"
+    )
+
     val paramRange = commonConfig.minParam to commonConfig.maxParam by commonConfig.paramStep
+
+    val warmup = commonConfig.warmup match
+      case Some(v) => v
+      case None => paramRange.size / 4
 
     val results = runBenchmarkSeries(
       benchmarkFactory,
@@ -83,14 +96,21 @@ object Main:
       algorithms,
       paramRange,
       commonConfig.repetitions,
-      commonConfig.warmup,
+      warmup,
       paramName
     )
 
     val processedResults = processBenchmarkSeriesResults(results)
 
     val outputPathResolved = os.RelPath(commonConfig.path).resolveFrom(os.pwd)
-    saveResults(benchmarkName, paramName, paramRange, processedResults, outputPathResolved)
+    saveResults(
+      benchmarkName,
+      paramName,
+      paramRange,
+      processedResults,
+      outputPathResolved,
+      !commonConfig.suppressPlot.value
+    )
 
   private def describeMatches(matches: Int) = s" with $matches matches"
 
@@ -203,15 +223,15 @@ object Main:
     val variantEnum = variant match
       case "normal" => GuardedSizeVariant.Normal
       case "noisy" => GuardedSizeVariant.Noisy
-      case "non-matching" => GuardedSizeVariant.NonMatchingPayloads
-      case _ => throw IllegalArgumentException(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-matching\"")
+      case "non-satisfying" => GuardedSizeVariant.NonMatchingPayloads
+      case _ => throw IllegalArgumentException(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-satisfying\"")
 
     val config = GuardedSizeConfig(matches, variantEnum)
 
     val descriptor = variantEnum match
       case GuardedSizeVariant.Normal => ""
       case GuardedSizeVariant.Noisy => " and noise"
-      case GuardedSizeVariant.NonMatchingPayloads => " and non-matching payloads"
+      case GuardedSizeVariant.NonMatchingPayloads => " and non-satisfying payloads"
 
     runAndOutput(
       newCommonConfig,

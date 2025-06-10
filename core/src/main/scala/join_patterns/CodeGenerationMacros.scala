@@ -12,7 +12,7 @@ import scala.collection.immutable.{TreeMap as MTree, *}
 import scala.quoted.{Expr, Quotes, Type, Varargs}
 import scala.jdk.StreamConverters.*
 
-object `&&&`:
+object `&:&`:
   infix def unapply(arg: Any): Option[(Unit, Unit)] = Some((), ())
 
 /** Extracts a type's name and representation from a `Tree`.
@@ -530,13 +530,13 @@ private def getConstructorPatternsFromAndOps[M, T](using quotes: Quotes, tm: Typ
 ): List[quotes.reflect.TypedOrTest] =
   import quotes.reflect.*
 
-  // Extract left and right children of the &&& unapply
+  // Extract left and right children of the &:& unapply
   val (left, right) =
     unapplyTree match
       case Unapply(_fun, _implicits, left::right::List()) => (left, right)
       case err => throw MatchError(err)
 
-  // Since &&& is left-associative, the right child will always be a TypedOrTest, so we can coerce it
+  // Since &:& is left-associative, the right child will always be a TypedOrTest, so we can coerce it
   val rightTot = right.asInstanceOf[TypedOrTest]
 
   // Check case of left child

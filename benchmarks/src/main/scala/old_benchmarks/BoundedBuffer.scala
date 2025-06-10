@@ -1,9 +1,9 @@
-package benchmarks
+package old_benchmarks
 
-import benchmarks.Benchmark
-import benchmarks.BenchmarkPass
-import benchmarks.Measurement
-import benchmarks.saveToFile
+import old_benchmarks.Benchmark
+import old_benchmarks.BenchmarkPass
+import old_benchmarks.Measurement
+import old_benchmarks.saveToFile
 import join_actors.api.*
 import os.Path
 
