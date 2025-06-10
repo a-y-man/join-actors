@@ -45,8 +45,8 @@ def runBenchmarkSeries(
   paramRange: Range,
   repetitions: Int,
   warmupSegment: Int,
-  paramName: String,
-  ): BenchmarkSeriesResults =
+  paramName: String
+): BenchmarkSeriesResults =
   for algo <- algorithms yield
     val benchmark = benchmarkFactory(algo, config)
 

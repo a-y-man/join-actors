@@ -24,14 +24,14 @@ def example00(algorithm: MatchingAlgorithm): Unit =
   val actor = Actor[Msg, Unit](
     receive { (_: ActorRef[Msg]) =>
       {
-        case A() &&& B() &&& C() =>
+        case A() &:& B() &:& C() =>
           println(s"I've received 3 messages: A, B and C :)")
           Continue
         case D(n) if n > 0 =>
           println(s"I've received one message with the payload ${n} :)")
           Continue
         case E(n) if n != n => Stop(println(s"I cannot happen :("))
-        case F(a) &&& E(b) if a + b == 42 =>
+        case F(a) &:& E(b) if a + b == 42 =>
           Stop(println(s"I've received 2 messages with the same payload :)"))
       }
     }(algorithm)
@@ -324,7 +324,7 @@ def exampleFilter(algorithm: MatchingAlgorithm): Unit =
   val actor = Actor(
     receive[Msg, Unit] { (_) =>
     {
-      case A() &&& D(i) if i == 1 =>
+      case A() &:& D(i) if i == 1 =>
         Stop(())
     }
     }(algorithm)

@@ -13,25 +13,27 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 def saveResults(
-            benchmarkName: String,
-            paramName: String,
-            paramRange: Range,
-            results: ProcessedBenchmarkSeriesResults,
-            dataDir: Path = os.pwd / "benchmarks" / "data"
-          ): Unit =
+  benchmarkName: String,
+  paramName: String,
+  paramRange: Range,
+  results: ProcessedBenchmarkSeriesResults,
+  dataDir: Path,
+  generatePlot: Boolean
+): Unit =
   val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
 
   saveToFile(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
-  saveToPlot(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
+  if generatePlot then saveToPlot(benchmarkName, paramName, paramRange, results, dataDir, timestamp)
+  else println("Skipping plot generation")
 
 private def saveToFile(
-            benchmarkName: String,
-            paramName: String,
-            paramRange: Range,
-            results: ProcessedBenchmarkSeriesResults,
-            dataDir: Path = os.pwd / "benchmarks" / "data",
-            timestamp: String
-          ): Unit =
+  benchmarkName: String,
+  paramName: String,
+  paramRange: Range,
+  results: ProcessedBenchmarkSeriesResults,
+  dataDir: Path,
+  timestamp: String
+): Unit =
   val algorithmNames = results.map(_._1.toString)
   val headers = paramName +: algorithmNames
 
@@ -92,13 +94,13 @@ private def createXYErrorLineChart(title: String, xAxisLabel: String, yAxisLabel
   chart
 
 private def saveToPlot(
-            benchmarkName: String,
-            paramName: String,
-            paramRange: Range,
-            results: ProcessedBenchmarkSeriesResults,
-            dataDir: Path = os.pwd / "benchmarks" / "data",
-            timestamp: String
-          ): Unit =
+  benchmarkName: String,
+  paramName: String,
+  paramRange: Range,
+  results: ProcessedBenchmarkSeriesResults,
+  dataDir: Path,
+  timestamp: String
+): Unit =
   val dataset = makeDatasetFrom(paramRange, results)
 
   val hasStd = results.head._2.head.std.isDefined
@@ -137,6 +139,7 @@ private def saveToPlot(
 
   val file = dataDir / f"${timestamp}_${benchmarkName}.png"
 
+  // The folder was necessarily already created by the os.write call used to save the csv data
   ChartUtils.saveChartAsPNG(file.toIO, chart, 1700, 1000)
   println(s"Saved plot to $file")
 
