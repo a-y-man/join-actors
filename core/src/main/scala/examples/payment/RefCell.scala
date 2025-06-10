@@ -1,4 +1,4 @@
-package new_benchmarks.payment
+package examples.payment
 
 class RefCell[T] private (private var _content: Option[T]):
   def this(initialContent: T) =

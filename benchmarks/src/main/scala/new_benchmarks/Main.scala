@@ -4,7 +4,6 @@ import join_actors.api.*
 import mainargs.*
 import new_benchmarks.bounded_buffer.{BoundedBuffer, BoundedBufferConfig}
 import new_benchmarks.complex_smart_house.{ComplexSmartHouse, ComplexSmartHouseConfig}
-import new_benchmarks.payment.Payment
 import new_benchmarks.simple_smart_house.SimpleSmartHouse
 
 import scala.concurrent.Await
@@ -240,19 +239,6 @@ object Main:
       "Size with guards" + descriptor + describeMatches(matches),
       "Arity of join pattern"
     )
-
-  @main
-  def payment(
-    commonRunConfig: CommonRunConfig
-  ): Unit =
-    runAndOutput(
-      commonRunConfig,
-      Payment,
-      (),
-      "Payment microservices",
-      "Number of payment and token requests sent"
-    )
-    writeLog()
 
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

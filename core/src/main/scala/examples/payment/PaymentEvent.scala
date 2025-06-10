@@ -1,4 +1,4 @@
-package new_benchmarks.payment
+package examples.payment
 
 enum PaymentEvent:
   case PaymentRequested(id: Int)
