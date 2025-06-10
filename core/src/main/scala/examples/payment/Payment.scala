@@ -159,10 +159,4 @@ object Payment:
     msgs: ArraySeq[PaymentEvent]
   )
 
-  def apply(algorithm: MatchingAlgorithm, config: Unit): Payment = new Payment(algorithm)
-
-  type Config = Unit
-  type PassPrereqs = PaymentPrereqs
-  type InstanceType = Payment
-
   private type PaymentActor = ActorRef[PaymentEvent]

@@ -117,7 +117,9 @@ object Main:
     @arg(doc = "The join pattern matching algorithm to use")
     algorithm: MatchingAlgorithm
   ): Unit =
-    val toRun = Payment(algorithm, ())
+    if numRequests <= 0 then throw IllegalArgumentException("Number of requests cannot be 0 or less")
+
+    val toRun = Payment(algorithm)
 
     val prereqs = toRun.prepare(numRequests)
     toRun.run(prereqs)
