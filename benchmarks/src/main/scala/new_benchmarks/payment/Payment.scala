@@ -46,8 +46,8 @@ class Payment(private val algorithm: MatchingAlgorithm) extends Benchmark[Paymen
   private def getPaymentServiceActor(coreService: RefCell[PaymentActor]) =
     val matcher = receive { selfRef => {
       case PaymentRequested(id1)
-        &&& MerchantValidated(id2)
-        &&& CustomerValidated(id3)
+        &:& MerchantValidated(id2)
+        &:& CustomerValidated(id3)
         if (id1 == id2) && (id2 == id3) =>
         coreService.get ! PaymentSuceeded(id1)
 
@@ -88,7 +88,7 @@ class Payment(private val algorithm: MatchingAlgorithm) extends Benchmark[Paymen
         log(s"Token service consumed token for payment request $id")
         Continue
       case TokenGenerationRequested(id1)
-        &&& CustomerValidated(id2)
+        &:& CustomerValidated(id2)
         if id1 == id2 =>
         coreService.get ! TokenGenerated(id1)
 
