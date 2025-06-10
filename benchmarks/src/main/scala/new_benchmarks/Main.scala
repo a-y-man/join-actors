@@ -40,8 +40,8 @@ object Main:
     warmup: Option[Int] = None,
     @arg(short = 'p', doc = "The folder path to which to write the benchmark results, default \"data\"")
     path: String = "benchmarks/data",
-    @arg(doc = "Generate a plot of the results, default true")
-    generatePlot: Boolean = true
+    @arg(doc = "Prevent generation of a plot of the results")
+    suppressPlot: Flag
   )
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
@@ -108,7 +108,7 @@ object Main:
       paramRange,
       processedResults,
       outputPathResolved,
-      commonConfig.generatePlot
+      !commonConfig.suppressPlot.value
     )
 
   private def describeMatches(matches: Int) = s" with $matches matches"
