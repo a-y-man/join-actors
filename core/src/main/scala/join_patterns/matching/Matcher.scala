@@ -2,7 +2,6 @@ package join_patterns.matching
 
 import join_actors.actor.ActorRef
 import join_patterns.matching.array_while.ArrayWhileMatcher
-import join_patterns.matching.buffer_while.BufferWhileMatcher
 import join_patterns.matching.brute_force.BruteForceMatcher
 import join_patterns.matching.eager_parallel.EagerParallelMatcher
 import join_patterns.matching.filtering_parallel.FilteringParallelMatcher
@@ -120,4 +119,3 @@ object SelectMatcher:
       case LazyParallelAlgorithm(numThreads)      => LazyParallelMatcher(patterns, numThreads)
       case FilteringParallelAlgorithm(numThreads) => FilteringParallelMatcher(patterns, numThreads)
       case ArrayWhileAlgorithm => ArrayWhileMatcher(patterns)
-      case BufferWhileAlgorithm => BufferWhileMatcher(patterns)

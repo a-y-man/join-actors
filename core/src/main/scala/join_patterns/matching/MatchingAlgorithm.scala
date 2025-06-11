@@ -12,7 +12,6 @@ enum MatchingAlgorithm:
   case LazyParallelAlgorithm(numThreads: Int)
   case FilteringParallelAlgorithm(numThreads: Int)
   case ArrayWhileAlgorithm
-  case BufferWhileAlgorithm
 
   override def toString: String =
     this match
@@ -27,7 +26,6 @@ enum MatchingAlgorithm:
       case LazyParallelAlgorithm(numThreads) => s"LazyParallelAlgorithm_$numThreads"
       case FilteringParallelAlgorithm(numThreads) => s"FilteringParallelAlgorithm_$numThreads"
       case ArrayWhileAlgorithm => "ArrayWhileAlgorithm"
-      case BufferWhileAlgorithm => "BufferWhileAlgorithm"
 
 object MatchingAlgorithm:
   private val cmdStringsAndAlgorithms = List(
@@ -41,8 +39,7 @@ object MatchingAlgorithm:
     "eager-parallel" -> EagerParallelAlgorithm(8),
     "lazy-parallel" -> LazyParallelAlgorithm(8),
     "filtering-parallel" -> FilteringParallelAlgorithm(8),
-    "array-while" -> ArrayWhileAlgorithm,
-    "buffer-while" -> BufferWhileAlgorithm
+    "array-while" -> ArrayWhileAlgorithm
   )
 
   private val cmdStringToAlgorithm = cmdStringsAndAlgorithms.toMap

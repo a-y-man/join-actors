@@ -36,7 +36,6 @@ All benchmarks have the following parameters in common:
   - `filtering-while`
   - `filtering-parallel`
   - `array-while`
-  - `buffer-while`
 - `exclude`: an algorithm or comma-separated list of algorithms to exclude from the benchmark. The algorithms are written
   in the same way as above. Best used in combination with `--algorithms all`
 - `min-param`: the minimum main parameter value to use
