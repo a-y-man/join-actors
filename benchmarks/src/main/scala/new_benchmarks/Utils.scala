@@ -1,6 +1,9 @@
 package new_benchmarks
 
-private def intercalateCorrectMsgs[A](
+import scala.collection.immutable.ArraySeq
+import scala.reflect.ClassTag
+
+def intercalateCorrectMsgs[A](
                                        correctMsgs: Vector[A],
                                        randomMsgs: Vector[A]
                                      ): Vector[A] =

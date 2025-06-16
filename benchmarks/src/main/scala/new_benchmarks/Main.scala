@@ -223,7 +223,7 @@ object Main:
       case "normal" => GuardedSizeVariant.Normal
       case "noisy" => GuardedSizeVariant.Noisy
       case "non-satisfying" => GuardedSizeVariant.NonMatchingPayloads
-      case _ => throw MatchError(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-satisfying\"")
+      case _ => throw IllegalArgumentException(s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-satisfying\"")
 
     val config = GuardedSizeConfig(matches, variantEnum)
 
