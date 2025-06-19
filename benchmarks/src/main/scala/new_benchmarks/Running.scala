@@ -37,6 +37,27 @@ def runBenchmark(benchmark: Benchmark[?], paramRange: Range, repetitions: Int, p
     print(s"\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     runBenchmarkRepetitions(benchmark, param, repetitions)
 
+def runSmoothenedBenchmarkAlgoPass(benchmark: Benchmark[?], paramRange: Range, paramName: String)
+: Repetitions =
+  for param <- paramRange yield
+    print(s"\t\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
+    val res = runBenchmarkPass(benchmark, param)
+    println(s"result: ${res.toMillis} ms")
+
+    res
+
+def runSmoothenedBenchmark(benchmark: Benchmark[?], paramRange: Range, repetitions: Int, paramName: String)
+: BenchmarkResults =
+  if repetitions > 1 then
+    val algoPasses = for rep <- 0 until repetitions yield
+      println(s"\tRepetition $rep... ")
+      runSmoothenedBenchmarkAlgoPass(benchmark, paramRange, paramName)
+
+    algoPasses.transpose
+  else
+    val algoPass = runSmoothenedBenchmarkAlgoPass(benchmark, paramRange, paramName)
+    for res <- algoPass yield Seq(res)
+
 type BenchmarkSeriesResults = Seq[(MatchingAlgorithm, BenchmarkResults)]
 def runBenchmarkSeries(
   benchmarkFactory: BenchmarkFactory,
@@ -45,17 +66,20 @@ def runBenchmarkSeries(
   paramRange: Range,
   repetitions: Int,
   warmupSegment: Int,
-  paramName: String
+  paramName: String,
+  smoothen: Boolean
 ): BenchmarkSeriesResults =
+  val benchmarkRunner = if smoothen then runSmoothenedBenchmark else runBenchmark
+
   for algo <- algorithms yield
     val benchmark = benchmarkFactory(algo, config)
 
     println()
     if warmupSegment > 0 then
       println(s"Running warmup for $algo")
-      runBenchmark(benchmark, paramRange.take(warmupSegment), repetitions, paramName)
+      benchmarkRunner(benchmark, paramRange.take(warmupSegment), repetitions, paramName)
     else
       println("Skipping warmup")
 
     println(s"Running benchmark for $algo")
-    (algo, runBenchmark(benchmark, paramRange, repetitions, paramName))
+    (algo, benchmarkRunner(benchmark, paramRange, repetitions, paramName))

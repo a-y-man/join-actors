@@ -41,7 +41,9 @@ object Main:
     @arg(short = 'p', doc = "The folder path to which to write the benchmark results, default \"data\"")
     path: String = "benchmarks/data",
     @arg(doc = "Prevent generation of a plot of the results")
-    suppressPlot: Flag
+    suppressPlot: Flag,
+    @arg(doc = "Transpose param values vs repetitions for smoother results")
+    smoothen: Flag
   )
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
@@ -96,7 +98,8 @@ object Main:
       paramRange,
       commonConfig.repetitions,
       warmup,
-      paramName
+      paramName,
+      commonConfig.smoothen.value
     )
 
     val processedResults = processBenchmarkSeriesResults(results)
