@@ -44,6 +44,8 @@ All benchmarks have the following parameters in common:
 - `repetitions`: the number of repetitions to run for each main parameter value
 - `warmup`: the number of repetitions from the benchmark to run as warmup repetitions before starting the real benchmark
 - `path`: the file path to which to write the benchmark results
+- `suppress-plot`: prevent generation of a plot of the results
+- `smoothen`: instead of running repetitions within parameter values, run parameter values within repetitions, for smoother results
 
 In addition, each benchmark has its own specific parameters:
 

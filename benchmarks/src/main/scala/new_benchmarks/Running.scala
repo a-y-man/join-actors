@@ -37,8 +37,9 @@ def runBenchmark(benchmark: Benchmark[?], paramRange: Range, repetitions: Int, p
     print(s"\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     runBenchmarkRepetitions(benchmark, param, repetitions)
 
+type AlgoPass = Seq[FiniteDuration]
 def runSmoothenedBenchmarkAlgoPass(benchmark: Benchmark[?], paramRange: Range, paramName: String)
-: Repetitions =
+: AlgoPass =
   for param <- paramRange yield
     print(s"\t\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     val res = runBenchmarkPass(benchmark, param)
