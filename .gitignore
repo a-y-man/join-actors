@@ -13,8 +13,11 @@ target
 .metals
 .vscode
 
-benchmarks/data/
+data/
+plots/
 logs/
+
+*.pdf
 
 msgs/
 asts/
