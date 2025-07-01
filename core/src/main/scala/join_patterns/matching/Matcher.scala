@@ -61,7 +61,7 @@ object CandidateMatches:
 
   def apply[M, T](): CandidateMatches[M, T] =
     TreeMap[MatchIdxs, (LookupEnv, RHSFnClosure[M, T])]()(
-      Ordering.Tuple2[MessageIdxs, PatternIdx](using defaultSeqOrderingForMessageIdxs)
+      using Ordering.Tuple2[MessageIdxs, PatternIdx](using defaultSeqOrderingForMessageIdxs)
     )
 
   def logCandidateMatches[M, T](candidateMatches: CandidateMatches[M, T]): Unit =
