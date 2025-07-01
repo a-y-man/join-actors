@@ -20,9 +20,10 @@ enum WorkerEvent:
 
 enum SystemEvent:
   case DelayedFault(faultID: Int, ts: Long)
-  case Shutdown()
 
-type Event = MachineEvent | WorkerEvent | SystemEvent
+final case class Shutdown()
+
+type Event = MachineEvent | WorkerEvent | SystemEvent | Shutdown
 
 import MachineEvent.*
 import WorkerEvent.*
@@ -32,7 +33,7 @@ def monitor(algorithm: MatchingAlgorithm) =
   Actor[Event, Unit] {
     receive { (self: ActorRef[Event]) =>
       {
-        case (Fault(fid1, ts1), Fix(fid2, ts2)) if fid1 == fid2 =>
+        case Fault(fid1, ts1) &:& Fix(fid2, ts2) if fid1 == fid2 =>
           println(
             s"========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 01${Console.RESET} =========================\n"
           )
@@ -47,7 +48,7 @@ def monitor(algorithm: MatchingAlgorithm) =
           )
           Continue
 
-        case (Fault(fid1, ts1), Fault(fid2, ts2), Fix(fid3, ts3))
+        case Fault(fid1, ts1) &:& Fault(fid2, ts2) &:& Fix(fid3, ts3)
             if fid2 == fid3 && ts2 > ts1 + TEN_MIN =>
           println(
             s"========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 02${Console.RESET} =========================\n"
@@ -64,7 +65,7 @@ def monitor(algorithm: MatchingAlgorithm) =
           self ! DelayedFault(fid1, ts1) // Re-enqueue
           Continue
 
-        case (DelayedFault(fid1, ts1), Fix(fid2, ts2)) if fid1 == fid2 =>
+        case DelayedFault(fid1, ts1) &:& Fix(fid2, ts2) if fid1 == fid2 =>
           println(
             s"========================= ${Console.BLUE}${Console.UNDERLINED}Join Pattern 03${Console.RESET} =========================\n"
           )

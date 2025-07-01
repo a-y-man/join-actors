@@ -52,20 +52,20 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, Long] =
   Actor[BBEvent, Long] {
     receive { (bbRef: BBRef) =>
       {
-        case (Put(producerRef, x), Free(c)) =>
+        case Put(producerRef, x) &:& Free(c) =>
           if c == 1 then bbRef ! Full()
           else bbRef ! Free(c - 1)
           bbRef ! P(x)
           producerRef.success(())
           puts += 1
           Continue
-        case (Get(consumerRef), P(x), Full()) =>
+        case Get(consumerRef) &:& P(x) &:& Full() =>
           bbRef ! Free(1)
           consumerRef.success(x)
           gets += 1
           matches += 1
           Continue
-        case (Get(consumerRef), P(x), Free(c)) =>
+        case Get(consumerRef) &:& P(x) &:& Free(c) =>
           bbRef ! Free(c + 1)
           consumerRef.success(x)
           gets += 1

@@ -23,11 +23,11 @@ def printerSpoolerExample(algorithm: MatchingAlgorithm, nPrinters: Int, nJobs: I
   val printer: Actor[SpoolerMsgs, Unit] = Actor[SpoolerMsgs, Unit] {
     receive { (self: ActorRef[SpoolerMsgs]) =>
       {
-        case (Auth(cid1), Ready(printerId1), Job(jobId, cid2, printerId2))
+        case Auth(cid1) &:& Ready(printerId1) &:& Job(jobId, cid2, printerId2)
             if printerId1 == printerId2 && cid1 == cid2 =>
           println(s"send job $jobId to printer $printerId1")
           Continue
-        case (Ready(printerId), JobDone(jobId)) =>
+        case Ready(printerId) &:& JobDone(jobId) =>
           println(s"job $jobId is done by printer $printerId")
           Stop(())
       }

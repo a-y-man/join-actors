@@ -29,7 +29,7 @@ import Action.*
 This function defines a smart house example using join patterns.
  */
 def smartHouseExample(algorithm: MatchingAlgorithm) =
-  var lastNotification     = Date(0L)
+  var lastNotification = Date(0L)
   var lastMotionInBathroom = Date(0L)
   def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
@@ -68,8 +68,8 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     receive { (selfRef: ActorRef[Action]) =>
       { // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date)
-              &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
-              &:& Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
+            &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
+            &:& Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
             if bathroomOccupied(
               List(t0, t1, t2),
               List(mRoom, lRoom, alRoom),
@@ -82,11 +82,9 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           println("Someone entered the bathroom")
           Continue
         // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
-        case (
-              Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
-              Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
-              Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-            )
+        case Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date)
+            &:& Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date)
+            &:& Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
             if occupiedHome(
               List(t0, t1, t2),
               List(mStatus0, mStatus1, cStatus),
@@ -97,11 +95,9 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           lastNotification = Date()
           println("Someone arrived home")
           Continue
-        case (
-              Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date),
-              Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date),
-              Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
-            )
+        case Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date)
+            &:& Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date)
+            &:& Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
             if emptyHome(
               List(t0, t1, t2),
               List(mStatus0, mStatus1, cStatus),
@@ -155,8 +151,8 @@ def runSmartHouseExample(
     msgs: Vector[Action]
 ) =
   val smartHouseActor = smartHouseExample(algorithm)
-  val (actFut, act)   = smartHouseActor.start()
-  val startTime       = System.currentTimeMillis()
+  val (actFut, act) = smartHouseActor.start()
+  val startTime = System.currentTimeMillis()
   msgs.foreach(act ! _)
   act ! ShutOff()
   val result = Await.ready(actFut, Duration.Inf)

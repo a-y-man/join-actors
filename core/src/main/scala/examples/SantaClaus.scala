@@ -28,17 +28,10 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
   val actor = Actor[SAction, Unit] {
     receive { (selfRef: SantaClausRef) =>
       {
-        case (
-              IsBack(reindeerRef0),
-              IsBack(reindeerRef1),
-              IsBack(reindeerRef2),
-              IsBack(reindeerRef3),
-              IsBack(reindeerRef4),
-              IsBack(reindeerRef5),
-              IsBack(reindeerRef6),
-              IsBack(reindeerRef7),
-              IsBack(reindeerRef8)
-            ) =>
+        case IsBack(reindeerRef0) &:& IsBack(reindeerRef1) &:& IsBack(reindeerRef2) 
+         &:& IsBack(reindeerRef3) &:& IsBack(reindeerRef4) &:& IsBack(reindeerRef5) 
+         &:& IsBack(reindeerRef6) &:& IsBack(reindeerRef7) &:& IsBack(reindeerRef8)
+             =>
           val reinDeerRefs =
             Array(
               reindeerRef0,
@@ -56,7 +49,7 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
           )
           reinDeerRefs.foreach(_ ! CanLeave(selfRef))
           Continue
-        case (NeedHelp(elfRef0), NeedHelp(elfRef1), NeedHelp(elfRef2)) =>
+        case NeedHelp(elfRef0) &:& NeedHelp(elfRef1) &:& NeedHelp(elfRef2) =>
           println(s"${Console.RED}Ho Ho Ho! Let's help the elves!${Console.RESET}")
           val elfRefs = List(elfRef0, elfRef1, elfRef2)
           elfRefs.foreach(_ ! Helped(selfRef))
