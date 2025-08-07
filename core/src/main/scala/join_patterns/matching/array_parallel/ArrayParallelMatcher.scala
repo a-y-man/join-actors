@@ -1,21 +1,26 @@
 package join_patterns.matching.array_parallel
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatchOpt, CandidateMatches, Matcher}
+import join_patterns.matching.CandidateMatchOpt
+import join_patterns.matching.CandidateMatches
+import join_patterns.matching.Matcher
+import join_patterns.types.JoinDefinition
 import join_patterns.types.JoinPattern
 import join_patterns.util.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap as MutableHashMap
+import join_patterns.matching.MatcherFactory
 
-class ArrayParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], numThreads: Int) extends Matcher[M, T]:
+class ArrayParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], numThreads: Int)
+    extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
   private val matchingTrees: List[ParallelMatchingArray[M, T]] =
     patterns.zipWithIndex.map(ParallelMatchingArray(_, _, numThreads))
-
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     var result: Option[T] = None
@@ -43,11 +48,13 @@ class ArrayParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], 
         result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
-        for tree <- matchingTrees.fast do
-          tree.pruneTree(candidateQidxs)
+        for tree <- matchingTrees.fast do tree.pruneTree(candidateQidxs)
 
         // Remove selected message indices from messages
-        for idx <- candidateQidxs.fast do
-          messages.remove(idx)
+        for idx <- candidateQidxs.fast do messages.remove(idx)
 
     result.get
+
+object ArrayParallelMatcher extends MatcherFactory:
+  override def apply[M, T] : JoinDefinition[M, T] => Matcher[M, T] =
+    (joinDefinition: JoinDefinition[M, T]) => new ArrayParallelMatcher(joinDefinition, numThreads = Runtime.getRuntime().availableProcessors())

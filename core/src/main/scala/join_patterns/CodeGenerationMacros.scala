@@ -607,6 +607,35 @@ private def getJoinDefinition[M, T](
       errorTree("Unsupported expression", default)
       List()
 
+
+private def receiveCodeGenAlt[M, T](
+    jpsExpr: Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]
+)(matcherConstructor: Expr[MatcherFactory])(using
+    tm: Type[M],
+    tt: Type[T],
+    quotes: Quotes
+): Expr[Matcher[M, Result[T]]] =
+      
+  '{
+    val jps: JoinDefinition[M, Result[T]] = 
+      ${
+        Expr.ofList(
+      getJoinDefinition(
+        jpsExpr.asInstanceOf[Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]]
+      )
+      )}
+
+    val matcher = (${ matcherConstructor }.apply[M, Result[T]])(jps)
+    matcher
+  }
+      
+
+inline def receiveAlt[M, T](
+    inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])
+)(inline createMatcher: MatcherFactory): Matcher[M, Result[T]] =
+  ${ receiveCodeGenAlt('f)('createMatcher) }
+
+
 /** Generate the code returned by the receive macro.
   *
   * @param expr

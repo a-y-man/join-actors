@@ -7,6 +7,8 @@ import join_patterns.util.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
+import join_patterns.matching.MatcherFactory
+import join_patterns.types.JoinDefinition
 
 class ArrayWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
@@ -52,3 +54,8 @@ class ArrayWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
           messages.remove(idx)
 
     result.get
+
+
+object ArrayWhileMatcher extends MatcherFactory:
+  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+    (joinDefinition: JoinDefinition[M, T]) => new ArrayWhileMatcher(joinDefinition)

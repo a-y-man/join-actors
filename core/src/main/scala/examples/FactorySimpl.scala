@@ -4,11 +4,12 @@ import join_actors.api.*
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import join_patterns.matching.MatcherFactory
 
 // Milliseconds in one minute
-private val ONE_MIN    = 1000 * 60
-private val ONE_DAY    = ONE_MIN * 60 * 24
-private val TEN_MIN    = ONE_MIN * 10
+private val ONE_MIN = 1000 * 60
+private val ONE_DAY = ONE_MIN * 60 * 24
+private val TEN_MIN = ONE_MIN * 10
 private val QUARTER_HR = ONE_MIN * 15
 private val THIRTY_MIN = ONE_MIN * 30
 
@@ -29,9 +30,9 @@ import MachineEvent.*
 import WorkerEvent.*
 import SystemEvent.*
 
-def monitor(algorithm: MatchingAlgorithm) =
+def monitor(matcher: MatcherFactory) =
   Actor[Event, Unit] {
-    receive { (self: ActorRef[Event]) =>
+    receiveAlt { (self: ActorRef[Event]) =>
       {
         case Fault(fid1, ts1) &:& Fix(fid2, ts2) if fid1 == fid2 =>
           println(
@@ -86,10 +87,10 @@ def monitor(algorithm: MatchingAlgorithm) =
           )
           Stop(())
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def runFactorySimple(algorithm: MatchingAlgorithm) =
+def runFactorySimple(matcher: MatcherFactory) =
   val events = List(
     Fault(1, ONE_MIN),
     Fault(2, TEN_MIN),
@@ -97,7 +98,7 @@ def runFactorySimple(algorithm: MatchingAlgorithm) =
     Fix(3, THIRTY_MIN)
   )
 
-  val (monitorFut, monitorRef) = monitor(algorithm).start()
+  val (monitorFut, monitorRef) = monitor(matcher).start()
 
   events foreach (msg => monitorRef ! msg)
 

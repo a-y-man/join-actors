@@ -7,6 +7,8 @@ import join_patterns.util.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
+import join_patterns.matching.MatcherFactory
+import join_patterns.types.JoinDefinition
 
 class FilteringWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
 
@@ -51,3 +53,7 @@ class FilteringWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
           messages.remove(idx)
 
     result.get
+
+object FilteringWhileMatcher extends MatcherFactory:
+  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+    (joinDefinition: JoinDefinition[M, T]) => new FilteringWhileMatcher(joinDefinition)

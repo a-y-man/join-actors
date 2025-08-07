@@ -5,59 +5,73 @@ import join_actors.api.MatchingAlgorithm
 import join_actors.api.MatchingAlgorithm.*
 import join_actors.examples.*
 import join_actors.examples.factory_simpl.runFactorySimple
-import mainargs.{ParserForClass, ParserForMethods, TokensReader, arg, main}
+import mainargs.ParserForClass
+import mainargs.ParserForMethods
+import mainargs.TokensReader
+import mainargs.arg
+import mainargs.main
+import join_patterns.matching.brute_force.BruteForceMatcher
+import join_patterns.matching.MatcherFactory
+import join_patterns.matching.MatcherSelector
+import join_patterns.matching.while_lazy.WhileLazyMatcher
 
 object Main:
   @main
   case class CommonRunConfig(
-    @arg(doc = "The join pattern matching algorithm to use" +
-      "Algorithm options: " + MatchingAlgorithm.CMD_STRINGS.mkString(", "))
-    algorithm: MatchingAlgorithm = WhileLazyAlgorithm,
+      @arg(doc =
+        "The join pattern matching algorithm to use" +
+          "Algorithm options: " + MatcherSelector.CMD_STRINGS.mkString(", ")
+      )
+      matcher: MatcherFactory = WhileLazyMatcher
   )
 
   implicit def configParser: ParserForClass[CommonRunConfig] = ParserForClass[CommonRunConfig]
 
-  implicit object MatchingAlgorithmParser extends TokensReader.Simple[MatchingAlgorithm]:
-    def shortName: String = "algorithm"
-    def read(tokens: Seq[String]): Either[String, MatchingAlgorithm] =
-      tokens.headOption.flatMap(MatchingAlgorithm.parseFromCmdString).toRight("Invalid algorithm, should be one of the following: "
-        + System.lineSeparator() + MatchingAlgorithm.CMD_STRINGS.mkString(", "))
+  implicit object MatchingNameParser extends TokensReader.Simple[MatcherFactory]:
+    def shortName: String = "matcher"
+    def read(tokens: Seq[String]): Either[String, MatcherFactory] =
+      tokens.headOption
+        .flatMap(MatcherSelector.parseFromCmdString)
+        .toRight(
+          "Invalid matcher name, should be one of the following: "
+            + System.lineSeparator() + MatcherSelector.CMD_STRINGS.mkString(", ")
+        )
 
   @main
   def boundedBuffer(
-    commonConfig: CommonRunConfig,
-    @arg(short = 'b', doc = "The buffer bound")
-    bufferBound: Int = 100,
-    @arg(
-      short = 'p',
-      doc = "The maximum number of producers and consumers"
-    )
-    count: Int = 50
+      commonConfig: CommonRunConfig,
+      @arg(short = 'b', doc = "The buffer bound")
+      bufferBound: Int = 100,
+      @arg(
+        short = 'p',
+        doc = "The maximum number of producers and consumers"
+      )
+      count: Int = 50
   ): Unit =
     val bbConfig = BBConfig(
       bufferBound = bufferBound,
       producers = count,
       consumers = count,
       cnt = bufferBound,
-      algorithm = commonConfig.algorithm
+      algorithm = commonConfig.matcher
     )
     runBB(bbConfig)
 
   @main
   def chameneos(
-    commonConfig: CommonRunConfig,
-    @arg(short = 'm', doc = "The maximum number of meetings")
-    maxMeetings: Int = 100,
-    @arg(
-      short = 'c',
-      doc = "The maximum number of chameneos"
-    )
-    maxChameneos: Int = 50
+      commonConfig: CommonRunConfig,
+      @arg(short = 'm', doc = "The maximum number of meetings")
+      maxMeetings: Int = 100,
+      @arg(
+        short = 'c',
+        doc = "The maximum number of chameneos"
+      )
+      maxChameneos: Int = 50
   ): Unit =
     val chameneosConfig = ChameneosConfig(
       maxNumberOfMeetings = maxMeetings,
       numberOfChameneos = maxChameneos,
-      algorithm = commonConfig.algorithm
+      matcher = commonConfig.matcher
     )
 
     chameneosExample(
@@ -72,7 +86,7 @@ object Main:
   ): Unit =
     val msgs = smartHouseMsgs(messages)(GenerateActions.genActionsOfSizeN)
     runSmartHouseExample(
-      commonConfig.algorithm,
+      commonConfig.matcher,
       msgs
     )
 
@@ -83,7 +97,7 @@ object Main:
       deliveries: Int = 5
   ): Unit =
     santaClausExample(
-      commonConfig.algorithm,
+      commonConfig.matcher,
       deliveries
     )
 
@@ -96,35 +110,35 @@ object Main:
       jobs: Int = 100
   ): Unit =
     printerSpoolerExample(
-      commonConfig.algorithm,
+      commonConfig.matcher,
       printers,
       jobs
     )
 
   @main
   def factorySimple(
-    commonConfig: CommonRunConfig,
+      commonConfig: CommonRunConfig
   ): Unit =
-    runFactorySimple(commonConfig.algorithm)
+    runFactorySimple(commonConfig.matcher)
 
   @main
   def payment(
-    commonConfig: CommonRunConfig,
-    @arg(doc = "The number of payment and token requests sent")
-    requests: Int = 30
+      commonConfig: CommonRunConfig,
+      @arg(doc = "The number of payment and token requests sent")
+      requests: Int = 30
   ): Unit =
     if requests <= 0 then throw IllegalArgumentException("Number of requests cannot be 0 or less")
 
-    val toRun = Payment(commonConfig.algorithm)
+    val toRun = Payment(commonConfig.matcher)
 
     val prereqs = toRun.prepare(requests)
     toRun.run(prereqs)
 
   @main
   def simpleExample(
-    commonConfig: CommonRunConfig,
+      commonConfig: CommonRunConfig
   ): Unit =
-    exampleFilter(commonConfig.algorithm)
+    exampleFilter(commonConfig.matcher)
 
   def main(args: Array[String]): Unit =
     ParserForMethods(this).runOrExit(args)

@@ -3,10 +3,11 @@ package join_patterns.types
 import join_actors.actor.ActorRef
 
 import scala.collection.Factory
-import scala.collection.immutable.{ArraySeq, TreeMap}
+import scala.collection.immutable.ArraySeq
+import scala.collection.immutable.TreeMap
 import scala.collection.mutable.Builder
 
-type MessageIdx  = Int
+type MessageIdx = Int
 
 type MessageIdxs = ArraySeq[MessageIdx]
 object MessageIdxs extends Factory[MessageIdx, MessageIdxs]:
@@ -18,8 +19,7 @@ object MessageIdxs extends Factory[MessageIdx, MessageIdxs]:
   def newBuilder: Builder[MessageIdx, MessageIdxs] =
     ArraySeq.newBuilder[MessageIdx]
 
-
-type PatternIdx  = Int
+type PatternIdx = Int
 
 type PatternIdxs = ArraySeq[PatternIdx]
 object PatternIdxs extends Factory[PatternIdx, PatternIdxs]:
@@ -31,14 +31,13 @@ object PatternIdxs extends Factory[PatternIdx, PatternIdxs]:
   def newBuilder: Builder[PatternIdx, PatternIdxs] =
     ArraySeq.newBuilder[PatternIdx]
 
-
 given sizeBiasedOrdering: Ordering[ArraySeq[PatternIdx]] with
   def compare(x: ArraySeq[PatternIdx], y: ArraySeq[PatternIdx]): Int =
     val sizeComp = Integer.compare(x.length, y.length) // compare by size first
     if sizeComp != 0 then -sizeComp // if sizes are different, return the comparison result
     else
       var acc = 0
-      var i   = 0
+      var i = 0
       while i < x.size && i < y.size && acc == 0 do
         val a = x(i)
         val b = y(i)
@@ -46,11 +45,10 @@ given sizeBiasedOrdering: Ordering[ArraySeq[PatternIdx]] with
         i += 1
       acc
 
-/**
- * A map from constructor indices within a pattern to the indices of the messages that match the pattern.
- * If a constructor appears once, then the map key is a list with one index. If the same constructor appears multiple
- * times, the key is a list of multiple indices.
- */
+/** A map from constructor indices within a pattern to the indices of the messages that match the
+  * pattern. If a constructor appears once, then the map key is a list with one index. If the same
+  * constructor appears multiple times, the key is a list of multiple indices.
+  */
 type PatternBins = TreeMap[PatternIdxs, MessageIdxs]
 object PatternBins:
   def apply(elems: (PatternIdxs, MessageIdxs)*): PatternBins =
@@ -60,15 +58,15 @@ def ppPatternBins(patternBins: PatternBins): String =
   patternBins
     .map { case (patternShape, messageIdxs) =>
       val patternShapeStr = patternShape.mkString(", ")
-      val messageIdxsStr  = messageIdxs.mkString(", ")
+      val messageIdxsStr = messageIdxs.mkString(", ")
       s"{ ${Console.RED + patternShapeStr + Console.RESET} } -> [ ${Console.GREEN + messageIdxsStr + Console.RESET} ]"
     }
     .mkString(", ")
 
 final case class PatternIdxInfo[M](
-  msgTypeChecker: M => Boolean,
-  lookupEnvExtractor: M => LookupEnv,
-  filterer: LookupEnv => Boolean
+    msgTypeChecker: M => Boolean,
+    lookupEnvExtractor: M => LookupEnv,
+    filterer: LookupEnv => Boolean
 )
 
 type PatternExtractors[M] = Map[PatternIdx, PatternIdxInfo[M]]
@@ -112,3 +110,4 @@ case class JoinPattern[M, T](
     getPatternInfo: PatternInfo[M]
 )
 
+type JoinDefinition[M, T] = List[JoinPattern[M, T]]

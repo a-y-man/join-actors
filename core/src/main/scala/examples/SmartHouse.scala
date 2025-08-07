@@ -11,6 +11,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
+import join_patterns.matching.MatcherFactory
 
 /* This is a definition of the messages accepted by the Smart house actor */
 enum Action:
@@ -28,7 +29,7 @@ import Action.*
 /*
 This function defines a smart house example using join patterns.
  */
-def smartHouseExample(algorithm: MatchingAlgorithm) =
+def smartHouseExample(matcher: MatcherFactory) =
   var lastNotification = Date(0L)
   var lastMotionInBathroom = Date(0L)
   def isSorted: Seq[Date] => Boolean = times =>
@@ -65,7 +66,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
   Actor[Action, Unit] {
-    receive { (selfRef: ActorRef[Action]) =>
+    receiveAlt { (selfRef: ActorRef[Action]) =>
       { // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date)
             &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
@@ -114,7 +115,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           Stop(())
       }
 
-    }(algorithm)
+    }(matcher)
   }
 
 def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
@@ -147,10 +148,10 @@ def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
 
 // val msgs = smartHouseMsgs(numberOfRandomMsgs)(GenerateActions.genActionsOfSizeN)
 def runSmartHouseExample(
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     msgs: Vector[Action]
 ) =
-  val smartHouseActor = smartHouseExample(algorithm)
+  val smartHouseActor = smartHouseExample(matcher)
   val (actFut, act) = smartHouseActor.start()
   val startTime = System.currentTimeMillis()
   msgs.foreach(act ! _)

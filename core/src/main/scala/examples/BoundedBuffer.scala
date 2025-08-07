@@ -9,6 +9,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
+import join_patterns.matching.array_parallel.ArrayParallelMatcher
+import join_patterns.matching.MatcherFactory
 
 // Termination message to stop the actors
 case class Terminate()
@@ -41,16 +43,16 @@ case class BBConfig(
     val producers: Int,
     val consumers: Int,
     val cnt: Int,
-    val algorithm: MatchingAlgorithm
+    val algorithm: MatcherFactory
 )
 
-def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, Long] =
+def boundedBuffer(matcher: MatcherFactory): Actor[BBEvent, Long] =
   import BoundedBuffer.*, InternalEvent.*
   var matches = 0
-  var puts    = 0
-  var gets    = 0
+  var puts = 0
+  var gets = 0
   Actor[BBEvent, Long] {
-    receive { (bbRef: BBRef) =>
+    receiveAlt[BBEvent, Long] { (bbRef: BBRef) =>
       {
         case Put(producerRef, x) &:& Free(c) =>
           if c == 1 then bbRef ! Full()
@@ -75,7 +77,7 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, Long] =
           // println(s"Matches: $matches, Puts: $puts, Gets: $gets")
           Stop(System.currentTimeMillis())
       }
-    }(algorithm)
+    }(matcher)
   }
 
 def coordinator(
@@ -90,7 +92,7 @@ def coordinator(
     Future {
       for i <- 0 until bbConfig.cnt do
         val prodPromise: ProducerSyncReply = Promise[Unit]()
-        val prodFut                        = prodPromise.future
+        val prodFut = prodPromise.future
         bbRef ! Put(prodPromise, msg)
         Await.ready(prodFut, Duration(10, TimeUnit.SECONDS))
     }
@@ -99,7 +101,7 @@ def coordinator(
     Future {
       for _ <- 0 until bbConfig.cnt do
         val consPromise: ConsumerReply = Promise[BufferType]()
-        val consFut                    = consPromise.future
+        val consFut = consPromise.future
         bbRef ! Get(consPromise)
         val got = Await.result(consFut, Duration(10, TimeUnit.SECONDS))
         // println(s"Got: $got")

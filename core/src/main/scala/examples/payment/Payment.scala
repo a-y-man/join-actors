@@ -9,8 +9,9 @@ import examples.payment.*
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import join_patterns.matching.MatcherFactory
 
-class Payment(private val algorithm: MatchingAlgorithm):
+class Payment(private val algorithm: MatcherFactory):
   def prepare(param: Int): PaymentPrereqs =
     val paymentEvents = ArraySeq.fill(param)(ExternalPaymentRequest())
     val tokenEvents = ArraySeq.fill(param)(ExternalTokenGenerationRequest())
@@ -42,7 +43,7 @@ class Payment(private val algorithm: MatchingAlgorithm):
     Await.result(result, Duration.Inf)
 
   private def getPaymentServiceActor(coreService: RefCell[PaymentActor]) =
-    val matcher = receive { selfRef => {
+    val matcher = receiveAlt { selfRef => {
       case PaymentRequested(id1)
         &:& MerchantValidated(id2)
         &:& CustomerValidated(id3)
@@ -57,7 +58,7 @@ class Payment(private val algorithm: MatchingAlgorithm):
     Actor(matcher)
 
   private def getAccountServiceActor(paymentService: RefCell[PaymentActor], tokenService: RefCell[PaymentActor]) =
-    val matcher = receive { selfRef => {
+    val matcher = receiveAlt { selfRef => {
       case PaymentRequested(id) =>
         paymentService.get ! MerchantValidated(id)
 
@@ -79,7 +80,7 @@ class Payment(private val algorithm: MatchingAlgorithm):
     Actor(matcher)
 
   private def getTokenServiceActor(accountService: RefCell[PaymentActor], coreService: RefCell[PaymentActor]) =
-    val matcher = receive { selfRef => {
+    val matcher = receiveAlt { selfRef => {
       case PaymentRequested(id) =>
         accountService.get ! TokenConsumed(id)
 
@@ -108,7 +109,7 @@ class Payment(private val algorithm: MatchingAlgorithm):
     var paymentsProcessed = 0
     var tokensProcessed = 0
 
-    val matcher = receive { selfRef => {
+    val matcher = receiveAlt { selfRef => {
       case ExternalPaymentRequest() =>
         val event = PaymentRequested(nextId)
         accountService.get ! event
