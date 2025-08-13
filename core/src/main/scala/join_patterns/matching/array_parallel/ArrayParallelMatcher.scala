@@ -4,6 +4,7 @@ import join_actors.actor.ActorRef
 import join_patterns.matching.CandidateMatchOpt
 import join_patterns.matching.CandidateMatches
 import join_patterns.matching.Matcher
+import join_patterns.matching.MatcherFactory
 import join_patterns.types.JoinDefinition
 import join_patterns.types.JoinPattern
 import join_patterns.util.*
@@ -11,7 +12,6 @@ import join_patterns.util.*
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap as MutableHashMap
-import join_patterns.matching.MatcherFactory
 
 class ArrayParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], numThreads: Int)
     extends Matcher[M, T]:
@@ -59,8 +59,8 @@ object ArrayParallelMatcher:
   def apply(numThreads: Int): MatcherFactory = new MatcherFactory:
     override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
       (joinDefinition: JoinDefinition[M, T]) => new ArrayParallelMatcher(joinDefinition, numThreads)
-  
+
     override def toString(): String =
-      s"ArrayParallelMatcher with ${numThreads} numThreads"
+      s"ArrayParallelMatcher with $numThreads threads"
 
   def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())

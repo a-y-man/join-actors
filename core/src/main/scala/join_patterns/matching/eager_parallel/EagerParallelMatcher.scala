@@ -59,8 +59,9 @@ object EagerParallelMatcher:
 
   def apply(numThreads: Int): MatcherFactory = new MatcherFactory:
     override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
-      (joinDefinition: JoinDefinition[M, T]) => new EagerParallelMatcher(joinDefinition, numThreads = numThreads)
+      (joinDefinition: JoinDefinition[M, T]) =>
+        new EagerParallelMatcher(joinDefinition, numThreads = numThreads)
 
-    override def toString(): String = s"EagerParallelMatcher with $numThreads numThreads"
+    override def toString(): String = s"EagerParallelMatcher with $numThreads threads"
 
   def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())
