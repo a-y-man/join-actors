@@ -34,8 +34,8 @@ The source code for the join patterns library is organized as follows:
       matching algorithm and code generation macros.
       - `matching`: Contains all implemented join pattern matching algorithms 
         - `Matcher.scala`: The matcher trait that is implemented by the
-          different join pattern matching algorithms.
-        - `MatchingAlgorithm.scala`: An enumeration used for selecting an algorithm
+          different join pattern matching algorithms. This also contains the 
+          `MatcherFactory` implementation that every matcher must implement.
         - `brute_force`: The brute-force matcher implementation.
         - `immutable`: The stateful tree-based matcher
           implementation.

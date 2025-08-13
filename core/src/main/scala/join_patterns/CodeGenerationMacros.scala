@@ -640,8 +640,9 @@ private def receiveCodeGen[M, T](
   * @param f
   *   the block to use as source of the pattern-matching code.
   * @return
-  *   a compile-time closure that takes a MatchingAlgorithm type and returns a Matcher-object that
-  *   performs pattern-matching on a message queue at runtime.
+  *   a compile-time closure that takes a MatcherFactory type that instantiates a
+  *   matcher and returns a Matcher-object that performs pattern-matching on a 
+  *   message queue at runtime.
   */
 inline def receive[M, T](
     inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])

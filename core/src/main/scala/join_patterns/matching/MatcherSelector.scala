@@ -13,8 +13,7 @@ import join_patterns.matching.filtering_parallel.FilteringParallelMatcher
 import join_patterns.matching.array_while.ArrayWhileMatcher
 import join_patterns.matching.array_parallel.ArrayParallelMatcher
 
-val runtime = Runtime.getRuntime()
-val numCores = runtime.availableProcessors()
+val numCores = Runtime.getRuntime().availableProcessors()
 
 object MatcherSelector:
   private val cmdStringsAndMatcher = List(
