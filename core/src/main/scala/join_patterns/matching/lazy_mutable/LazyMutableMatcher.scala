@@ -56,3 +56,5 @@ class LazyMutableMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ex
 object LazyMutableMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
     (joinDefinition: JoinDefinition[M, T]) => new LazyMutableMatcher(joinDefinition)
+
+  override def toString(): String = "LazyMutableMatcher"

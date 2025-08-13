@@ -61,4 +61,7 @@ object FilteringParallelMatcher:
       (joinDefinition: JoinDefinition[M, T]) =>
         new FilteringParallelMatcher(joinDefinition, numThreads)
 
+    override def toString(): String =
+      s"FilteringParallelMatcher with ${numThreads} numThreads"
+
   def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())

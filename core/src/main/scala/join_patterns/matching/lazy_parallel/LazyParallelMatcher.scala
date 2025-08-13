@@ -63,3 +63,7 @@ object LazyParallelMatcher:
           joinDefinition,
           numThreads = numThreads
         )
+
+    override def toString(): String = s"LazyParallelMatcher with $numThreads numThreads"
+
+  def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())

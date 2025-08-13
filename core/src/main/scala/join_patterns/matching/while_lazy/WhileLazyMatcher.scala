@@ -57,3 +57,5 @@ class WhileLazyMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) exte
 object WhileLazyMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
     (joinDefinition: JoinDefinition[M, T]) => new WhileLazyMatcher(joinDefinition)
+
+  override def toString(): String = "WhileLazyMatcher"

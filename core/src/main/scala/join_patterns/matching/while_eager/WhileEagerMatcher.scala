@@ -57,3 +57,5 @@ class WhileEagerMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 object WhileEagerMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
     (joinDefinition: JoinDefinition[M, T]) => new WhileEagerMatcher(joinDefinition)
+
+  override def toString(): String = "WhileEagerMatcher"

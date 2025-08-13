@@ -59,3 +59,5 @@ class ArrayWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 object ArrayWhileMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
     (joinDefinition: JoinDefinition[M, T]) => new ArrayWhileMatcher(joinDefinition)
+
+  override def toString(): String = "ArrayWhileMatcher"

@@ -57,3 +57,5 @@ class FilteringWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
 object FilteringWhileMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
     (joinDefinition: JoinDefinition[M, T]) => new FilteringWhileMatcher(joinDefinition)
+
+  override def toString(): String = "FilteringWhileMatcher"

@@ -125,3 +125,5 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 object BruteForceMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] = 
     (joinDefinition: JoinDefinition[M, T]) => new BruteForceMatcher(joinDefinition)
+
+  override def toString(): String = "BruteForceMatcher"
