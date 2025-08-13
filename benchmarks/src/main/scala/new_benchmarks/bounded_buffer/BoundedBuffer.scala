@@ -1,18 +1,22 @@
 package new_benchmarks.bounded_buffer
 
 import join_actors.api.*
-import new_benchmarks.{Benchmark, BenchmarkFactory}
+import new_benchmarks.Benchmark
+import new_benchmarks.BenchmarkFactory
 import new_benchmarks.bounded_buffer.BoundedBuffer.*
 import InternalEvent.*
 import ExternalEvent.*
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.Promise
 
-class BoundedBuffer(private val algorithm: MatchingAlgorithm, private val config: Config) extends Benchmark[PassPrereqs]:
+class BoundedBuffer(private val matcher: MatcherFactory, private val config: Config)
+    extends Benchmark[PassPrereqs]:
   override def prepare(param: Int): PassPrereqs =
-    val bb = getBoundedBufferActor(algorithm)
+    val bb = getBoundedBufferActor(matcher)
 
     val (result, ref) = bb.start()
 
@@ -30,38 +34,39 @@ class BoundedBuffer(private val algorithm: MatchingAlgorithm, private val config
 
     Await.result(result, Duration(10, TimeUnit.MINUTES))
 
-  private def getBoundedBufferActor(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
+  private def getBoundedBufferActor(matcher: MatcherFactory): Actor[BBEvent, (Long, Int)] =
     import InternalEvent.*
     import ExternalEvent.*
     var matches = 0
     Actor[BBEvent, (Long, Int)] {
-      receive { (bbRef: BBRef) => {
-        case (Put(producerRef, x), Free(c)) =>
-          if c == 1 then bbRef ! Full()
-          else bbRef ! Free(c - 1)
-          bbRef ! P(x)
-          producerRef.success(())
-          Continue
-        case (Get(consumerRef), P(x), Full()) =>
-          bbRef ! Free(1)
-          consumerRef.success(x)
-          matches += 1
-          Continue
-        case (Get(consumerRef), P(x), Free(c)) =>
-          bbRef ! Free(c + 1)
-          consumerRef.success(x)
-          matches += 1
-          Continue
-        case TerminateActors() =>
-          Stop((System.currentTimeMillis(), matches))
-      }
-      }(algorithm)
+      receive { (bbRef: BBRef) =>
+        {
+          case (Put(producerRef, x), Free(c)) =>
+            if c == 1 then bbRef ! Full()
+            else bbRef ! Free(c - 1)
+            bbRef ! P(x)
+            producerRef.success(())
+            Continue
+          case (Get(consumerRef), P(x), Full()) =>
+            bbRef ! Free(1)
+            consumerRef.success(x)
+            matches += 1
+            Continue
+          case (Get(consumerRef), P(x), Free(c)) =>
+            bbRef ! Free(c + 1)
+            consumerRef.success(x)
+            matches += 1
+            Continue
+          case TerminateActors() =>
+            Stop((System.currentTimeMillis(), matches))
+        }
+      }(matcher)
     }
 
   private def coordinator(
-    bbRef: BBRef,
-    bbConfig: BoundedBufferConfig,
-    nProdsCons: Int
+      bbRef: BBRef,
+      bbConfig: BoundedBufferConfig,
+      nProdsCons: Int
   ): Unit =
     val msg = "hello"
 
@@ -98,4 +103,5 @@ object BoundedBuffer extends BenchmarkFactory:
   override type PassPrereqs = (Int, Future[(Long, Int)], ActorRef[BBEvent])
   override type InstanceType = BoundedBuffer
 
-  override def apply(algorithm: MatchingAlgorithm, config: BoundedBufferConfig): BoundedBuffer = new BoundedBuffer(algorithm, config)
+  override def apply(matcher: MatcherFactory, config: BoundedBufferConfig): BoundedBuffer =
+    new BoundedBuffer(matcher, config)

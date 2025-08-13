@@ -16,9 +16,9 @@ type Pinger = ActorRef[Pong | Done]
 sealed trait PingPong
 case class Ping(ref: Pinger, hits: Int) extends PingPong
 case class Pong(ref: Ponger, hits: Int) extends PingPong
-case class Done(hits: Int)              extends PingPong
+case class Done(hits: Int) extends PingPong
 
-def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
+def pingPonger(maxHits: Int = 100, matcher: MatcherFactory) =
   val pingActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
       receive { (pingRef: Pinger) =>
@@ -34,7 +34,7 @@ def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Done(x) =>
             Stop(x)
         }
-      }(algorithm)
+      }(matcher)
     }
 
   val pongActor: Actor[PingPong, Int] =
@@ -52,16 +52,16 @@ def pingPonger(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Done(x) =>
             Stop(x)
         }
-      }(algorithm)
+      }(matcher)
     }
 
   (pingActor, pongActor)
 
-def measurePingPong(maxHits: Int, algorithm: MatchingAlgorithm) =
+def measurePingPong(maxHits: Int, matcher: MatcherFactory) =
 
-  val (pingActor, pongActor) = pingPonger(maxHits, algorithm)
-  val (result1, pinger)      = pingActor.start()
-  val (result2, ponger)      = pongActor.start()
+  val (pingActor, pongActor) = pingPonger(maxHits, matcher)
+  val (result1, pinger) = pingActor.start()
+  val (result2, ponger) = pongActor.start()
 
   Future {
     val startTime = System.currentTimeMillis()
@@ -76,20 +76,20 @@ def measurePingPong(maxHits: Int, algorithm: MatchingAlgorithm) =
     Measurement(endTime - startTime, maxHits)
   }
 
-def pingPongBenchmark(maxHits: Int, algorithm: MatchingAlgorithm) =
+def pingPongBenchmark(maxHits: Int, matcher: MatcherFactory) =
   Benchmark(
     "Ping Pong",
-    algorithm,
+    matcher,
     5,
     10,
     BenchmarkPass(
       "Control Null Pass",
-      () => measurePingPong(maxHits, algorithm)
+      () => measurePingPong(maxHits, matcher)
     ),
     List(
       BenchmarkPass(
-        s"PingPong using ${algorithm}",
-        () => measurePingPong(maxHits, algorithm)
+        s"PingPong using ${matcher}",
+        () => measurePingPong(maxHits, matcher)
       )
     )
   )
@@ -99,18 +99,43 @@ def runPingPongBenchmark(
     writeToFile: Boolean = false,
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
+  val matchers: List[MatcherFactory] =
+    List(
+      StatefulTreeMatcher,
+      MutableStatefulMatcher,
+      LazyMutableMatcher,
+      WhileLazyMatcher,
+      FilteringWhileMatcher,
+      WhileEagerMatcher,
+      ArrayWhileMatcher,
+      EagerParallelMatcher(2),
+      EagerParallelMatcher(4),
+      EagerParallelMatcher(6),
+      EagerParallelMatcher(8),
+      LazyParallelMatcher(2),
+      LazyParallelMatcher(4),
+      LazyParallelMatcher(6),
+      LazyParallelMatcher(8),
+      FilteringParallelMatcher(2),
+      FilteringParallelMatcher(4),
+      FilteringParallelMatcher(6),
+      FilteringParallelMatcher(8),
+      ArrayParallelMatcher(2),
+      ArrayParallelMatcher(4),
+      ArrayParallelMatcher(6),
+      ArrayParallelMatcher(8)
+    )
 
-  val measurements = algorithms map { algorithm =>
+
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
     )
-    val measurement = pingPongBenchmark(maxHits, algorithm).run()
+    val measurement = pingPongBenchmark(maxHits, matcher).run()
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
-    (algorithm, measurement)
+    (matcher, measurement)
   }
 
   if writeToFile then saveToFile("PingPong", measurements, outputDataDir)

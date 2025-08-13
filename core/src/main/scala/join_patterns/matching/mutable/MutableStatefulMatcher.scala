@@ -1,20 +1,23 @@
 package join_patterns.matching.mutable
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatches, Matcher}
+import join_patterns.matching.CandidateMatches
+import join_patterns.matching.Matcher
 import join_patterns.types.JoinPattern
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.HashMap as MutableHashMap
+import join_patterns.matching.MatcherFactory
+import join_patterns.types.JoinDefinition
 
-class MutableStatefulMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class MutableStatefulMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
+    extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
   private val matchingTrees: List[MutableStatefulMatchingTree[M, T]] =
     patterns.zipWithIndex.map(MutableStatefulMatchingTree(_, _))
-
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     var result: Option[T] = None
@@ -41,8 +44,7 @@ class MutableStatefulMatcher[M, T](private val patterns: List[JoinPattern[M, T]]
         result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
-        for matchingTree <- matchingTrees do
-          matchingTree.pruneTree(candidateQidxs)
+        for matchingTree <- matchingTrees do matchingTree.pruneTree(candidateQidxs)
 
         // Remove selected message indices from messages
         candidateQidxs.foreach { idx =>
@@ -50,3 +52,9 @@ class MutableStatefulMatcher[M, T](private val patterns: List[JoinPattern[M, T]]
         }
 
     result.get
+
+object MutableStatefulMatcher extends MatcherFactory:
+  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+    (joinDefinition: JoinDefinition[M, T]) => new MutableStatefulMatcher(joinDefinition)
+
+  override def toString(): String = "MutableStatefulMatcher"

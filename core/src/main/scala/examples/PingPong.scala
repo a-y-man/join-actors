@@ -1,7 +1,6 @@
 package join_actors.examples
 
 import join_actors.api.*
-import org.scalacheck.*
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
@@ -15,9 +14,9 @@ type Pinger = ActorRef[Pong | Done]
 sealed trait PingPong
 case class Ping(ref: Pinger, hits: Int) extends PingPong
 case class Pong(ref: Ponger, hits: Int) extends PingPong
-case class Done(hits: Int)              extends PingPong
+case class Done(hits: Int) extends PingPong
 
-def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
+def pingPongExample(maxHits: Int = 100, matcher: MatcherFactory) =
   val pingActor: Actor[PingPong, Int] =
     Actor[PingPong, Int] {
       receive { (pingRef: Pinger) =>
@@ -33,7 +32,7 @@ def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Done(x) =>
             Stop(x)
         }
-      }(algorithm)
+      }(matcher)
     }
 
   val pongActor: Actor[PingPong, Int] =
@@ -51,7 +50,7 @@ def pingPongExample(maxHits: Int = 100, algorithm: MatchingAlgorithm) =
           case Done(x) =>
             Stop(x)
         }
-      }(algorithm)
+      }(matcher)
     }
 
   val (futResult1, pinger) = pingActor.start()

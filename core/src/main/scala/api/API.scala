@@ -5,6 +5,21 @@ export join_actors.actor.ActorRef
 export join_actors.actor.ec
 export join_actors.actor.Result.Stop
 export join_actors.actor.Result.Continue
-export join_patterns.code_generation.{receive, `&:&`}
-export join_patterns.matching.MatchingAlgorithm
-export join_patterns.matching.MatchingAlgorithm.*
+export join_patterns.code_generation.receive
+export join_patterns.code_generation.`&:&`
+
+export join_patterns.matching.MatcherFactory
+export join_patterns.matching.MatcherSelector
+
+export join_patterns.matching.array_parallel.ArrayParallelMatcher
+export join_patterns.matching.array_while.ArrayWhileMatcher
+export join_patterns.matching.brute_force.BruteForceMatcher
+export join_patterns.matching.eager_parallel.EagerParallelMatcher
+export join_patterns.matching.filtering_parallel.FilteringParallelMatcher
+export join_patterns.matching.filtering_while.FilteringWhileMatcher
+export join_patterns.matching.immutable.StatefulTreeMatcher
+export join_patterns.matching.lazy_mutable.LazyMutableMatcher
+export join_patterns.matching.lazy_parallel.LazyParallelMatcher
+export join_patterns.matching.mutable.MutableStatefulMatcher
+export join_patterns.matching.while_eager.WhileEagerMatcher
+export join_patterns.matching.while_lazy.WhileLazyMatcher

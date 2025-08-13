@@ -1,8 +1,7 @@
-package old_benchmarks
+package old_benchmarks.size_with_guards
 
-import old_benchmarks.GenerateGuardedSizeMsgs.genNNonMatchingMsgs
+import old_benchmarks.utils.*
 import join_actors.api.*
-import join_patterns.matching.MatchingAlgorithm.WhileLazyAlgorithm
 import org.scalacheck.Gen
 import os.Path
 
@@ -10,6 +9,12 @@ import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.Random
+import old_benchmarks.Benchmark
+import old_benchmarks.BenchmarkPass
+import old_benchmarks.saveToFile
+import old_benchmarks.Measurement
+
+import old_benchmarks.utils.GenerateGuardedSizeMsgs.*
 
 enum GuardedSizeMsg:
   case A(x: Int)
@@ -25,7 +30,7 @@ enum GuardedSizeMsg:
   case XX()
   case Terminate()
 
-def guardedSize1(algorithm: MatchingAlgorithm) =
+def guardedSize1(matcher: MatcherFactory) =
   import GuardedSizeMsg.*
   var matches = 0
   Actor[GuardedSizeMsg, (Long, Int)] {
@@ -37,10 +42,10 @@ def guardedSize1(algorithm: MatchingAlgorithm) =
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def guardedSize2(algorithm: MatchingAlgorithm) =
+def guardedSize2(matcher: MatcherFactory) =
   import GuardedSizeMsg.*
   var matches = 0
   Actor[GuardedSizeMsg, (Long, Int)] {
@@ -52,10 +57,10 @@ def guardedSize2(algorithm: MatchingAlgorithm) =
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def guardedSize3(algorithm: MatchingAlgorithm) =
+def guardedSize3(matcher: MatcherFactory) =
   import GuardedSizeMsg.*
   var matches = 0
   Actor[GuardedSizeMsg, (Long, Int)] {
@@ -67,10 +72,10 @@ def guardedSize3(algorithm: MatchingAlgorithm) =
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def guardedSize4(algorithm: MatchingAlgorithm) =
+def guardedSize4(matcher: MatcherFactory) =
   import GuardedSizeMsg.*
   var matches = 0
   Actor[GuardedSizeMsg, (Long, Int)] {
@@ -82,10 +87,10 @@ def guardedSize4(algorithm: MatchingAlgorithm) =
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def guardedSize5(algorithm: MatchingAlgorithm) =
+def guardedSize5(matcher: MatcherFactory) =
   import GuardedSizeMsg.*
   var matches = 0
   Actor[GuardedSizeMsg, (Long, Int)] {
@@ -97,10 +102,10 @@ def guardedSize5(algorithm: MatchingAlgorithm) =
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def guardedSize6(algorithm: MatchingAlgorithm) =
+def guardedSize6(matcher: MatcherFactory) =
   import GuardedSizeMsg.*
   var matches = 0
   Actor[GuardedSizeMsg, (Long, Int)] {
@@ -113,11 +118,11 @@ def guardedSize6(algorithm: MatchingAlgorithm) =
         case Terminate() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
 def generateCorrectSizeMsgsWithPayloads(n: Int): Vector[GuardedSizeMsg] =
-  import GenerateGuardedSizeMsgs.*
+  import old_benchmarks.utils.GenerateGuardedSizeMsgs.*
   genGuardedSizeMsgsOfSizeN(n).get
 
 def genSizeMsgsWithPayloadWithNonMatchingPayload(patSize: Int)(nRandomMsgs: Int)(
@@ -126,8 +131,8 @@ def genSizeMsgsWithPayloadWithNonMatchingPayload(patSize: Int)(nRandomMsgs: Int)
     matches: Int
 ) =
   import GuardedSizeMsg.*
-  val badMsgs                    = wrongMsgsGen(nRandomMsgs)
-  val correctMsgs                = correctMsgsGen(patSize)
+  val badMsgs = wrongMsgsGen(nRandomMsgs)
+  val correctMsgs = correctMsgsGen(patSize)
   val matchingAndNonMatchingSeqs = intercalateCorrectMsgs(correctMsgs, badMsgs)
   Vector.fill(matches)(matchingAndNonMatchingSeqs).flatten
 
@@ -135,12 +140,12 @@ def genMsgsWithPayloadWithNoise(patSize: Int)(nRandomMsgs: Int)(
     correctMsgsGen: Int => Vector[GuardedSizeMsg]
 )(matches: Int) =
   import GuardedSizeMsg.*
-  val noise                    = Vector.fill(nRandomMsgs)(XX())
-  val correctMsgs              = correctMsgsGen(patSize)
+  val noise = Vector.fill(nRandomMsgs)(XX())
+  val correctMsgs = correctMsgsGen(patSize)
   val matchingMsgsAndNoiseSeqs = intercalateCorrectMsgs(correctMsgs, noise)
   Vector.fill(matches)(matchingMsgsAndNoiseSeqs).flatten
 
-val N_NOISE_MSGS        = 100
+val N_NOISE_MSGS = 100
 val N_NON_MATCHING_MSGS = 10
 
 val sizeBenchmarkWithPayloadData =
@@ -271,11 +276,11 @@ val sizeBenchmarkWithNonMatchingPayloadData =
 
 def measureSizeWithGuards(
     msgs: Vector[GuardedSizeMsg],
-    sizeAct: MatchingAlgorithm => Actor[GuardedSizeMsg, (Long, Int)],
-    algorithm: MatchingAlgorithm
+    sizeAct: MatcherFactory => Actor[GuardedSizeMsg, (Long, Int)],
+    matcher: MatcherFactory
 ) =
   import GuardedSizeMsg.*
-  val actor              = sizeAct(algorithm)
+  val actor = sizeAct(matcher)
   val (result, actorRef) = actor.start()
 
   Future {
@@ -292,7 +297,7 @@ def measureSizeWithGuards(
 
 def sizeWithGuardsBenchmark(
     matches: Int,
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     warmupRepetitions: Int = 5,
     repetitions: Int = 10
 ) =
@@ -301,11 +306,11 @@ def sizeWithGuardsBenchmark(
     measureSizeWithGuards(
       genNMatchingMsgSeqs(3)(generateCorrectSizeMsgsWithPayloads)(matches),
       guardedSize3,
-      algorithm
+      matcher
     )
   Benchmark(
     name = "Pattern Size with Guards",
-    algorithm = algorithm,
+    matcher = matcher,
     warmupRepetitions = warmupRepetitions,
     repetitions = repetitions,
     nullPass = BenchmarkPass(
@@ -315,14 +320,14 @@ def sizeWithGuardsBenchmark(
     passes = sizeBenchmarkWithPayloadData.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSizeWithGuards(msgs(matches), sizeAct, algorithm)
+        () => measureSizeWithGuards(msgs(matches), sizeAct, matcher)
       )
     }
   )
 
 def sizeWithGuardsWithNoiseBenchmark(
     matches: Int,
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     warmupRepetitions: Int = 5,
     repetitions: Int = 10
 ) =
@@ -331,11 +336,11 @@ def sizeWithGuardsWithNoiseBenchmark(
     measureSizeWithGuards(
       genMsgsWithPayloadWithNoise(3)(10)(generateCorrectSizeMsgsWithPayloads)(matches),
       guardedSize3,
-      algorithm
+      matcher
     )
   Benchmark(
     name = "Pattern Size with Guards with Noise",
-    algorithm = algorithm,
+    matcher = matcher,
     warmupRepetitions = warmupRepetitions,
     repetitions = repetitions,
     nullPass = BenchmarkPass(
@@ -345,14 +350,14 @@ def sizeWithGuardsWithNoiseBenchmark(
     passes = sizeBenchmarkWithNoisyPayloadData.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSizeWithGuards(msgs(matches), sizeAct, algorithm)
+        () => measureSizeWithGuards(msgs(matches), sizeAct, matcher)
       )
     }
   )
 
 def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
     matches: Int,
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     warmupRepetitions: Int = 5,
     repetitions: Int = 10
 ) =
@@ -363,11 +368,11 @@ def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
         genNNonMatchingMsgs(3)
       )(matches),
       guardedSize3,
-      algorithm
+      matcher
     )
   Benchmark(
     name = "Pattern Size with Guards with Non-matching Payload",
-    algorithm = algorithm,
+    matcher = matcher,
     warmupRepetitions = warmupRepetitions,
     repetitions = repetitions,
     nullPass = BenchmarkPass(
@@ -377,9 +382,36 @@ def sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
     passes = sizeBenchmarkWithNonMatchingPayloadData.map { case (name, sizeAct, msgs) =>
       BenchmarkPass(
         name,
-        () => measureSizeWithGuards(msgs(matches), sizeAct, algorithm)
+        () => measureSizeWithGuards(msgs(matches), sizeAct, matcher)
       )
     }
+  )
+
+val matchers: List[MatcherFactory] =
+  List(
+    StatefulTreeMatcher,
+    MutableStatefulMatcher,
+    LazyMutableMatcher,
+    WhileLazyMatcher,
+    FilteringWhileMatcher,
+    WhileEagerMatcher,
+    ArrayWhileMatcher,
+    EagerParallelMatcher(2),
+    EagerParallelMatcher(4),
+    EagerParallelMatcher(6),
+    EagerParallelMatcher(8),
+    LazyParallelMatcher(2),
+    LazyParallelMatcher(4),
+    LazyParallelMatcher(6),
+    LazyParallelMatcher(8),
+    FilteringParallelMatcher(2),
+    FilteringParallelMatcher(4),
+    FilteringParallelMatcher(6),
+    FilteringParallelMatcher(8),
+    ArrayParallelMatcher(2),
+    ArrayParallelMatcher(4),
+    ArrayParallelMatcher(6),
+    ArrayParallelMatcher(8)
   )
 
 def runSizeWithGuardsBenchmark(
@@ -389,20 +421,17 @@ def runSizeWithGuardsBenchmark(
     repetitions: Int = 10,
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  val algorithms: List[MatchingAlgorithm] =
-    List(WhileLazyAlgorithm)
-
-  val measurements = algorithms map { algorithm =>
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
     )
     val measurement =
-      sizeWithGuardsBenchmark(matches, algorithm, warmupRepetitions, repetitions).run()
+      sizeWithGuardsBenchmark(matches, matcher, warmupRepetitions, repetitions).run()
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
 
-    (algorithm, measurement)
+    (matcher, measurement)
   }
 
   if writeToFile then saveToFile("SizeWithGuards", measurements, outputDataDir)
@@ -414,21 +443,18 @@ def runSizeWithGuardsWithNoiseBenchmark(
     repetitions: Int = 10,
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  val algorithms: List[MatchingAlgorithm] =
-    List(WhileLazyAlgorithm)
-
-  val measurements = algorithms map { algorithm =>
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
     )
     val measurement =
-      sizeWithGuardsWithNoiseBenchmark(matches, algorithm, warmupRepetitions, repetitions)
+      sizeWithGuardsWithNoiseBenchmark(matches, matcher, warmupRepetitions, repetitions)
         .run()
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
 
-    (algorithm, measurement)
+    (matcher, measurement)
   }
 
   if writeToFile then saveToFile("SizeWithGuardsWithNoise", measurements, outputDataDir)
@@ -440,41 +466,23 @@ def runSizeWithGuardsWithNonMatchingPayloadBenchmark(
     repetitions: Int = 10,
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  val algorithms: List[MatchingAlgorithm] =
-    List(
-      //        BruteForceAlgorithm,
-//      StatefulTreeBasedAlgorithm,
-//      MutableStatefulAlgorithm,
-//      LazyMutableAlgorithm,
-//      WhileEagerAlgorithm,
-      //        EagerParallelAlgorithm(2),
-      //        EagerParallelAlgorithm(4),
-      //        EagerParallelAlgorithm(6),
-      //        EagerParallelAlgorithm(8),
-      WhileLazyAlgorithm,
-      //        LazyParallelAlgorithm(2),
-      //        LazyParallelAlgorithm(4),
-      //        LazyParallelAlgorithm(6),
-//      LazyParallelAlgorithm(8)
-    )
-
-  val measurements = algorithms map { algorithm =>
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
     )
     val measurement =
       sizeWithGuardsWithNonMatchingPayloadDataBenchmark(
         matches,
-        algorithm,
+        matcher,
         warmupRepetitions,
         repetitions
       )
         .run()
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
 
-    (algorithm, measurement)
+    (matcher, measurement)
   }
 
   if writeToFile then

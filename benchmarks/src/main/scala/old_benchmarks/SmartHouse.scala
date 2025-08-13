@@ -1,4 +1,4 @@
-package old_benchmarks
+package old_benchmarks.smart_house
 
 import join_actors.api.*
 import os.*
@@ -11,21 +11,19 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
 
-sealed trait Action
-case class Motion(id: Int, status: Boolean, room: String, timestamp: Date = Date()) extends Action
-case class AmbientLight(id: Int, lightLevel: Int, room: String, timestamp: Date = Date())
-    extends Action
-case class Light(id: Int, status: Boolean, room: String, timestamp: Date = Date())   extends Action
-case class Contact(id: Int, status: Boolean, room: String, timestamp: Date = Date()) extends Action
-case class Consumption(id: Int, consumption: Int, timestamp: Date = Date())          extends Action
-case class HeatingF(id: Int, tp: String, timestamp: Date = Date())                   extends Action
-case class DoorBell(id: Int, timestamp: Date = Date())                               extends Action
-case class ShutOff()                                                                 extends Action
+import old_benchmarks.utils.*
 
-def smartHouseExample(algorithm: MatchingAlgorithm) =
-  var lastNotification     = Date(0L)
+import old_benchmarks.smart_house_utils.Action
+import Action.*
+import old_benchmarks.Measurement
+import old_benchmarks.saveToFile
+import old_benchmarks.BenchmarkPass
+import old_benchmarks.Benchmark
+
+def smartHouseExample(matcher: MatcherFactory) =
+  var lastNotification = Date(0L)
   var lastMotionInBathroom = Date(0L)
-  var actions              = 0
+  var actions = 0
   def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
 
@@ -114,7 +112,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
         case ShutOff() =>
           Stop((System.currentTimeMillis(), actions))
       }
-    }(algorithm)
+    }(matcher)
   }
 
 def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
@@ -148,9 +146,9 @@ def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
 
 def measureSmartHouse(
     msgs: Vector[Action],
-    algorithm: MatchingAlgorithm
+    matcher: MatcherFactory
 ): Future[Measurement] =
-  val actor = smartHouseExample(algorithm)
+  val actor = smartHouseExample(matcher)
 
   val (result, actorRef) = actor.start()
 
@@ -168,7 +166,7 @@ def measureSmartHouse(
 
 def smartHouseBenchmark(
     rangeOfRandomMsgs: Vector[(Vector[Action], Int)],
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     warmupRepetitions: Int = 5,
     repetitions: Int = 10
 ) =
@@ -177,17 +175,17 @@ def smartHouseBenchmark(
 
   Benchmark(
     name = "SmartHouse",
-    algorithm = algorithm,
+    matcher = matcher,
     warmupRepetitions = warmupRepetitions,
     repetitions = repetitions,
     nullPass = BenchmarkPass(
-      s"Null Pass ${algorithm}",
-      () => measureSmartHouse(nullPassMsgs, algorithm)
+      s"Null Pass ${matcher}",
+      () => measureSmartHouse(nullPassMsgs, matcher)
     ),
     passes = rangeOfRandomMsgs map { case (msgs, n) =>
       BenchmarkPass(
         s"Processing $n number of random messages per match.",
-        () => measureSmartHouse(msgs, algorithm)
+        () => measureSmartHouse(msgs, matcher)
       )
     }
   )
@@ -201,22 +199,31 @@ def runSmartHouseBenchmark(
     repetitions: Int = 10,
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  val algorithms: List[MatchingAlgorithm] =
+  val matchers: List[MatcherFactory] =
     List(
-//      BruteForceAlgorithm,
-//      StatefulTreeBasedAlgorithm,
-//      MutableStatefulAlgorithm,
-//      LazyMutableAlgorithm,
-//      WhileEagerAlgorithm,
-//      EagerParallelAlgorithm(2),
-//      EagerParallelAlgorithm(4),
-//      EagerParallelAlgorithm(6),
-//      EagerParallelAlgorithm(8),
-      WhileLazyAlgorithm,
-//      LazyParallelAlgorithm(2),
-//      LazyParallelAlgorithm(4),
-//      LazyParallelAlgorithm(6),
-//      LazyParallelAlgorithm(8)
+      StatefulTreeMatcher,
+      MutableStatefulMatcher,
+      LazyMutableMatcher,
+      WhileLazyMatcher,
+      FilteringWhileMatcher,
+      WhileEagerMatcher,
+      ArrayWhileMatcher,
+      EagerParallelMatcher(2),
+      EagerParallelMatcher(4),
+      EagerParallelMatcher(6),
+      EagerParallelMatcher(8),
+      LazyParallelMatcher(2),
+      LazyParallelMatcher(4),
+      LazyParallelMatcher(6),
+      LazyParallelMatcher(8),
+      FilteringParallelMatcher(2),
+      FilteringParallelMatcher(4),
+      FilteringParallelMatcher(6),
+      FilteringParallelMatcher(8),
+      ArrayParallelMatcher(2),
+      ArrayParallelMatcher(4),
+      ArrayParallelMatcher(6),
+      ArrayParallelMatcher(8)
     )
 
   val rangeOfRandomMsgs =
@@ -229,34 +236,34 @@ def runSmartHouseBenchmark(
       val updateMsgIds =
         msgs.zipWithIndex.map { case (msg, i) =>
           msg match
-            case Motion(_, _, _, _)       => msg.asInstanceOf[Motion].copy(id = i)
+            case Motion(_, _, _, _) => msg.asInstanceOf[Motion].copy(id = i)
             case AmbientLight(_, _, _, _) => msg.asInstanceOf[AmbientLight].copy(id = i)
-            case Light(_, _, _, _)        => msg.asInstanceOf[Light].copy(id = i)
-            case Contact(_, _, _, _)      => msg.asInstanceOf[Contact].copy(id = i)
-            case Consumption(_, _, _)     => msg.asInstanceOf[Consumption].copy(id = i)
-            case HeatingF(_, _, _)        => msg.asInstanceOf[HeatingF].copy(id = i)
-            case DoorBell(_, _)           => msg.asInstanceOf[DoorBell].copy(id = i)
-            case ShutOff()                => msg
+            case Light(_, _, _, _) => msg.asInstanceOf[Light].copy(id = i)
+            case Contact(_, _, _, _) => msg.asInstanceOf[Contact].copy(id = i)
+            case Consumption(_, _, _) => msg.asInstanceOf[Consumption].copy(id = i)
+            case HeatingF(_, _, _) => msg.asInstanceOf[HeatingF].copy(id = i)
+            case DoorBell(_, _) => msg.asInstanceOf[DoorBell].copy(id = i)
+            case ShutOff() => msg
         }
 
       (updateMsgIds, n)
     }
 
-  val measurements = algorithms map { algorithm =>
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
     )
     val m = smartHouseBenchmark(
       rangeOfRandomMsgs,
-      algorithm,
+      matcher,
       warmupRepetitions,
       repetitions
     ).run()
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
 
-    (algorithm, m)
+    (matcher, m)
   }
 
   if writeToFile then saveToFile("SmartHouse", measurements, outputDataDir)

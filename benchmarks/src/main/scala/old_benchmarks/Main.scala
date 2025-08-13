@@ -1,11 +1,14 @@
 package old_benchmarks
-
-import join_actors.api.MatchingAlgorithm
+import join_actors.api.*
 import mainargs.Flag
 import mainargs.ParserForClass
 import mainargs.ParserForMethods
 import mainargs.arg
 import mainargs.main
+import old_benchmarks.simple_smart_house.*
+import old_benchmarks.size_with_guards.*
+import old_benchmarks.smart_house.*
+import old_benchmarks.utils.*
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -70,7 +73,7 @@ object Main:
       @arg(short = 'p', doc = "The file path to write the benchmark data")
       dataOutputFilePath: String
   ) =
-    val jsonFilePath      = os.RelPath(jsonFileToWrite).resolveFrom(os.pwd)
+    val jsonFilePath = os.RelPath(jsonFileToWrite).resolveFrom(os.pwd)
     val benchmarkDataPath = os.RelPath(dataOutputFilePath).resolveFrom(os.pwd)
     runSimpleSmartHouseBenchmark(
       smartHouseActions = matches,
@@ -191,7 +194,3 @@ object Main:
       repetitions = config.repetitions,
       outputDataDir = benchmarkDataPath
     )
-
-//  def main(args: Array[String]): Unit =
-//    val config = ParserForMethods(this).runOrExit(args)
-//    println(config)

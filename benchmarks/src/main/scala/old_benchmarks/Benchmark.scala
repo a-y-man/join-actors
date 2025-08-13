@@ -1,11 +1,15 @@
 package old_benchmarks
 
-import join_actors.api.MatchingAlgorithm
+import join_actors.api.*
 import os.Path
 
-import java.util.concurrent.{Executors, TimeUnit}
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 implicit val ec: ExecutionContext =
   ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
@@ -54,7 +58,7 @@ class BenchmarkPass(
 
 class Benchmark(
     private val name: String,
-    private val algorithm: MatchingAlgorithm,
+    private val matcher: MatcherFactory,
     val warmupRepetitions: Int,
     val repetitions: Int,
     private val nullPass: BenchmarkPass,
@@ -80,10 +84,10 @@ class Benchmark(
     val passes = results.tail
 
     for (passName, passRuntimes) <- passes do
-      val totalMatches     = passRuntimes.map(Measurement.matches).sum
+      val totalMatches = passRuntimes.map(Measurement.matches).sum
       val totalElapsedPass = passRuntimes.map(Measurement.time).reduce(_ + _)
-      val passAverage      = totalElapsedPass / repetitions
-      val delta            = ((passAverage - nullPassAverage) * 100.0) / nullPassAverage
+      val passAverage = totalElapsedPass / repetitions
+      val delta = ((passAverage - nullPassAverage) * 100.0) / nullPassAverage
       val delta_formatted =
         (if delta < 0 then s"${GREEN}" else s"${RED}") + "%.2f".format(delta) + s"${RESET}"
 
@@ -113,7 +117,7 @@ class Benchmark(
 
 def toFile(
     benchmarkName: String,
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     results: List[(String, Seq[Measurement])],
     dataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
@@ -122,11 +126,11 @@ def toFile(
   import java.text.SimpleDateFormat
   import java.util.Date
 
-  val timestamp  = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
+  val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
   val folderFile = dataDir / s"${timestamp}_${benchmarkName}"
   os.makeDir.all(folderFile)
 
-  val file = folderFile / f"${benchmarkName}_${algorithm}.csv"
+  val file = folderFile / f"${benchmarkName}_${matcher}.csv"
 
   val sep = ";"
 
@@ -142,7 +146,7 @@ def toFile(
 
 def saveToFile(
     name: String,
-    results: List[(MatchingAlgorithm, List[(String, Seq[Measurement])])],
+    results: List[(MatcherFactory, List[(String, Seq[Measurement])])],
     dataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  results foreach { (algorithm, m) => toFile(name, algorithm, m.tail, dataDir) }
+  results foreach { (matcher, m) => toFile(name, matcher, m.tail, dataDir) }

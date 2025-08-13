@@ -24,7 +24,7 @@ final case class Shutdown()
 
 type Event = MachineEvent | WorkerEvent | SystemEvent | Shutdown
 
-def monitor(matchingAlgorithm : MatchingAlgorithm) = Actor[Event, Unit] {
+def monitor(matcher: MatcherFactory) = Actor[Event, Unit] {
   import MachineEvent.*, WorkerEvent.*, SystemEvent.*
 
   receive { (self: ActorRef[Event]) =>
@@ -90,5 +90,5 @@ def monitor(matchingAlgorithm : MatchingAlgorithm) = Actor[Event, Unit] {
       case Shutdown() =>
         Stop(())
     }
-  }(matchingAlgorithm)
+  }(matcher)
 }

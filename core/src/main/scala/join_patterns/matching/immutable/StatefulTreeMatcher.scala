@@ -146,3 +146,9 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
         val updatedMTree = updateMTree(mTree, mQidx, matches)
         Some(updatedMTree)
 
+
+object StatefulTreeMatcher extends MatcherFactory:
+  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+    (joinDefinition: JoinDefinition[M, T]) => new StatefulTreeMatcher(joinDefinition)
+
+  override def toString(): String = "StatefulTreeMatcher"

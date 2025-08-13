@@ -15,17 +15,17 @@ enum ChameneoColor:
   def complement(that: ChameneoColor): ChameneoColor =
     import ChameneoColor.*
     (this, that) match
-      case (Blue, Red)      => Yellow
-      case (Blue, Yellow)   => Red
-      case (Red, Blue)      => Yellow
-      case (Red, Yellow)    => Blue
-      case (Yellow, Blue)   => Red
-      case (Yellow, Red)    => Blue
-      case (Blue, Blue)     => Blue
-      case (Red, Red)       => Red
+      case (Blue, Red) => Yellow
+      case (Blue, Yellow) => Red
+      case (Red, Blue) => Yellow
+      case (Red, Yellow) => Blue
+      case (Yellow, Blue) => Red
+      case (Yellow, Red) => Blue
+      case (Blue, Blue) => Blue
+      case (Red, Red) => Red
       case (Yellow, Yellow) => Yellow
 
-type ChameneoRef  = ActorRef[ChameneosMsg]
+type ChameneoRef = ActorRef[ChameneosMsg]
 type MeetingPlace = ActorRef[ChameneosMsg]
 
 enum ChameneosMsg:
@@ -36,13 +36,13 @@ enum ChameneosMsg:
 case class ChameneosConfig(
     maxNumberOfMeetings: Int,
     numberOfChameneos: Int,
-    algorithm: MatchingAlgorithm
+    matcher: MatcherFactory
 )
 
 def chameneoActor(
     initColor: ChameneoColor,
     mall: MeetingPlace,
-    algorithm: MatchingAlgorithm
+    matcher: MatcherFactory
 ) =
   import ChameneoColor.*, ChameneosMsg.*
   val color = initColor
@@ -61,10 +61,10 @@ def chameneoActor(
         case Exit() =>
           Stop(())
       }
-    }(algorithm)
+    }(matcher)
   }
 
-def mallActor(maxNumberOfMeetings: Int, algorithm: MatchingAlgorithm) =
+def mallActor(maxNumberOfMeetings: Int, matcher: MatcherFactory) =
   import ChameneoColor.*, ChameneosMsg.*
   var meetings = 0
   Actor[ChameneosMsg, Int] {
@@ -80,7 +80,7 @@ def mallActor(maxNumberOfMeetings: Int, algorithm: MatchingAlgorithm) =
         case Exit() if meetings >= maxNumberOfMeetings =>
           Stop(meetings)
       }
-    }(algorithm)
+    }(matcher)
   }
 
 def chameneosExample(
@@ -95,7 +95,7 @@ def chameneosExample(
   val (mallFut, mallRef) =
     mallActor(
       chameneosConfig.maxNumberOfMeetings,
-      chameneosConfig.algorithm
+      chameneosConfig.matcher
     ).start()
 
   val colors = Gen.oneOf(List(Blue, Red, Yellow))
@@ -104,7 +104,7 @@ def chameneosExample(
     chameneoActor(
       colors.sample.get,
       mallRef,
-      chameneosConfig.algorithm
+      chameneosConfig.matcher
     ).start()
   }
 

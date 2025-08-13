@@ -1,4 +1,4 @@
-package examples.payment
+package join_actors.examples.payment_microservice
 
 import scala.collection.immutable.ArraySeq
 import scala.reflect.ClassTag

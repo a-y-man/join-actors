@@ -46,10 +46,10 @@ case class BBConfig(
     val producers: Int,
     val consumers: Int,
     val cnt: Int,
-    val algorithm: MatchingAlgorithm
+    val matcher: MatcherFactory
 )
 
-def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
+def boundedBuffer(matcher: MatcherFactory): Actor[BBEvent, (Long, Int)] =
   import BoundedBuffer.*, InternalEvent.*
   var matches = 0
   Actor[BBEvent, (Long, Int)] {
@@ -74,7 +74,7 @@ def boundedBuffer(algorithm: MatchingAlgorithm): Actor[BBEvent, (Long, Int)] =
         case TerminateActors() =>
           Stop((System.currentTimeMillis(), matches))
       }
-    }(algorithm)
+    }(matcher)
   }
 
 def coordinator(
@@ -89,7 +89,7 @@ def coordinator(
     Future {
       for i <- 0 until bbConfig.cnt do
         val prodPromise: ProducerSyncReply = Promise[Unit]()
-        val prodFut                        = prodPromise.future
+        val prodFut = prodPromise.future
         bbRef ! Put(prodPromise, msg)
         Await.ready(prodFut, Duration(10, TimeUnit.MINUTES))
     }
@@ -98,7 +98,7 @@ def coordinator(
     Future {
       for _ <- 0 until bbConfig.cnt do
         val consPromise: ConsumerReply = Promise[BufferType]()
-        val consFut                    = consPromise.future
+        val consFut = consPromise.future
         bbRef ! Get(consPromise)
         Await.ready(consFut, Duration(10, TimeUnit.MINUTES))
     }
@@ -115,7 +115,7 @@ def coordinator(
 
 def measureBB(bbConfig: BBConfig) =
   import BoundedBuffer.*, InternalEvent.*
-  val bb             = boundedBuffer(bbConfig.algorithm)
+  val bb = boundedBuffer(bbConfig.matcher)
   val (bbFut, bbRef) = bb.start()
 
   Future {
@@ -136,8 +136,8 @@ def measureBB(bbConfig: BBConfig) =
   }
 
 def boundedBufferBenchmark(
-    bbConfigs: Array[MatchingAlgorithm => BBConfig],
-    algorithm: MatchingAlgorithm,
+    bbConfigs: Array[MatcherFactory => BBConfig],
+    matcher: MatcherFactory,
     warmupRepetitions: Int = 5,
     repetitions: Int = 10
 ) =
@@ -147,20 +147,20 @@ def boundedBufferBenchmark(
       producers = 8,
       consumers = 8,
       cnt = 16,
-      algorithm = algorithm
+      matcher = matcher
     )
 
   Benchmark(
     name = "Bounded Buffer",
-    algorithm = algorithm,
+    matcher = matcher,
     warmupRepetitions = warmupRepetitions,
     repetitions = repetitions,
     nullPass = BenchmarkPass(
-      s"Null Pass ${algorithm}",
+      s"Null Pass ${matcher}",
       () => measureBB(warmupConfig)
     ),
     passes = bbConfigs.map { config =>
-      val bbConfig = config(algorithm)
+      val bbConfig = config(matcher)
       BenchmarkPass(
         s"${bbConfig.bufferBound} ${bbConfig.producers} ${bbConfig.consumers} ${bbConfig.cnt}",
         () => measureBB(bbConfig)
@@ -178,44 +178,53 @@ def runBBBenchmark(
 ) =
   val bbConfigs =
     Array((1 to nProdsCons).map(n => (bufferBound, n))*).map { case (bufferBound, nProdsCons) =>
-      (algo: MatchingAlgorithm) =>
+      (matcher: MatcherFactory) =>
         BBConfig(
           bufferBound = bufferBound,
           producers = nProdsCons,
           consumers = nProdsCons,
           cnt = bufferBound,
-          algorithm = algo
+          matcher = matcher
         )
     }
 
-  val algorithms: List[MatchingAlgorithm] =
+  val matchers: List[MatcherFactory] =
     List(
-//      BruteForceAlgorithm,
-//      StatefulTreeBasedAlgorithm,
-//      MutableStatefulAlgorithm,
-//      LazyMutableAlgorithm,
-//      WhileEagerAlgorithm,
-      //      EagerParallelAlgorithm(2),
-      //      EagerParallelAlgorithm(4),
-      //      EagerParallelAlgorithm(6),
-//      EagerParallelAlgorithm(8),
-      WhileLazyAlgorithm,
-      //      LazyParallelAlgorithm(2),
-      //      LazyParallelAlgorithm(4),
-      //      LazyParallelAlgorithm(6),
-//      LazyParallelAlgorithm(8)
+      StatefulTreeMatcher,
+      MutableStatefulMatcher,
+      LazyMutableMatcher,
+      WhileLazyMatcher,
+      FilteringWhileMatcher,
+      WhileEagerMatcher,
+      ArrayWhileMatcher,
+      EagerParallelMatcher(2),
+      EagerParallelMatcher(4),
+      EagerParallelMatcher(6),
+      EagerParallelMatcher(8),
+      LazyParallelMatcher(2),
+      LazyParallelMatcher(4),
+      LazyParallelMatcher(6),
+      LazyParallelMatcher(8),
+      FilteringParallelMatcher(2),
+      FilteringParallelMatcher(4),
+      FilteringParallelMatcher(6),
+      FilteringParallelMatcher(8),
+      ArrayParallelMatcher(2),
+      ArrayParallelMatcher(4),
+      ArrayParallelMatcher(6),
+      ArrayParallelMatcher(8)
     )
 
-  val measurements = algorithms map { algorithm =>
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
     )
-    val m = boundedBufferBenchmark(bbConfigs, algorithm, warmupRepetitions, repetitions).run()
+    val m = boundedBufferBenchmark(bbConfigs, matcher, warmupRepetitions, repetitions).run()
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
 
-    (algorithm, m)
+    (matcher, m)
   }
 
   if writeToFile then saveToFile("BoundedBuffer", measurements, outputDataDir)

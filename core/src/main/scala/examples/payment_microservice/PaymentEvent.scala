@@ -1,4 +1,4 @@
-package examples.payment
+package join_actors.examples.payment_microservice
 
 enum PaymentEvent:
   case PaymentRequested(id: Int)

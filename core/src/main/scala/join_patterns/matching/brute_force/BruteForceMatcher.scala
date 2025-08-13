@@ -1,8 +1,8 @@
 package join_patterns.matching.brute_force
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.functions.*
 import join_patterns.matching.*
+import join_patterns.matching.functions.*
 import join_patterns.types.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
@@ -11,7 +11,7 @@ import scala.collection.mutable.Map as MutMap
 
 class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private val messages         = MutMap[Int, M]()
+  private val messages = MutMap[Int, M]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   private var mQidx = -1
@@ -71,7 +71,10 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
 
     result.get
 
-  private def extractPatternBins(pattern: JoinPattern[M, T], messages: Messages[M]): Option[PatternBins] =
+  private def extractPatternBins(
+      pattern: JoinPattern[M, T],
+      messages: Messages[M]
+  ): Option[PatternBins] =
     val msgPatterns = pattern.getPatternInfo.patternExtractors
 
     val messageIdxWithFits = getMsgIdxsWithFits(messages, msgPatterns)
@@ -82,14 +85,19 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
     else Some(patternBins)
 
   private def getMsgIdxsWithFits(
-                          messages: Map[Int, M],
-                          msgPatterns: PatternExtractors[M]
-                        ): Map[MessageIdx, PatternIdxs] =
+      messages: Map[Int, M],
+      msgPatterns: PatternExtractors[M]
+  ): Map[MessageIdx, PatternIdxs] =
     messages.iterator
       // Associate each message index with the list of pattern indices that match it
       .map { case (idx, msg) =>
         val matches =
-          msgPatterns.filter { case (_idx, PatternIdxInfo(checkMsgType, _fieldExtractor, _)) => checkMsgType(msg) }.keys.to(PatternIdxs)
+          msgPatterns
+            .filter { case (_idx, PatternIdxInfo(checkMsgType, _fieldExtractor, _)) =>
+              checkMsgType(msg)
+            }
+            .keys
+            .to(PatternIdxs)
         (idx, matches)
       }
       // Take only the results with at least one matching pattern
@@ -97,9 +105,9 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
       .toMap
 
   private def buildPatternBins(
-                        messageIdxWithFits: Map[MessageIdx, PatternIdxs],
-                        initialPatternBins: PatternBins
-                      ): PatternBins =
+      messageIdxWithFits: Map[MessageIdx, PatternIdxs],
+      initialPatternBins: PatternBins
+  ): PatternBins =
     messageIdxWithFits.foldLeft(initialPatternBins) { case (acc, (messageIdx, patternShape)) =>
       acc.updatedWith(patternShape) {
         case Some(messageIdxs) =>
@@ -110,6 +118,12 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
     }
 
   private def isPatternBinComplete(
-                            patternBins: PatternBins
-                          ): Boolean =
+      patternBins: PatternBins
+  ): Boolean =
     patternBins.forall((patShape, msgIdxs) => msgIdxs.size >= patShape.size)
+
+object BruteForceMatcher extends MatcherFactory:
+  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] = 
+    (joinDefinition: JoinDefinition[M, T]) => new BruteForceMatcher(joinDefinition)
+
+  override def toString(): String = "BruteForceMatcher"

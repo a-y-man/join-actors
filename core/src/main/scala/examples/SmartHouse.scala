@@ -1,13 +1,9 @@
 package join_actors.examples
 
 import join_actors.api.*
-import org.scalacheck.*
 
 import java.util.Date
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.Map as MutMap
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
@@ -28,7 +24,7 @@ import Action.*
 /*
 This function defines a smart house example using join patterns.
  */
-def smartHouseExample(algorithm: MatchingAlgorithm) =
+def smartHouseExample(matcher: MatcherFactory) =
   var lastNotification = Date(0L)
   var lastMotionInBathroom = Date(0L)
   def isSorted: Seq[Date] => Boolean = times =>
@@ -114,7 +110,7 @@ def smartHouseExample(algorithm: MatchingAlgorithm) =
           Stop(())
       }
 
-    }(algorithm)
+    }(matcher)
   }
 
 def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
@@ -147,10 +143,10 @@ def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
 
 // val msgs = smartHouseMsgs(numberOfRandomMsgs)(GenerateActions.genActionsOfSizeN)
 def runSmartHouseExample(
-    algorithm: MatchingAlgorithm,
+    matcher: MatcherFactory,
     msgs: Vector[Action]
 ) =
-  val smartHouseActor = smartHouseExample(algorithm)
+  val smartHouseActor = smartHouseExample(matcher)
   val (actFut, act) = smartHouseActor.start()
   val startTime = System.currentTimeMillis()
   msgs.foreach(act ! _)
