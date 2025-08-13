@@ -607,8 +607,14 @@ private def getJoinDefinition[M, T](
       errorTree("Unsupported expression", default)
       List()
 
-
-private def receiveCodeGenAlt[M, T](
+/** Generate the code returned by the receive macro.
+  *
+  * @param expr
+  *   the match expression.
+  * @return
+  *   a matcher instance.
+  */
+private def receiveCodeGen[M, T](
     jpsExpr: Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]
 )(matcherConstructor: Expr[MatcherFactory])(using
     tm: Type[M],
@@ -629,42 +635,6 @@ private def receiveCodeGenAlt[M, T](
     matcher
   }
       
-
-inline def receiveAlt[M, T](
-    inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])
-)(inline createMatcher: MatcherFactory): Matcher[M, Result[T]] =
-  ${ receiveCodeGenAlt('f)('createMatcher) }
-
-
-/** Generate the code returned by the receive macro.
-  *
-  * @param expr
-  *   the match expression.
-  * @return
-  *   a matcher instance.
-  */
-private def receiveCodegen[M, T](
-    expr: Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]
-)(using
-    tm: Type[M],
-    tt: Type[T],
-    quotes: Quotes
-): Expr[MatchingAlgorithm => Matcher[M, Result[T]]] =
-  import quotes.reflect.*
-
-  '{ (algorithm: MatchingAlgorithm) =>
-    SelectMatcher[M, Result[T]](
-      algorithm,
-      ${
-        Expr.ofList(
-          getJoinDefinition(
-            expr.asInstanceOf[Expr[ActorRef[M] => PartialFunction[Any, Result[T]]]]
-          )
-        )
-      }
-    )
-  }
-
 /** Entry point of the `receive` macro.
   *
   * @param f
@@ -675,5 +645,5 @@ private def receiveCodegen[M, T](
   */
 inline def receive[M, T](
     inline f: (ActorRef[M] => PartialFunction[Any, Result[T]])
-): MatchingAlgorithm => Matcher[M, Result[T]] =
-  ${ receiveCodegen('f) }
+)(inline createMatcher: MatcherFactory): Matcher[M, Result[T]] =
+  ${ receiveCodeGen('f)('createMatcher) }
