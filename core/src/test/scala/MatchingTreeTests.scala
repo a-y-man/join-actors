@@ -1,4 +1,4 @@
-package test
+package test.matching_tree_tests
 
 import join_patterns.matching.*
 import join_patterns.matching.immutable.{MatchingTree, findCompletePatterns, pruneTree, removeNode, updateMTree}
