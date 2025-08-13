@@ -10,7 +10,7 @@
 
 # Configuration Variables
 SBT := sbt
-SELECTED_ALGORITHMS := "brute,stateful,while-lazy,filtering-while,lazy-parallel,filtering-parallel"
+SELECTED_MATCHERS := "brute,stateful,while-lazy,filtering-while,lazy-parallel,filtering-parallel"
 DATA_DIR := benchmarks/benchmark-results/data
 
 # Benchmark Parameters
@@ -18,7 +18,7 @@ QUICK_WARMUP ?= 1
 QUICK_REPS ?= 2
 
 # Base arguments for benchmark types
-COMMON_ARGS := --algorithms $(SELECTED_ALGORITHMS) -p $(DATA_DIR) --suppress-plot --smoothen
+COMMON_ARGS := --matchers $(SELECTED_MATCHERS) -p $(DATA_DIR) --suppress-plot --smoothen
 
 # Main benchmark argument sets (include common args)
 SIZE_ARGS := $(COMMON_ARGS) -m 5
@@ -62,7 +62,7 @@ help:
 	@echo "  plot-custom              - Custom plotting"
 	@echo ""
 	@echo "Configuration Variables:"
-	@echo "  SELECTED_ALGORITHMS='...' - Algorithm selection"
+	@echo "  SELECTED_MATCHERS='...' - Matcher selection"
 	@echo ""
 
 # Build and Test Targets
