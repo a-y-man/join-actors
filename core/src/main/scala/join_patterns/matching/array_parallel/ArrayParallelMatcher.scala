@@ -55,6 +55,9 @@ class ArrayParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], 
 
     result.get
 
-object ArrayParallelMatcher extends MatcherFactory:
-  override def apply[M, T] : JoinDefinition[M, T] => Matcher[M, T] =
-    (joinDefinition: JoinDefinition[M, T]) => new ArrayParallelMatcher(joinDefinition, numThreads = Runtime.getRuntime().availableProcessors())
+object ArrayParallelMatcher:
+  def apply(numThreads: Int): MatcherFactory = new MatcherFactory:
+    override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+      (joinDefinition: JoinDefinition[M, T]) => new ArrayParallelMatcher(joinDefinition, numThreads)
+  
+  def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())

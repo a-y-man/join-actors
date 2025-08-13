@@ -55,6 +55,10 @@ class EagerParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], 
 
     result.get
 
-object EagerParallelMatcher extends MatcherFactory:
-  override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
-    (joinDefinition: JoinDefinition[M, T]) => new EagerParallelMatcher(joinDefinition, numThreads = Runtime.getRuntime().availableProcessors())
+object EagerParallelMatcher:
+
+  def apply(numThreads: Int): MatcherFactory = new MatcherFactory:
+    override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+      (joinDefinition: JoinDefinition[M, T]) => new EagerParallelMatcher(joinDefinition, numThreads = numThreads)
+
+  def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())

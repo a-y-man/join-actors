@@ -55,7 +55,10 @@ class FilteringParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T
 
     result.get
 
-object FilteringParallelMatcher extends MatcherFactory:
-  override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
-    (joinDefinition: JoinDefinition[M, T]) =>
-      new FilteringParallelMatcher(joinDefinition, numThreads = Runtime.getRuntime().availableProcessors())
+object FilteringParallelMatcher:
+  def apply(numThreads: Int): MatcherFactory = new MatcherFactory:
+    override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+      (joinDefinition: JoinDefinition[M, T]) =>
+        new FilteringParallelMatcher(joinDefinition, numThreads)
+
+  def apply(): MatcherFactory = apply(numThreads = Runtime.getRuntime().availableProcessors())

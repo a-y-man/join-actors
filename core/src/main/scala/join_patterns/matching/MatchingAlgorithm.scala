@@ -79,11 +79,11 @@ object MatcherSelector:
     "while-lazy" -> WhileLazyMatcher,
     "filtering-while" -> FilteringWhileMatcher,
     "while-eager" -> WhileEagerMatcher,
-    "eager-parallel" -> EagerParallelMatcher,
-    "lazy-parallel" -> LazyParallelMatcher,
-    "filtering-parallel" -> FilteringParallelMatcher,
+    "eager-parallel" -> EagerParallelMatcher(numCores),
+    "lazy-parallel" -> LazyParallelMatcher(numCores),
+    "filtering-parallel" -> FilteringParallelMatcher(numCores),
     "array-while" -> ArrayWhileMatcher,
-    "array-parallel" -> ArrayParallelMatcher
+    "array-parallel" -> ArrayParallelMatcher(numCores)
   )
 
   private val cmdStringToMatcher = cmdStringsAndMatcher.toMap

@@ -55,10 +55,11 @@ class LazyParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], n
 
     result.get
 
-object LazyParallelMatcher extends MatcherFactory:
-  override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
-    (joinDefinition: JoinDefinition[M, T]) =>
-      new LazyParallelMatcher(
-        joinDefinition,
-        numThreads = Runtime.getRuntime().availableProcessors()
-      )
+object LazyParallelMatcher:
+  def apply(numThreads: Int): MatcherFactory = new MatcherFactory:
+    override def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
+      (joinDefinition: JoinDefinition[M, T]) =>
+        new LazyParallelMatcher(
+          joinDefinition,
+          numThreads = numThreads
+        )
