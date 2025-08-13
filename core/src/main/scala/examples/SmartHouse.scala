@@ -1,17 +1,12 @@
 package join_actors.examples
 
 import join_actors.api.*
-import org.scalacheck.*
 
 import java.util.Date
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.Map as MutMap
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.*
-import join_patterns.matching.MatcherFactory
 
 /* This is a definition of the messages accepted by the Smart house actor */
 enum Action:
@@ -66,7 +61,7 @@ def smartHouseExample(matcher: MatcherFactory) =
     ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
 
   Actor[Action, Unit] {
-    receiveAlt { (selfRef: ActorRef[Action]) =>
+    receive { (selfRef: ActorRef[Action]) =>
       { // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         case Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date)
             &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)

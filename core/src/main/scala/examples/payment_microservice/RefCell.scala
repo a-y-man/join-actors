@@ -1,4 +1,4 @@
-package examples.payment
+package join_actors.examples.payment_microservice
 
 class RefCell[T] private (private var _content: Option[T]):
   def this(initialContent: T) =

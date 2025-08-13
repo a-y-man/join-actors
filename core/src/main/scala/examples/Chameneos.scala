@@ -6,7 +6,6 @@ import org.scalacheck.Gen
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
-import join_patterns.matching.MatcherFactory
 
 enum ChameneoColor:
   case Blue
@@ -48,7 +47,7 @@ def chameneoActor(
   import ChameneoColor.*, ChameneosMsg.*
   val color = initColor
   Actor[ChameneosMsg, Unit] {
-    receiveAlt { (thisChameneo: ChameneoRef) =>
+    receive { (thisChameneo: ChameneoRef) =>
       {
         case Start() =>
           mall ! MeetMsg(thisChameneo, color)
@@ -69,7 +68,7 @@ def mallActor(maxNumberOfMeetings: Int, matcher: MatcherFactory) =
   import ChameneoColor.*, ChameneosMsg.*
   var meetings = 0
   Actor[ChameneosMsg, Int] {
-    receiveAlt { (mallRef: MeetingPlace) =>
+    receive { (mallRef: MeetingPlace) =>
       {
         case MeetMsg(ch1, c1) &:& MeetMsg(ch2, c2) if c1 != c2 && meetings < maxNumberOfMeetings =>
           println(s"Meeting: $c1, $c2 --- $meetings")

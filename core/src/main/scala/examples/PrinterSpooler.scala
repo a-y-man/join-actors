@@ -6,7 +6,6 @@ import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.Random
-import join_patterns.matching.MatcherFactory
 
 enum PrinterSpoolerMessage:
   case Job(jobId: Int, cid: Int, printerId: Int)
@@ -22,7 +21,7 @@ def printerSpoolerExample(matcher: MatcherFactory, nPrinters: Int, nJobs: Int): 
   import PrinterSpoolerMessage.*
   import PrinterAuth.*
   val printer: Actor[SpoolerMsgs, Unit] = Actor[SpoolerMsgs, Unit] {
-    receiveAlt { (self: ActorRef[SpoolerMsgs]) =>
+    receive { (self: ActorRef[SpoolerMsgs]) =>
       {
         case Auth(cid1) &:& Ready(printerId1) &:& Job(jobId, cid2, printerId2)
             if printerId1 == printerId2 && cid1 == cid2 =>

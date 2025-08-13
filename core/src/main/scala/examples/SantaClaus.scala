@@ -2,13 +2,9 @@ package join_actors.examples
 
 import join_actors.api.*
 
-import java.util.concurrent.Executors
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
-import join_patterns.matching.MatcherFactory
 
 type SantaClausRef = ActorRef[NeedHelp | IsBack | Rest]
 type ReindeerRef = ActorRef[CanLeave | Rest]
@@ -27,7 +23,7 @@ val N_ELVES = 3
 
 def santaClausActor(matcher: MatcherFactory) =
   val actor = Actor[SAction, Unit] {
-    receiveAlt { (selfRef: SantaClausRef) =>
+    receive { (selfRef: SantaClausRef) =>
       {
         case IsBack(reindeerRef0) &:& IsBack(reindeerRef1) &:& IsBack(reindeerRef2)
             &:& IsBack(reindeerRef3) &:& IsBack(reindeerRef4) &:& IsBack(reindeerRef5)
@@ -71,7 +67,7 @@ def reindeerActor() = Actor[SAction, Unit] {
       case Rest() =>
         Stop(())
     }
-  }(MatchingAlgorithm.BruteForceAlgorithm)
+  }(BruteForceMatcher)
 }
 
 def elfActor() = Actor[SAction, Unit] {
@@ -83,14 +79,10 @@ def elfActor() = Actor[SAction, Unit] {
       case Rest() =>
         Stop(())
     }
-  }(MatchingAlgorithm.BruteForceAlgorithm)
+  }(BruteForceMatcher)
 }
 
 def santaClausExample(matcher: MatcherFactory, santaActions: Int) =
-  implicit val ec = ExecutionContext.fromExecutorService(
-    Executors.newVirtualThreadPerTaskExecutor()
-  )
-
   val reindeers = (0 to N_REINDEERS - 1).map { i =>
     reindeerActor().start()
   }.toArray

@@ -1,26 +1,19 @@
 package core
 
-import examples.payment.Payment
-import join_actors.api.MatchingAlgorithm
-import join_actors.api.MatchingAlgorithm.*
 import join_actors.examples.*
-import join_actors.examples.factory_simpl.runFactorySimple
+import join_actors.api.*
 import mainargs.ParserForClass
 import mainargs.ParserForMethods
 import mainargs.TokensReader
 import mainargs.arg
 import mainargs.main
-import join_patterns.matching.brute_force.BruteForceMatcher
-import join_patterns.matching.MatcherFactory
-import join_patterns.matching.MatcherSelector
-import join_patterns.matching.while_lazy.WhileLazyMatcher
 
 object Main:
   @main
   case class CommonRunConfig(
       @arg(doc =
-        "The join pattern matching algorithm to use" +
-          "Algorithm options: " + MatcherSelector.CMD_STRINGS.mkString(", ")
+        "The join pattern matcher to use" +
+          "Matcher options: " + MatcherSelector.CMD_STRINGS.mkString(", ")
       )
       matcher: MatcherFactory = WhileLazyMatcher
   )
@@ -119,6 +112,8 @@ object Main:
   def factorySimple(
       commonConfig: CommonRunConfig
   ): Unit =
+    import factory_simpl.runFactorySimple
+
     runFactorySimple(commonConfig.matcher)
 
   @main
@@ -127,6 +122,8 @@ object Main:
       @arg(doc = "The number of payment and token requests sent")
       requests: Int = 30
   ): Unit =
+    import payment_microservice.*
+
     if requests <= 0 then throw IllegalArgumentException("Number of requests cannot be 0 or less")
 
     val toRun = Payment(commonConfig.matcher)

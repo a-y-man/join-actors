@@ -2,15 +2,11 @@ package join_actors.examples
 
 import join_actors.api.*
 
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
-import join_patterns.matching.array_parallel.ArrayParallelMatcher
-import join_patterns.matching.MatcherFactory
 
 // Termination message to stop the actors
 case class Terminate()
@@ -52,7 +48,7 @@ def boundedBuffer(matcher: MatcherFactory): Actor[BBEvent, Long] =
   var puts = 0
   var gets = 0
   Actor[BBEvent, Long] {
-    receiveAlt[BBEvent, Long] { (bbRef: BBRef) =>
+    receive[BBEvent, Long] { (bbRef: BBRef) =>
       {
         case Put(producerRef, x) &:& Free(c) =>
           if c == 1 then bbRef ! Full()

@@ -4,7 +4,6 @@ import join_actors.api.*
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import join_patterns.matching.MatcherFactory
 
 // Milliseconds in one minute
 private val ONE_MIN = 1000 * 60
@@ -32,7 +31,7 @@ import SystemEvent.*
 
 def monitor(matcher: MatcherFactory) =
   Actor[Event, Unit] {
-    receiveAlt { (self: ActorRef[Event]) =>
+    receive { (self: ActorRef[Event]) =>
       {
         case Fault(fid1, ts1) &:& Fix(fid2, ts2) if fid1 == fid2 =>
           println(
