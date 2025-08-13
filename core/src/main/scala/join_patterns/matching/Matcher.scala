@@ -1,18 +1,6 @@
 package join_patterns.matching
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.array_parallel.ArrayParallelMatcher
-import join_patterns.matching.array_while.ArrayWhileMatcher
-import join_patterns.matching.brute_force.BruteForceMatcher
-import join_patterns.matching.eager_parallel.EagerParallelMatcher
-import join_patterns.matching.filtering_parallel.FilteringParallelMatcher
-import join_patterns.matching.filtering_while.FilteringWhileMatcher
-import join_patterns.matching.immutable.StatefulTreeMatcher
-import join_patterns.matching.lazy_mutable.LazyMutableMatcher
-import join_patterns.matching.lazy_parallel.LazyParallelMatcher
-import join_patterns.matching.mutable.MutableStatefulMatcher
-import join_patterns.matching.while_eager.WhileEagerMatcher
-import join_patterns.matching.while_lazy.WhileLazyMatcher
 import join_patterns.types.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
@@ -108,22 +96,3 @@ trait Matcher[M, T]:
 
 trait MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T]
-
-
-object SelectMatcher:
-  import MatchingAlgorithm.*
-  def apply[M, T](algorithm: MatchingAlgorithm, patterns: List[JoinPattern[M, T]]): Matcher[M, T] =
-    ???
-  // algorithm match
-  // case BruteForceAlgorithm => BruteForceMatcher
-  // case StatefulTreeBasedAlgorithm => StatefulTreeMatcher(patterns)
-  // case MutableStatefulAlgorithm => MutableStatefulMatcher(patterns)
-  // case LazyMutableAlgorithm => LazyMutableMatcher(patterns)
-  // case WhileLazyAlgorithm => WhileLazyMatcher(patterns)
-  // case FilteringWhileAlgorithm => FilteringWhileMatcher(patterns)
-  // case WhileEagerAlgorithm => WhileEagerMatcher(patterns)
-  // case EagerParallelAlgorithm(numThreads) => EagerParallelMatcher(patterns, numThreads)
-  // case LazyParallelAlgorithm(numThreads) => LazyParallelMatcher(patterns, numThreads)
-  // case FilteringParallelAlgorithm(numThreads) => FilteringParallelMatcher(patterns, numThreads)
-  // case ArrayWhileAlgorithm => ArrayWhileMatcher(patterns)
-  // case ArrayParallelAlgorithm(numThreads) => ArrayParallelMatcher(patterns, numThreads)
