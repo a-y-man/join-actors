@@ -113,7 +113,7 @@ type Event = MachineEvent | WorkerEvent | SystemEvent
   The old tuple-like syntax is also supported
 
 ```scala
-def monitor(algorithm: MatchingAlgorithm) =
+def monitor(matcher: MatcherFactory) =
   Actor[Event, Unit] {
     receive { (self: ActorRef[Event]) =>
       {
@@ -123,14 +123,14 @@ def monitor(algorithm: MatchingAlgorithm) =
         case DelayedFault(fid1, ts1) &:& Fix(fid2, ts2) if fid1 == fid2 => ...
         ...
       }
-    }(algorithm)
+    }(matcher)
   }
 ```
 
 - Finally, we can run the monitor as follows:
 
 ```scala
-def runFactorySimple(algorithm: MatchingAlgorithm) =
+def runFactorySimple(matcher: MatcherFactory) =
   // Predefined sequence of events
   val events = List(
     Fault(1, ONE_MIN),
@@ -140,7 +140,7 @@ def runFactorySimple(algorithm: MatchingAlgorithm) =
   )
 
   // Start the monitor actor
-  val (monitorFut, monitorRef) = monitor(algorithm).start()
+  val (monitorFut, monitorRef) = monitor(matcher).start()
 
   // Send the events to the monitor actor
   events foreach (event => monitorRef ! event)
@@ -152,7 +152,7 @@ def runFactorySimple(algorithm: MatchingAlgorithm) =
   Await.ready(monitorFut, Duration(15, "m"))
 ```
 
-The algorithm can be set to any of the cases defined in the `MatchingAlgorithm` enumeration, allowing access to all implemented algorithms.
+The matcher can be set to any `MatcherFactory` implementations, allowing access to all matchers.
 In the example above, some minor details are omitted for brevity. The full
 example can be found in the [FactorySimpl.scala](core/src/main/scala/examples/FactorySimpl.scala) file.
 
@@ -180,10 +180,10 @@ To run for instance the `Factory Simple` example with the predefined configurati
 run the following command:
 
 ```bash
-sbt "core/run factory-simple --algorithm stateful"
+sbt "core/run factory-simple --matcher stateful"
 ```
 
-The `--algorithm` flag can be set to any of the following, allowing access to all implemented algorithms:
+The `--matcher` flag can be set to any of the following, allowing access to all implemented matchers:
 
 - `brute`
 - `stateful`

@@ -1,7 +1,7 @@
 package new_benchmarks.bounded_buffer
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.MatchingAlgorithm
+import join_actors.api.*
 
 import scala.concurrent.Promise
 

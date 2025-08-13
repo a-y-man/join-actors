@@ -1,6 +1,6 @@
 package new_benchmarks
 
-import join_patterns.matching.MatchingAlgorithm
+import join_actors.api.*
 
 private def standardDeviation(values: Seq[Long], average: Double): Double =
   Math.sqrt(values.map(v => Math.pow(v - average, 2)).sum / (values.size - 1))
@@ -11,13 +11,16 @@ def processRepetitions(repetitions: Repetitions): ProcessedRepetitions =
 
   val averageMillis = millis.sum.toDouble / millis.size
 
-  if millis.size > 1 then ProcessedRepetitions(millis, averageMillis, Some(standardDeviation(millis, averageMillis)))
+  if millis.size > 1 then
+    ProcessedRepetitions(millis, averageMillis, Some(standardDeviation(millis, averageMillis)))
   else ProcessedRepetitions(millis, averageMillis, None)
 
 type ProcessedBenchmarkResults = Seq[ProcessedRepetitions]
 def processBenchmarkResults(results: BenchmarkResults): ProcessedBenchmarkResults =
-  results.map(processRepetitions)  
+  results.map(processRepetitions)
 
-type ProcessedBenchmarkSeriesResults = Seq[(MatchingAlgorithm, ProcessedBenchmarkResults)]
-def processBenchmarkSeriesResults(results: BenchmarkSeriesResults): ProcessedBenchmarkSeriesResults =
-  results.map((algo, data) => (algo, processBenchmarkResults(data)))
+type ProcessedBenchmarkSeriesResults = Seq[(MatcherFactory, ProcessedBenchmarkResults)]
+def processBenchmarkSeriesResults(
+    results: BenchmarkSeriesResults
+): ProcessedBenchmarkSeriesResults =
+  results.map((matcher, data) => (matcher, processBenchmarkResults(data)))
