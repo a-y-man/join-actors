@@ -11,21 +11,21 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 type SantaClausRef = ActorRef[NeedHelp | IsBack | Rest]
-type ReindeerRef   = ActorRef[CanLeave | Rest]
-type ElfRef        = ActorRef[Helped | Rest]
+type ReindeerRef = ActorRef[CanLeave | Rest]
+type ElfRef = ActorRef[Helped | Rest]
 
 sealed trait SAction
-case class IsBack(reindeerRef: ReindeerRef)  extends SAction
+case class IsBack(reindeerRef: ReindeerRef) extends SAction
 case class CanLeave(santaRef: SantaClausRef) extends SAction
-case class Helped(santaRef: SantaClausRef)   extends SAction
-case class NeedHelp(elfRef: ElfRef)          extends SAction
-case class Rest()                            extends SAction
+case class Helped(santaRef: SantaClausRef) extends SAction
+case class NeedHelp(elfRef: ElfRef) extends SAction
+case class Rest() extends SAction
 
 val N_REINDEERS = 9
 
 val N_ELVES = 3
 
-def santaClausActor(algorithm: MatchingAlgorithm) =
+def santaClausActor(matcher: MatcherFactory) =
   var actions = 0
 
   val actor = Actor[SAction, (Long, Int)] {
@@ -62,7 +62,7 @@ def santaClausActor(algorithm: MatchingAlgorithm) =
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
       }
-    }(algorithm)
+    }(matcher)
   }
 
   actor
@@ -78,7 +78,7 @@ def reindeerActor() =
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
       }
-    }(MatchingAlgorithm.BruteForceAlgorithm)
+    }(BruteForceMatcher)
   }
 
 def elfActor() =
@@ -92,10 +92,10 @@ def elfActor() =
         case Rest() =>
           Stop((System.currentTimeMillis(), actions))
       }
-    }(MatchingAlgorithm.BruteForceAlgorithm)
+    }(BruteForceMatcher)
   }
 
-def measureSantaClaus(santaClauseActions: Int, algorithm: MatchingAlgorithm): Future[Measurement] =
+def measureSantaClaus(santaClauseActions: Int, matcher: MatcherFactory): Future[Measurement] =
   val reindeers = (0 to N_REINDEERS - 1).map { i =>
     reindeerActor().start()
   }.toArray
@@ -104,7 +104,7 @@ def measureSantaClaus(santaClauseActions: Int, algorithm: MatchingAlgorithm): Fu
     elfActor().start()
   }.toArray
 
-  val santa = santaClausActor(algorithm)
+  val santa = santaClausActor(matcher)
 
   val (santaActs, santaRef) = santa.start()
 
@@ -145,11 +145,11 @@ def measureSantaClaus(santaClauseActions: Int, algorithm: MatchingAlgorithm): Fu
     Measurement(endTime - startTime, matches)
   }
 
-def santaClausBenchmark(santaClauseActions: Int, algorithm: MatchingAlgorithm) =
-  val nullPass = measureSantaClaus(santaClauseActions, algorithm)
+def santaClausBenchmark(santaClauseActions: Int, matcher: MatcherFactory) =
+  val nullPass = measureSantaClaus(santaClauseActions, matcher)
   Benchmark(
     name = "Santa Claus",
-    algorithm = algorithm,
+    matcher = matcher,
     warmupRepetitions = 5,
     repetitions = 5,
     nullPass = BenchmarkPass(
@@ -159,7 +159,7 @@ def santaClausBenchmark(santaClauseActions: Int, algorithm: MatchingAlgorithm) =
     passes = List(
       BenchmarkPass(
         "Santa Claus",
-        () => measureSantaClaus(santaClauseActions, algorithm)
+        () => measureSantaClaus(santaClauseActions, matcher)
       )
     )
   )
@@ -169,19 +169,43 @@ def runSantaClausBenchmark(
     writeToFile: Boolean = false,
     outputDataDir: Path = os.pwd / "benchmarks" / "data"
 ) =
-  val algorithms: List[MatchingAlgorithm] =
-    List(MatchingAlgorithm.StatefulTreeBasedAlgorithm, MatchingAlgorithm.BruteForceAlgorithm)
-
-  val measurements = algorithms map { algorithm =>
-    println(
-      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $algorithm${Console.RESET}"
+  val matchers: List[MatcherFactory] =
+    List(
+      StatefulTreeMatcher,
+      MutableStatefulMatcher,
+      LazyMutableMatcher,
+      WhileLazyMatcher,
+      FilteringWhileMatcher,
+      WhileEagerMatcher,
+      ArrayWhileMatcher,
+      EagerParallelMatcher(2),
+      EagerParallelMatcher(4),
+      EagerParallelMatcher(6),
+      EagerParallelMatcher(8),
+      LazyParallelMatcher(2),
+      LazyParallelMatcher(4),
+      LazyParallelMatcher(6),
+      LazyParallelMatcher(8),
+      FilteringParallelMatcher(2),
+      FilteringParallelMatcher(4),
+      FilteringParallelMatcher(6),
+      FilteringParallelMatcher(8),
+      ArrayParallelMatcher(2),
+      ArrayParallelMatcher(4),
+      ArrayParallelMatcher(6),
+      ArrayParallelMatcher(8)
     )
-    val measurement = santaClausBenchmark(santaClauseActions, algorithm).run()
+
+  val measurements = matchers map { matcher =>
     println(
-      s"${Console.RED}${Console.UNDERLINED}Benchmark for $algorithm finished${Console.RESET}"
+      s"${Console.GREEN}${Console.UNDERLINED}Running benchmark for $matcher${Console.RESET}"
+    )
+    val measurement = santaClausBenchmark(santaClauseActions, matcher).run()
+    println(
+      s"${Console.RED}${Console.UNDERLINED}Benchmark for $matcher finished${Console.RESET}"
     )
 
-    (algorithm, measurement)
+    (matcher, measurement)
   }
 
   if writeToFile then saveToFile("SantaClaus", measurements, outputDataDir)

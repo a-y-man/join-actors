@@ -1,8 +1,13 @@
-package old_benchmarks
+package old_benchmarks.utils
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import org.scalacheck.*
+
+import old_benchmarks.size_with_guards.*
+
+import old_benchmarks.smart_house_utils.Action
+import Action.*
 
 import scala.util.*
 
@@ -39,7 +44,7 @@ def intercalateCorrectMsgs[A](
     correctMsgs: Vector[A],
     randomMsgs: Vector[A]
 ): Vector[A] =
-  val randomMsgsSize  = randomMsgs.size
+  val randomMsgsSize = randomMsgs.size
   val correctMsgsSize = correctMsgs.size
   if randomMsgsSize >= correctMsgsSize then
     val groupSize = (randomMsgsSize + correctMsgsSize - 1) / correctMsgsSize
@@ -204,17 +209,17 @@ object GenerateGuardedSizeMsgs:
 
   def genGuardedSizeMsgsOfSizeN(n: Int): Option[Vector[GuardedSizeMsg]] =
     n match
-      case 1  => genAA.sample
-      case 2  => genAABB.sample
-      case 3  => genAABBCC.sample
-      case 4  => genAABBCCDD.sample
-      case 5  => genAABBCCDDEE.sample
-      case 6  => genAABBCCDDEEFF.sample
-      case 7  => genAABBCCDDEEFFGG.sample
-      case 8  => genAABBCCDDEEFFGGHH.sample
-      case 9  => genAABBCCDDEEFFGGHHII.sample
+      case 1 => genAA.sample
+      case 2 => genAABB.sample
+      case 3 => genAABBCC.sample
+      case 4 => genAABBCCDD.sample
+      case 5 => genAABBCCDDEE.sample
+      case 6 => genAABBCCDDEEFF.sample
+      case 7 => genAABBCCDDEEFFGG.sample
+      case 8 => genAABBCCDDEEFFGGHH.sample
+      case 9 => genAABBCCDDEEFFGGHHII.sample
       case 10 => genAABBCCDDEEFFGGHHIIJJ.sample
-      case _  => None
+      case _ => None
 
 def genNMatchingMsgSeqs[A](patSize: Int)(generator: Int => Seq[A])(nMatches: Int) =
   Vector.fill(nMatches)(generator(patSize)).flatten
