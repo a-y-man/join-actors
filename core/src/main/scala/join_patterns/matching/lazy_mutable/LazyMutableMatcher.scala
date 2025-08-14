@@ -1,7 +1,8 @@
 package join_patterns.matching.lazy_mutable
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatches, Matcher}
+import join_patterns.matching.CandidateMatches
+import join_patterns.matching.Matcher
 import join_patterns.types.JoinPattern
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
@@ -9,14 +10,13 @@ import scala.collection.mutable.HashMap as MutableHashMap
 import join_patterns.matching.MatcherFactory
 import join_patterns.types.JoinDefinition
 
-class LazyMutableMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class LazyMutableMatcher[M, T](private val patterns: JoinDefinition[M, T]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
   private val matchingTrees: List[LazyMutableMatchingTree[M, T]] =
     patterns.zipWithIndex.map(LazyMutableMatchingTree(_, _))
-
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     var result: Option[T] = None
@@ -43,8 +43,7 @@ class LazyMutableMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ex
         result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
-        for matchingTree <- matchingTrees do
-          matchingTree.pruneTree(candidateQidxs)
+        for matchingTree <- matchingTrees do matchingTree.pruneTree(candidateQidxs)
 
         // Remove selected message indices from messages
         candidateQidxs.foreach { idx =>

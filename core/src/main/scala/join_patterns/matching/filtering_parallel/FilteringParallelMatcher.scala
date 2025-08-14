@@ -13,7 +13,7 @@ import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap as MutableHashMap
 
-class FilteringParallelMatcher[M, T](private val patterns: List[JoinPattern[M, T]], numThreads: Int)
+class FilteringParallelMatcher[M, T](private val patterns: JoinDefinition[M, T], numThreads: Int)
     extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()

@@ -10,7 +10,7 @@ import scala.collection.mutable.HashMap as MutableHashMap
 import join_patterns.matching.MatcherFactory
 import join_patterns.types.JoinDefinition
 
-class MutableStatefulMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
+class MutableStatefulMatcher[M, T](private val patterns: JoinDefinition[M, T])
     extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()

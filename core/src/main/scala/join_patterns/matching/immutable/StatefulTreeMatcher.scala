@@ -9,16 +9,15 @@ import join_patterns.matching.immutable.*
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.mutable.Map as MutMap
 
-class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
-    extends Matcher[M, T]:
+class StatefulTreeMatcher[M, T](private val patterns: JoinDefinition[M, T]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
-  private val messages         = MutMap[Int, M]()
+  private val messages = MutMap[Int, M]()
   private val patternsWithIdxs = patterns.zipWithIndex
 
   // Init patterns with empty MatchingTree and maintain across apply() calls
   private var patternsWithMatchingTrees: List[PatternState[M, T]] = patternsWithIdxs
     .map { case p @ (pattern, _) =>
-      val patInfo                          = pattern.getPatternInfo
+      val patInfo = pattern.getPatternInfo
       val (initPatternBins, patExtractors) = (patInfo._1, patInfo._2)
 
       val initMatchingTree = MatchingTree().updated(MessageIdxs(), initPatternBins)
@@ -39,9 +38,9 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       patternState: PatternState[M, T]
   ): (PatternState[M, T], CandidateMatchOpt[M, T]) =
 
-    val (mQ, mQidx)                               = newMsg
+    val (mQ, mQidx) = newMsg
     val ((pattern, patternIdx), (mTree, patInfo)) = patternState
-    val updatedMatchingTree                       = internalUpdateMTree(mTree, patInfo, mQ, mQidx)
+    val updatedMatchingTree = internalUpdateMTree(mTree, patInfo, mQ, mQidx)
 
     updatedMatchingTree match
       case Some(updatedMTree) =>
@@ -89,7 +88,7 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
 
     var result: Option[T] = None
-    var mQ                = q.take()
+    var mQ = q.take()
     mQidx += 1
     messages.update(mQidx, mQ)
 
@@ -130,7 +129,12 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
 
     result.get
 
-  private def internalUpdateMTree(mTree: MatchingTree, patInfo: PatternInfo[M], msg: M, msgIdx: Int): Option[MatchingTree] =
+  private def internalUpdateMTree(
+      mTree: MatchingTree,
+      patInfo: PatternInfo[M],
+      msg: M,
+      msgIdx: Int
+  ): Option[MatchingTree] =
     val extractors = patInfo.patternExtractors
 
     val matchingMsgIdxsInPattern = extractors.iterator
@@ -145,7 +149,6 @@ class StatefulTreeMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
       case matches =>
         val updatedMTree = updateMTree(mTree, mQidx, matches)
         Some(updatedMTree)
-
 
 object StatefulTreeMatcher extends MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =

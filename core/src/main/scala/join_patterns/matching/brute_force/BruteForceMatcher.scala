@@ -9,7 +9,7 @@ import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable.Map as MutMap
 
-class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class BruteForceMatcher[M, T](private val patterns: JoinDefinition[M, T]) extends Matcher[M, T]:
   // Messages extracted from the queue are saved here to survive across apply() calls
   private val messages = MutMap[Int, M]()
   private val patternsWithIdxs = patterns.zipWithIndex
@@ -123,7 +123,7 @@ class BruteForceMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) ext
     patternBins.forall((patShape, msgIdxs) => msgIdxs.size >= patShape.size)
 
 object BruteForceMatcher extends MatcherFactory:
-  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] = 
+  def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T] =
     (joinDefinition: JoinDefinition[M, T]) => new BruteForceMatcher(joinDefinition)
 
   override def toString(): String = "BruteForceMatcher"

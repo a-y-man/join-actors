@@ -1,23 +1,25 @@
 package join_patterns.matching.filtering_while
 
 import join_actors.actor.ActorRef
-import join_patterns.matching.{CandidateMatchOpt, CandidateMatches, Matcher}
+import join_patterns.matching.CandidateMatchOpt
+import join_patterns.matching.CandidateMatches
+import join_patterns.matching.Matcher
 import join_patterns.types.JoinPattern
 import join_patterns.util.*
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
-import scala.collection.mutable.{ArrayBuffer, HashMap as MutableHashMap}
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap as MutableHashMap
 import join_patterns.matching.MatcherFactory
 import join_patterns.types.JoinDefinition
 
-class FilteringWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class FilteringWhileMatcher[M, T](private val patterns: JoinDefinition[M, T]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
 
   private val matchingTrees: List[FilteringWhileMatchingTree[M, T]] =
     patterns.zipWithIndex.map(FilteringWhileMatchingTree(_, _))
-
 
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T =
     var result: Option[T] = None
@@ -45,12 +47,10 @@ class FilteringWhileMatcher[M, T](private val patterns: List[JoinPattern[M, T]])
         result = Some(rhsFn(substs, selfRef))
 
         // Prune tree
-        for tree <- matchingTrees.fast do
-          tree.pruneTree(candidateQidxs)
+        for tree <- matchingTrees.fast do tree.pruneTree(candidateQidxs)
 
         // Remove selected message indices from messages
-        for idx <- candidateQidxs.fast do
-          messages.remove(idx)
+        for idx <- candidateQidxs.fast do messages.remove(idx)
 
     result.get
 

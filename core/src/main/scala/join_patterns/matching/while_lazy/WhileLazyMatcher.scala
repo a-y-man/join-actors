@@ -13,7 +13,7 @@ import scala.collection.mutable.HashMap as MutableHashMap
 import join_patterns.matching.MatcherFactory
 import join_patterns.types.JoinDefinition
 
-class WhileLazyMatcher[M, T](private val patterns: List[JoinPattern[M, T]]) extends Matcher[M, T]:
+class WhileLazyMatcher[M, T](private val patterns: JoinDefinition[M, T]) extends Matcher[M, T]:
 
   private val messages = MutableHashMap[Int, M]()
   private var nextMessageIndex = 0
