@@ -75,10 +75,8 @@ object CandidateMatches:
 
 /** A matcher trait the defines the interface for a join pattern matcher.
   *
-  * @tparam M
-  *   The type of messages in the queue.
-  * @tparam T
-  *   The type of the RHS of the join pattern.
+  * @tparam M the message type that the matcher will process
+  * @tparam T the result type produced by successful pattern matching
   */
 trait Matcher[M, T]:
 
@@ -86,7 +84,8 @@ trait Matcher[M, T]:
     * the join pattern.
     *
     * @param q
-    *   The mailbox containing the messages.
+    *   The mailbox where messages sent to the actor are queued. This is an alias for the
+    *   `LinkedTransferQueue[M]` data structure.
     * @param selfRef
     *   The actor reference where the matcher is used
     * @return
@@ -94,5 +93,14 @@ trait Matcher[M, T]:
     */
   def apply(q: Mailbox[M])(selfRef: ActorRef[M]): T
 
+/**
+ * Factory trait for creating Matcher instances.
+ * 
+ * A MatcherFactory provides a way to create matchers that can process join definitions
+ * and determine how to match incoming messages against join patterns.
+ * 
+ * @tparam M the message type that the matcher will process
+ * @tparam T the result type produced by successful pattern matching
+ */
 trait MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T]
