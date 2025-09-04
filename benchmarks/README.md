@@ -14,28 +14,28 @@ sbt "benchmarks/run [benchmark name] [parameters]"
 
 `benchmark_name` can be set to any of the following, allowing access to all implemented benchmarks:
 
-- `simple-smart-house`
-- `complex-smart-house`
-- `bounded-buffer`
-- `size`
-- `size-with-guards`
+- [`simple-smart-house`](src/main/scala/new_benchmarks/simple_smart_house)
+- [`complex-smart-house`](src/main/scala/new_benchmarks/complex_smart_house)
+- [`bounded-buffer`](src/main/scala/new_benchmarks/bounded_buffer)
+- [`size`](src/main/scala/new_benchmarks/size)
+- [`size-with-guards`](src/main/scala/new_benchmarks/size_with_guards)
 
 All benchmarks have the following parameters in common:
 
 - `algorithms`: the algorithm to use, the word `all`, or a comma-separated list of algorithms enclosed in quotes. 
   The `all` option uses all implemented algorithms, and this is the default option. For the other options, the 
   algorithms are written as follows (the same as when running examples in the core package):
-  - `brute`
-  - `stateful`
-  - `mutable`
-  - `lazy-mutable`
-  - `while-lazy`
-  - `while-eager`
-  - `eager-parallel`
-  - `lazy-parallel`
-  - `filtering-while`
-  - `filtering-parallel`
-  - `array-while`
+  - [`brute`](../core/src/main/scala/join_patterns/matching/brute_force)
+  - [`stateful`](../core/src/main/scala/join_patterns/matching/immutable)
+  - [`mutable`](../core/src/main/scala/join_patterns/matching/mutable)
+  - [`lazy-mutable`](../core/src/main/scala/join_patterns/matching/lazy_mutable)
+  - [`while-lazy`](../core/src/main/scala/join_patterns/matching/while_lazy)
+  - [`while-eager`](../core/src/main/scala/join_patterns/matching/while_eager)
+  - [`eager-parallel`](../core/src/main/scala/join_patterns/matching/eager_parallel)
+  - [`lazy-parallel`](../core/src/main/scala/join_patterns/matching/lazy_parallel)
+  - [`filtering-while`](../core/src/main/scala/join_patterns/matching/filtering_while)
+  - [`filtering-parallel`](../core/src/main/scala/join_patterns/matching/filtering_parallel)
+  - [`array-while`](../core/src/main/scala/join_patterns/matching/array_while)
 - `exclude`: an algorithm or comma-separated list of algorithms to exclude from the benchmark. The algorithms are written
   in the same way as above. Best used in combination with `--algorithms all`
 - `min-param`: the minimum main parameter value to use

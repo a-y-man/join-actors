@@ -22,54 +22,54 @@ simple homemade actor model implementation.
 
 The source code for the join patterns library is organized as follows:
 
-- `join-actors/core`: Contains the core implementation of the join patterns library.
+- [`join-actors/core`](core): Contains the core implementation of the join patterns library.
 
-  - `join-actors/core/src/main/scala/`: Has the following subpackages:
+  - [`join-actors/core/src/main/scala/`](core/src/main/scala/): Has the following subpackages:
 
-    - `actor`: Contains the prototype actor implementation.
+    - [`actor`](core/src/main/scala/actor): Contains the prototype actor implementation.
     
-    - `api`: Re-exports the API of the library for easy importing in user code with `import join_actors.api.*` 
+    - [`api`](core/src/main/scala/api): Re-exports the API of the library for easy importing in user code with `import join_actors.api.*` 
 
-    - `join_patterns`: Contains the implementation of the join pattern
+    - [`join_patterns`](core/src/main/scala/join_patterns): Contains the implementation of the join pattern
       matching algorithm and code generation macros.
-      - `matching`: Contains all implemented join pattern matching algorithms 
-        - `Matcher.scala`: The matcher trait that is implemented by the
+      - [`matching`](core/src/main/scala/join_patterns/matching): Contains all implemented join pattern matching algorithms 
+        - [`Matcher.scala`](core/src/main/scala/join_patterns/matching/Matcher.scala): The matcher trait that is implemented by the
           different join pattern matching algorithms. This also contains the 
           `MatcherFactory` implementation that every matcher must implement.
-        - `brute_force`: The brute-force matcher implementation.
-        - `immutable`: The stateful tree-based matcher
+        - [`brute_force`](core/src/main/scala/join_patterns/matching/brute_force): The brute-force matcher implementation.
+        - [`immutable`](core/src/main/scala/join_patterns/matching/immutable): The stateful tree-based matcher
           implementation.
-        - `mutable`: The mutable, single-traversal matcher implementation
-        - `lazy_mutable`: The implementation implementing the lazy matching algorithm
-        - `while_lazy`: The implementation with lazy matching and optimized loops
-        - `while_eager`: The implementation with optimized loops, but not lazy matching
-        - `eager_parallel`: The non-lazy parallel matching algorithm
-        - `lazy_parallel`: The lazy parallel matching algorithm
-        - `filtering_while`: The singlethreaded filtering algorithm
-        - `filtering_parallel`: The multithreaded filtering algorithm
-        - `array_while`: The array-based matching algorithm
-        - `functions`: Utility functions for matching which are used by all algorithms
-      - `util`: Miscellaneous utilities used by the other code
-      - `CodeGenerationMacros.scala`: Defines the `receive` macro used to create join definitions
-      - `JoinPattern.scala`: Infrastructure code used by the macros and join pattern matching matching algorithms 
+        - [`mutable`](core/src/main/scala/join_patterns/matching/mutable): The mutable, single-traversal matcher implementation
+        - [`lazy_mutable`](core/src/main/scala/join_patterns/matching/lazy_mutable): The implementation implementing the lazy matching algorithm
+        - [`while_lazy`](core/src/main/scala/join_patterns/matching/while_lazy): The implementation with lazy matching and optimized loops
+        - [`while_eager`](core/src/main/scala/join_patterns/matching/while_eager): The implementation with optimized loops, but not lazy matching
+        - [`eager_parallel`](core/src/main/scala/join_patterns/matching/eager_parallel): The non-lazy parallel matching algorithm
+        - [`lazy_parallel`](core/src/main/scala/join_patterns/matching/lazy_parallel): The lazy parallel matching algorithm
+        - [`filtering_while`](core/src/main/scala/join_patterns/matching/filtering_while): The singlethreaded filtering algorithm
+        - [`filtering_parallel`](core/src/main/scala/join_patterns/matching/filtering_parallel): The multithreaded filtering algorithm
+        - [`array_while`](core/src/main/scala/join_patterns/matching/array_while): The array-based matching algorithm
+        - [`functions`](core/src/main/scala/join_patterns/matching/functions): Utility functions for matching which are used by all algorithms
+      - [`util`](core/src/main/scala/join_patterns/util): Miscellaneous utilities used by the other code
+      - [`CodeGenerationMacros.scala`](core/src/main/scala/join_patterns/CodeGenerationMacros.scala): Defines the `receive` macro used to create join definitions
+      - [`JoinPattern.scala`](core/src/main/scala/join_patterns/JoinPattern.scala): Infrastructure code used by the macros and join pattern matching matching algorithms 
 
-    - `examples`: Contains examples demonstrating the use of the library.
+    - [`examples`](core/src/main/scala/examples): Contains examples demonstrating the use of the library.
 
-- `join-actors/benchmarks`: Contains the benchmarking code for the join patterns library.
+- [`join-actors/benchmarks`](benchmarks): Contains the benchmarking code for the join patterns library.
 
-  - `join-actors/benchmarks/src/main/scala/`: Has the following subpackages:
+  - [`join-actors/benchmarks/src/main/scala/`](benchmarks/src/main/scala/): Has the following subpackages:
 
-    - `old_benchmarks`: The old benchmark implementation
-    - `new_benchmarks`: The new benchmark implementation
-      - `Benchmark.scala`: The trait implemented by all runnable benchmarks
-      - `BenchmarkFactory.scala`: The trait implemented by all "benchmark archetype" factories
-      - `Running.scala`: The code used for running benchmarks
-      - `Processing.scala`: The code used for processing benchmark data before writing it
-      - `Writing.scala`: The code used for writing benchmark data to csv files and plots
-      - `Utils.scala`: Utility functions used by the benchmark suite
-      - `mixin/MessageFeedBenchmark.scala`: A superclass containing code common to some benchmark implementations
-      - `simple_smart_house`, `complex_smart_house`, `bounded_buffer`, `size`, `size_with_guards`: Benchmark implementations
-  - `join-actors/benchmarks/data`: The default directory for data files generated by the benchmarks.
+    - [`old_benchmarks`](benchmarks/src/main/scala/old_benchmarks): The old benchmark implementation
+    - [`new_benchmarks`](benchmarks/src/main/scala/new_benchmarks): The new benchmark implementation
+      - [`Benchmark.scala`](benchmarks/src/main/scala/new_benchmarks/Benchmark.scala): The trait implemented by all runnable benchmarks
+      - [`BenchmarkFactory.scala`](benchmarks/src/main/scala/new_benchmarks/BenchmarkFactory.scala): The trait implemented by all "benchmark archetype" factories
+      - [`Running.scala`](benchmarks/src/main/scala/new_benchmarks/Running.scala): The code used for running benchmarks
+      - [`Processing.scala`](benchmarks/src/main/scala/new_benchmarks/Processing.scala): The code used for processing benchmark data before writing it
+      - [`Writing.scala`](benchmarks/src/main/scala/new_benchmarks/Writing.scala): The code used for writing benchmark data to csv files and plots
+      - [`Utils.scala`](benchmarks/src/main/scala/new_benchmarks/Utils.scala): Utility functions used by the benchmark suite
+      - [`mixin/MessageFeedBenchmark.scala`](benchmarks/src/main/scala/new_benchmarks/mixin/MessageFeedBenchmark.scala): A superclass containing code common to some benchmark implementations
+      - [`simple_smart_house`](benchmarks/src/main/scala/new_benchmarks/simple_smart_house), [`complex_smart_house`](benchmarks/src/main/scala/new_benchmarks/complex_smart_house), [`bounded_buffer`](benchmarks/src/main/scala/new_benchmarks/bounded_buffer), [`size`](benchmarks/src/main/scala/new_benchmarks/size), [`size_with_guards`](benchmarks/src/main/scala/new_benchmarks/size_with_guards): Benchmark implementations
+  - [`join-actors/benchmarks/data`](benchmarks/data): The default directory for data files generated by the benchmarks.
     - Every benchmark creates a file of the form `{{yyyy_MM_dd_HH_mm_ss}}_{{benchmark_description}}.csv/`. This file contains:
       - A column containing parameter values
       - For each algorithm used in the benchmark:
@@ -185,19 +185,19 @@ sbt "core/run factory-simple --matcher stateful"
 
 The `--matcher` flag can be set to any of the following, allowing access to all implemented matchers:
 
-- `brute`
-- `stateful`
-- `mutable`
-- `lazy-mutable`
-- `while-lazy`
-- `while-eager`
-- `eager-parallel`
-- `lazy-parallel`
-- `filtering-while`
-- `filtering-parallel`
-- `array-while`
+- [`brute`](core/src/main/scala/join_patterns/matching/brute_force)
+- [`stateful`](core/src/main/scala/join_patterns/matching/immutable)
+- [`mutable`](core/src/main/scala/join_patterns/matching/mutable)
+- [`lazy-mutable`](core/src/main/scala/join_patterns/matching/lazy_mutable)
+- [`while-lazy`](core/src/main/scala/join_patterns/matching/while_lazy)
+- [`while-eager`](core/src/main/scala/join_patterns/matching/while_eager)
+- [`eager-parallel`](core/src/main/scala/join_patterns/matching/eager_parallel)
+- [`lazy-parallel`](core/src/main/scala/join_patterns/matching/lazy_parallel)
+- [`filtering-while`](core/src/main/scala/join_patterns/matching/filtering_while)
+- [`filtering-parallel`](core/src/main/scala/join_patterns/matching/filtering_parallel)
+- [`array-while`](core/src/main/scala/join_patterns/matching/array_while)
 
-There are other examples available in the `examples` package that can be run in a similar way.
+There are other examples available in the [`examples`](core/src/main/scala/examples) package that can be run in a similar way.
 
 ## Benchmarks
 
