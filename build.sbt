@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.1.1"
-ThisBuild / scalaVersion := "3.7.2"
+ThisBuild / scalaVersion := "3.7.3"
 
 lazy val versions = new {
     val scalaTest  = "3.2.19"
@@ -41,14 +41,13 @@ lazy val commonScalacOptions = Seq("-feature")
 
 lazy val joinActors =
   (project in file("."))
-    .aggregate(benchmarks)
-    .dependsOn(core)
+    .aggregate(core, benchmarks)
     .settings(
       name                       := "joinActors",
       version                    := version.value,
       scalaVersion               := scalaVersion.value,
-      assembly / mainClass := Some("core.Main"),
-      assembly / assemblyJarName := "joinActors.jar"
+      publish / skip              := true,
+      assembly / skip             := true
     )
 
 lazy val core =
@@ -57,6 +56,8 @@ lazy val core =
       name := "core",
       commonSettings,
       scalacOptions ++= commonScalacOptions ++ Seq("Xcheck-macros"),
+      assembly / mainClass := Some("core.Main"),
+      assembly / assemblyJarName := "joinActors.jar"
     )
 
 lazy val benchmarks =
@@ -66,5 +67,6 @@ lazy val benchmarks =
       name := "benchmarks",
       commonSettings,
       scalacOptions ++= commonScalacOptions,
-      publish / skip := true
+      publish / skip := true,
+      assembly / skip := true
     )
