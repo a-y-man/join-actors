@@ -3,9 +3,39 @@ package new_benchmarks
 import join_actors.api.*
 
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
 
-def runBenchmarkPass(benchmark: Benchmark[?], param: Int): FiniteDuration =
+final case class RunMeasurement(duration: FiniteDuration, matches: Option[Int])
+
+private def extractMatchesFrom(passConfig: Any): Option[Int] =
+  def extractFromFuture(fut: Future[?]): Option[Int] =
+    fut.value match
+      case Some(Success((_: Long, matches: Int))) => Some(matches)
+      case Some(Success(value)) =>
+        value match
+          case (_: Long, matches: Int) => Some(matches)
+          case _ => None
+      case Some(Failure(_)) => None
+      case None =>
+        try
+          val result = Await.result(fut.asInstanceOf[Future[(Long, Int)]], Duration.Inf)
+          Some(result._2)
+        catch case _: Throwable => None
+
+  passConfig match
+    case fut: Future[?] => extractFromFuture(fut)
+    case product: Product =>
+      product.productIterator.collectFirst { case fut: Future[?] =>
+        extractFromFuture(fut)
+      }.flatten
+    case _ => None
+
+def runBenchmarkPass(benchmark: Benchmark[?], param: Int): RunMeasurement =
   val prereqs = benchmark.prepare(param)
 
   val startTime = System.nanoTime()
@@ -14,21 +44,24 @@ def runBenchmarkPass(benchmark: Benchmark[?], param: Int): FiniteDuration =
 
   val endTime = System.nanoTime()
 
-  FiniteDuration(endTime - startTime, TimeUnit.NANOSECONDS)
+  val duration = FiniteDuration(endTime - startTime, TimeUnit.NANOSECONDS)
+  val matches = extractMatchesFrom(prereqs)
 
-type Repetitions = Seq[FiniteDuration]
+  RunMeasurement(duration, matches)
+
+type Repetitions = Seq[RunMeasurement]
 def runBenchmarkRepetitions(benchmark: Benchmark[?], param: Int, repetitions: Int): Repetitions =
   if repetitions > 1 then
     println()
     for rep <- 0 until repetitions yield
       print(s"\t\tRepetition $rep... ")
       val res = runBenchmarkPass(benchmark, param)
-      println(s"result: ${res.toMillis} ms")
+      println(s"result: ${res.duration.toMillis} ms")
 
       res
   else
     val res = runBenchmarkPass(benchmark, param)
-    println(s"result: ${res.toMillis} ms")
+    println(s"result: ${res.duration.toMillis} ms")
     Seq(res)
 
 type BenchmarkResults = Seq[Repetitions]
@@ -42,7 +75,7 @@ def runBenchmark(
     print(s"\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     runBenchmarkRepetitions(benchmark, param, repetitions)
 
-type MatcherPass = Seq[FiniteDuration]
+type MatcherPass = Seq[RunMeasurement]
 def runSmoothenedBenchmarkMatcherPass(
     benchmark: Benchmark[?],
     paramRange: Range,
@@ -51,7 +84,7 @@ def runSmoothenedBenchmarkMatcherPass(
   for param <- paramRange yield
     print(s"\t\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     val res = runBenchmarkPass(benchmark, param)
-    println(s"result: ${res.toMillis} ms")
+    println(s"result: ${res.duration.toMillis} ms")
 
     res
 

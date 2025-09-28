@@ -1,24 +1,34 @@
 package new_benchmarks
 
 import org.jfree.chart.axis.NumberAxis
-import org.jfree.chart.plot.{PlotOrientation, XYPlot}
-import org.jfree.chart.renderer.xy.{XYErrorRenderer, XYLineAndShapeRenderer}
-import org.jfree.chart.ui.{HorizontalAlignment, RectangleInsets}
-import org.jfree.chart.{ChartUtils, JFreeChart, StandardChartTheme}
-import org.jfree.data.xy.{IntervalXYDataset, XYIntervalSeries, XYIntervalSeriesCollection}
-import os.{Path, write}
+import org.jfree.chart.plot.PlotOrientation
+import org.jfree.chart.plot.XYPlot
+import org.jfree.chart.renderer.xy.XYErrorRenderer
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
+import org.jfree.chart.ui.HorizontalAlignment
+import org.jfree.chart.ui.RectangleInsets
+import org.jfree.chart.ChartUtils
+import org.jfree.chart.JFreeChart
+import org.jfree.chart.StandardChartTheme
+import org.jfree.data.xy.IntervalXYDataset
+import org.jfree.data.xy.XYIntervalSeries
+import org.jfree.data.xy.XYIntervalSeriesCollection
+import os.Path
+import os.write
 
-import java.awt.{BasicStroke, Color, Font}
+import java.awt.BasicStroke
+import java.awt.Color
+import java.awt.Font
 import java.text.SimpleDateFormat
 import java.util.Date
 
 def saveResults(
-  benchmarkName: String,
-  paramName: String,
-  paramRange: Range,
-  results: ProcessedBenchmarkSeriesResults,
-  dataDir: Path,
-  generatePlot: Boolean
+    benchmarkName: String,
+    paramName: String,
+    paramRange: Range,
+    results: ProcessedBenchmarkSeriesResults,
+    dataDir: Path,
+    generatePlot: Boolean
 ): Unit =
   val timestamp = SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date())
 
@@ -27,39 +37,49 @@ def saveResults(
   else println("Skipping plot generation")
 
 private def saveToFile(
-  benchmarkName: String,
-  paramName: String,
-  paramRange: Range,
-  results: ProcessedBenchmarkSeriesResults,
-  dataDir: Path,
-  timestamp: String
+    benchmarkName: String,
+    paramName: String,
+    paramRange: Range,
+    results: ProcessedBenchmarkSeriesResults,
+    dataDir: Path,
+    timestamp: String
 ): Unit =
-  val algorithmNames = results.map(_._1.toString)
-  val headers = paramName +: algorithmNames
-
-
   val repetitions = results.head._2.head.data.size
-  val stringedResults = if repetitions > 1 then
-    results.flatMap: (algo, algoResults) =>
-      val repetitionColumns = algoResults.head.data.indices.map: repIdx =>
-        s"$algo (rep $repIdx)" +: algoResults.map: repRes =>
-          repRes.data(repIdx).toString
+  val matchesColumnOpt =
+    if results.forall(_._2.forall(_.homogeneousMatches.isDefined)) then
+      val matchesPerParam = paramRange.indices.map: idx =>
+        val candidate = results.view.flatMap: (_, algoResults) =>
+          algoResults(idx).homogeneousMatches
+        candidate.headOption match
+          case Some(value) => value.toString
+          case None => ""
 
-      val averageColumn = s"$algo (avg)" +: algoResults.map: repRes =>
-        repRes.average.toString
+      Some("Matches" +: matchesPerParam)
+    else None
+  val stringedResults =
+    if repetitions > 1 then
+      results.flatMap: (algo, algoResults) =>
+        val repetitionColumns = algoResults.head.data.indices.map: repIdx =>
+          s"$algo (rep $repIdx)" +: algoResults.map: repRes =>
+            repRes.data(repIdx).toString
 
-      val stdColumn = s"$algo (std)" +: algoResults.map: repRes =>
-        repRes.std.get.toString
+        val averageColumn = s"$algo (avg)" +: algoResults.map: repRes =>
+          repRes.average.toString
 
-      repetitionColumns :+ averageColumn :+ stdColumn
-  else
-    results.map: (algo, algoResults) =>
-      val dataColumn = s"$algo" +: algoResults.map: repRes =>
-        repRes.average.toString
+        val stdColumn = s"$algo (std)" +: algoResults.map: repRes =>
+          repRes.std.get.toString
 
-      dataColumn
+        repetitionColumns :+ averageColumn :+ stdColumn
+    else
+      results.map: (algo, algoResults) =>
+        val dataColumn = s"$algo" +: algoResults.map: repRes =>
+          repRes.average.toString
 
-  val paramsAndResults = (paramName +: paramRange.map(_.toString)) +: stringedResults
+        dataColumn
+
+  val paramColumn = paramName +: paramRange.map(_.toString)
+
+  val paramsAndResults = Seq(paramColumn) ++ matchesColumnOpt.toSeq ++ stringedResults
 
   val table = paramsAndResults.transpose
 
@@ -73,7 +93,13 @@ private def saveToFile(
   write(file, strToWrite, createFolders = true)
   println(s"Saved results to $file")
 
-private def createXYErrorLineChart(title: String, xAxisLabel: String, yAxisLabel: String, dataset: IntervalXYDataset, includeError: Boolean): JFreeChart =
+private def createXYErrorLineChart(
+    title: String,
+    xAxisLabel: String,
+    yAxisLabel: String,
+    dataset: IntervalXYDataset,
+    includeError: Boolean
+): JFreeChart =
   // Adapted from the createXYLineChart method in the ChartFactory class in JFreeChart
 
   val xAxis = NumberAxis(xAxisLabel)
@@ -94,12 +120,12 @@ private def createXYErrorLineChart(title: String, xAxisLabel: String, yAxisLabel
   chart
 
 private def saveToPlot(
-  benchmarkName: String,
-  paramName: String,
-  paramRange: Range,
-  results: ProcessedBenchmarkSeriesResults,
-  dataDir: Path,
-  timestamp: String
+    benchmarkName: String,
+    paramName: String,
+    paramRange: Range,
+    results: ProcessedBenchmarkSeriesResults,
+    dataDir: Path,
+    timestamp: String
 ): Unit =
   val dataset = makeDatasetFrom(paramRange, results)
 
@@ -136,14 +162,16 @@ private def saveToPlot(
   renderer.setDefaultStroke(BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
   renderer.setAutoPopulateSeriesStroke(false)
 
-
   val file = dataDir / f"${timestamp}_${benchmarkName}.png"
 
   // The folder was necessarily already created by the os.write call used to save the csv data
   ChartUtils.saveChartAsPNG(file.toIO, chart, 1700, 1000)
   println(s"Saved plot to $file")
 
-private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesResults): IntervalXYDataset =
+private def makeDatasetFrom(
+    xAxis: Seq[Int],
+    results: ProcessedBenchmarkSeriesResults
+): IntervalXYDataset =
   val dataset = XYIntervalSeriesCollection()
   val xDoubles = xAxis.map(_.toDouble)
 
@@ -158,8 +186,8 @@ private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesRe
             x,
             x,
             res.average,
-            res.average - std/2,
-            res.average + std/2
+            res.average - std / 2,
+            res.average + std / 2
           )
         case None =>
           series.add(
@@ -174,4 +202,3 @@ private def makeDatasetFrom(xAxis: Seq[Int], results: ProcessedBenchmarkSeriesRe
     dataset.addSeries(series)
 
   dataset
-
