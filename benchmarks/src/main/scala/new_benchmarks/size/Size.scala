@@ -12,10 +12,10 @@ import scala.collection.immutable.ArraySeq
 
 class Size(private val matcher: MatcherFactory, private val config: Config)
     extends MessageFeedBenchmark[SizeMsg]:
-  override def prepare(param: Int): MessageFeedTriplet[SizeMsg] =
+  override def prepare(patternSize: Int): MessageFeedTriplet[SizeMsg] =
     val (_, actorGen, msgGen) =
-      if config.noise then sizeBenchmarksWithNoise(param - 1)
-      else sizeBenchmarks(param - 1)
+      if config.noise then sizeBenchmarksWithNoise(patternSize)(config.numberOfNoiseMsgs)
+      else sizeBenchmarks(patternSize)
 
     val actor = actorGen(matcher)
     val msgs = msgGen(config.matches) :+ Terminate()

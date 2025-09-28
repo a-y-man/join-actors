@@ -115,20 +115,11 @@ def genMsgsNoPayloadWithNoise(patSize: Int)(nRandomMsgs: Int)(genMsg: Int => Vec
   val matchSeqWithNoise = intercalateCorrectMsgs(correctMsgs, noise)
   Vector.fill(matches)(matchSeqWithNoise).flatten
 
-val sizeBenchmarks = Seq(
-  ("1-ary join pattern", size1, genNMatchingMsgSeqs(1)(generateSizeMsgs)),
-  ("2-ary join pattern", size2, genNMatchingMsgSeqs(2)(generateSizeMsgs)),
-  ("3-ary join pattern", size3, genNMatchingMsgSeqs(3)(generateSizeMsgs)),
-  ("4-ary join pattern", size4, genNMatchingMsgSeqs(4)(generateSizeMsgs)),
-  ("5-ary join pattern", size5, genNMatchingMsgSeqs(5)(generateSizeMsgs)),
-  ("6-ary join pattern", size6, genNMatchingMsgSeqs(6)(generateSizeMsgs))
-)
+val sizeActors = Seq(size1, size2, size3, size4, size5, size6)
 
-val sizeBenchmarksWithNoise = Seq(
-  ("1-ary join pattern", size1, genMsgsNoPayloadWithNoise(1)(100)(generateSizeMsgs)),
-  ("2-ary join pattern", size2, genMsgsNoPayloadWithNoise(2)(100)(generateSizeMsgs)),
-  ("3-ary join pattern", size3, genMsgsNoPayloadWithNoise(3)(100)(generateSizeMsgs)),
-  ("4-ary join pattern", size4, genMsgsNoPayloadWithNoise(4)(100)(generateSizeMsgs)),
-  ("5-ary join pattern", size5, genMsgsNoPayloadWithNoise(5)(100)(generateSizeMsgs)),
-  ("6-ary join pattern", size6, genMsgsNoPayloadWithNoise(6)(100)(generateSizeMsgs))
-)
+def sizeBenchmarks(n: Int) =
+  (s"${n}-ary join pattern", sizeActors(n - 1), genNMatchingMsgSeqs(n)(generateSizeMsgs))
+
+def sizeBenchmarksWithNoise(n: Int) =
+  (noiseMessages : Int) =>
+    (s"${n}-ary join pattern", sizeActors(n - 1), genMsgsNoPayloadWithNoise(n)(noiseMessages)(generateSizeMsgs))

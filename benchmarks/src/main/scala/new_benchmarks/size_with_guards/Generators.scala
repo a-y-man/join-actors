@@ -134,131 +134,30 @@ def genMsgsWithPayloadWithNoise(patSize: Int)(nRandomMsgs: Int)(
   val matchingMsgsAndNoiseSeqs = intercalateCorrectMsgs(correctMsgs, noise)
   Vector.fill(matches)(matchingMsgsAndNoiseSeqs).flatten
 
-val N_NOISE_MSGS = 100
-val N_NON_MATCHING_MSGS = 10
+val guardedSizeActors =
+  Seq(guardedSize1, guardedSize2, guardedSize3, guardedSize4, guardedSize5, guardedSize6)
 
-val sizeBenchmarkWithPayloadData =
-  Seq(
-    (
-      "1-ary conditional join pattern",
-      guardedSize1,
-      genNMatchingMsgSeqs(1)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "2-ary conditional join pattern",
-      guardedSize2,
-      genNMatchingMsgSeqs(2)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "3-ary conditional join pattern",
-      guardedSize3,
-      genNMatchingMsgSeqs(3)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "4-ary conditional join pattern",
-      guardedSize4,
-      genNMatchingMsgSeqs(4)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "5-ary conditional join pattern",
-      guardedSize5,
-      genNMatchingMsgSeqs(5)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "6-ary conditional join pattern",
-      guardedSize6,
-      genNMatchingMsgSeqs(6)(generateCorrectSizeMsgsWithPayloads)
-    )
+def sizeBenchmarkWithPayloadData(n: Int) =
+  (
+    s"${n}-ary guarded join pattern",
+    guardedSizeActors(n - 1),
+    genNMatchingMsgSeqs(n)(generateCorrectSizeMsgsWithPayloads)
   )
 
-val sizeBenchmarkWithNoisyPayloadData =
-  Seq(
+def sizeBenchmarkWithNoisyPayloadData(n: Int) =
+  (nNoiseMsgs: Int) =>
     (
-      "1-ary conditional join pattern",
-      guardedSize1,
-      genMsgsWithPayloadWithNoise(1)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "2-ary conditional join pattern",
-      guardedSize2,
-      genMsgsWithPayloadWithNoise(2)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "3-ary conditional join pattern",
-      guardedSize3,
-      genMsgsWithPayloadWithNoise(3)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "4-ary conditional join pattern",
-      guardedSize4,
-      genMsgsWithPayloadWithNoise(4)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "5-ary conditional join pattern",
-      guardedSize5,
-      genMsgsWithPayloadWithNoise(5)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
-    ),
-    (
-      "6-ary conditional join pattern",
-      guardedSize6,
-      genMsgsWithPayloadWithNoise(6)(N_NOISE_MSGS)(generateCorrectSizeMsgsWithPayloads)
+      s"${n}-ary guarded join pattern",
+      guardedSizeActors(n - 1),
+      genMsgsWithPayloadWithNoise(n)(nNoiseMsgs)(generateCorrectSizeMsgsWithPayloads)
     )
-  )
 
-val sizeBenchmarkWithNonMatchingPayloadData =
-  Seq(
+def sizeBenchmarkWithNonMatchingPayloadData(n: Int) =
+  (nNonMatchingMsgs: Int) =>
     (
-      "1-ary conditional join pattern",
-      guardedSize1,
-      genSizeMsgsWithPayloadWithNonMatchingPayload(1)(N_NON_MATCHING_MSGS)(
+      s"${n}-ary guarded join pattern",
+      guardedSizeActors(n - 1),
+      genSizeMsgsWithPayloadWithNonMatchingPayload(n)(nNonMatchingMsgs)(
         generateCorrectSizeMsgsWithPayloads
-      )(
-        genNNonMatchingMsgs(1)
-      )
-    ),
-    (
-      "2-ary conditional join pattern",
-      guardedSize2,
-      genSizeMsgsWithPayloadWithNonMatchingPayload(2)(N_NON_MATCHING_MSGS)(
-        generateCorrectSizeMsgsWithPayloads
-      )(
-        genNNonMatchingMsgs(2)
-      )
-    ),
-    (
-      "3-ary conditional join pattern",
-      guardedSize3,
-      genSizeMsgsWithPayloadWithNonMatchingPayload(3)(N_NON_MATCHING_MSGS)(
-        generateCorrectSizeMsgsWithPayloads
-      )(
-        genNNonMatchingMsgs(3)
-      )
-    ),
-    (
-      "4-ary conditional join pattern",
-      guardedSize4,
-      genSizeMsgsWithPayloadWithNonMatchingPayload(4)(N_NON_MATCHING_MSGS)(
-        generateCorrectSizeMsgsWithPayloads
-      )(
-        genNNonMatchingMsgs(4)
-      )
-    ),
-    (
-      "5-ary conditional join pattern",
-      guardedSize5,
-      genSizeMsgsWithPayloadWithNonMatchingPayload(5)(N_NON_MATCHING_MSGS)(
-        generateCorrectSizeMsgsWithPayloads
-      )(
-        genNNonMatchingMsgs(5)
-      )
-    ),
-    (
-      "6-ary conditional join pattern",
-      guardedSize6,
-      genSizeMsgsWithPayloadWithNonMatchingPayload(6)(N_NON_MATCHING_MSGS)(
-        generateCorrectSizeMsgsWithPayloads
-      )(
-        genNNonMatchingMsgs(6)
-      )
+      )(genNNonMatchingMsgs(n))
     )
-  )

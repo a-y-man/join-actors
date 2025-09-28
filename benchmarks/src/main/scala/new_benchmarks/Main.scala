@@ -7,23 +7,22 @@ import new_benchmarks.bounded_buffer.BoundedBufferConfig
 import new_benchmarks.complex_smart_house.ComplexSmartHouse
 import new_benchmarks.complex_smart_house.ComplexSmartHouseConfig
 import new_benchmarks.simple_smart_house.SimpleSmartHouse
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import new_benchmarks.simple_smart_house.SimpleSmartHouseConfig
 import new_benchmarks.size.Size
 import new_benchmarks.size.SizeConfig
 import new_benchmarks.size_with_guards.GuardedSize
 import new_benchmarks.size_with_guards.GuardedSizeConfig
 import new_benchmarks.size_with_guards.GuardedSizeVariant
-import os.Path
 import os.*
+import os.Path
 
 import java.nio.file.Files
 import java.text.SimpleDateFormat
 import java.util.Date
 import scala.collection.immutable.ArraySeq
 import scala.collection.immutable.Queue
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 
 object Main:
@@ -165,11 +164,19 @@ object Main:
   ): Unit =
     val config = BoundedBufferConfig(bufferBound, count)
 
+    val min =
+      if commonConfig.minParam >= 1 then commonConfig.minParam
+      else
+        println("The bounded buffer benchmark requires at least 1 producer/consumer, setting to 1")
+        1
+
+    val newCommonConfig = commonConfig.copy(minParam = min, maxParam = count)
+
     runAndOutput(
-      commonConfig,
+      newCommonConfig,
       BoundedBuffer,
       config,
-      s"Bounded Buffer with bufferBound $bufferBound and count $count",
+      s"Bounded Buffer with Buffer Size $bufferBound",
       "Number of producers and consumers"
     )
 
@@ -194,8 +201,10 @@ object Main:
       commonConfig: CommonRunConfig,
       @arg(short = 'm', doc = "The number of matches the size actor should perform")
       matches: Int = 100,
-      @arg(short = 'n', doc = "Whether to include noise in the messages")
-      noise: Flag
+      @arg(short = 'v', doc = "Whether to include noise in the messages")
+      noise: Flag,
+      @arg(short = 'N', doc = "The number of noise messages to include")
+      numberOfNoiseMsgs: Int = 100
   ): Unit =
     val min =
       if commonConfig.minParam >= 1 then commonConfig.minParam
@@ -211,14 +220,16 @@ object Main:
 
     val newCommonConfig = commonConfig.copy(minParam = min, maxParam = max)
 
-    val config = SizeConfig(matches, noise.value)
+    val config = SizeConfig(matches, noise.value, numberOfNoiseMsgs)
 
     runAndOutput(
       newCommonConfig,
       Size,
       config,
-      "Size" + (if noise.value then " with noise" else "") + describeMatches(matches),
-      "Arity of join pattern"
+      "Performance of join pattern" + (if noise.value then " with noise" else "") + describeMatches(
+        matches
+      ),
+      "Size of join pattern"
     )
 
   @main
@@ -230,7 +241,11 @@ object Main:
         short = 'v',
         doc = "The benchmark variant to run: either \"normal\", \"noisy\", or \"non-matching\""
       )
-      variant: String = "normal"
+      variant: String = "normal",
+      @arg(short = 'N', doc = "The number of noise messages to include (only for noisy variant)")
+      numberOfNoiseMsgs: Option[Int] = None,
+      @arg(short = 'P', doc = "The non-matching payload to include (only for non-matching variant)")
+      nonMatchingPayload: Option[Int] = None
   ): Unit =
     val min =
       if commonConfig.minParam >= 1 then commonConfig.minParam
@@ -259,7 +274,9 @@ object Main:
           s"$variant is not a valid benchmark variant: should be either \"normal\", \"noisy\", or \"non-satisfying\""
         )
 
-    val config = GuardedSizeConfig(matches, variantEnum)
+    val config = GuardedSizeConfig(matches, variantEnum, numberOfNoiseMsgs, nonMatchingPayload)
+
+    println(s"${config}")
 
     val descriptor = variantEnum match
       case GuardedSizeVariant.Normal => ""
@@ -270,8 +287,8 @@ object Main:
       newCommonConfig,
       GuardedSize,
       config,
-      "Size with guards" + descriptor + describeMatches(matches),
-      "Arity of join pattern"
+      "Performance of guarded join pattern " + descriptor + describeMatches(matches),
+      "Size of join pattern"
     )
 
   def main(args: Array[String]): Unit =

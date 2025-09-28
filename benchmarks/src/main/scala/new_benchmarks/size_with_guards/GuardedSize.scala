@@ -13,12 +13,12 @@ import scala.collection.immutable.ArraySeq
 
 class GuardedSize(private val matcher: MatcherFactory, private val config: Config)
     extends MessageFeedBenchmark[GuardedSizeMsg]:
-  override def prepare(param: Int): MessageFeedTriplet[GuardedSizeMsg] =
+  override def prepare(patternSize: Int): MessageFeedTriplet[GuardedSizeMsg] =
     val (_, actorGen, msgGen) =
       config.variant match
-        case Normal => sizeBenchmarkWithPayloadData(param - 1)
-        case Noisy => sizeBenchmarkWithNoisyPayloadData(param - 1)
-        case NonMatchingPayloads => sizeBenchmarkWithNonMatchingPayloadData(param - 1)
+        case Normal => sizeBenchmarkWithPayloadData(patternSize)
+        case Noisy => sizeBenchmarkWithNoisyPayloadData(patternSize)(config.numberOfNoiseMsgs.get)
+        case NonMatchingPayloads => sizeBenchmarkWithNonMatchingPayloadData(patternSize)(config.nonMatchingPayload.get)
 
     val actor = actorGen(matcher)
     val msgs = msgGen(config.matches) :+ Terminate()
