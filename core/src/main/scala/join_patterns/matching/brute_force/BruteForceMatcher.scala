@@ -4,6 +4,9 @@ import join_actors.actor.ActorRef
 import join_patterns.matching.*
 import join_patterns.matching.functions.*
 import join_patterns.types.*
+import join_patterns.util.FastIterable
+import join_patterns.util.fast
+import join_patterns.util.foreach
 
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.collection.compat.immutable.ArraySeq
@@ -60,7 +63,7 @@ class BruteForceMatcher[M, T](private val patterns: JoinDefinition[M, T]) extend
         result = Some(rhsFn(substs, selfRef))
 
         // Remove selected message indices from messages
-        candidateQidxs.foreach { idx =>
+        candidateQidxs.fast.foreach { idx =>
           messages.remove(idx)
         }
 
