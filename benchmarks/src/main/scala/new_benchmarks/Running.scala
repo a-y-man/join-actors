@@ -56,12 +56,12 @@ def runBenchmarkRepetitions(benchmark: Benchmark[?], param: Int, repetitions: In
     for rep <- 0 until repetitions yield
       print(s"\t\tRepetition $rep... ")
       val res = runBenchmarkPass(benchmark, param)
-      println(s"result: ${res.duration.toMillis} ms")
+      println(s"result: ${res.duration.toNanos} ns")
 
       res
   else
     val res = runBenchmarkPass(benchmark, param)
-    println(s"result: ${res.duration.toMillis} ms")
+    println(s"result: ${res.duration.toNanos} ns")
     Seq(res)
 
 type BenchmarkResults = Seq[Repetitions]
@@ -84,7 +84,7 @@ def runSmoothenedBenchmarkMatcherPass(
   for param <- paramRange yield
     print(s"\t\tRunning benchmark with ${paramName.toLowerCase} = $param... ")
     val res = runBenchmarkPass(benchmark, param)
-    println(s"result: ${res.duration.toMillis} ms")
+    println(s"result: ${res.duration.toNanos} ns")
 
     res
 

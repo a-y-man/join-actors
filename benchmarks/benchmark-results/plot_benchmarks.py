@@ -148,7 +148,7 @@ class BenchmarkPlotter:
                     rep_values = [float(val) for val in rep_values if pd.notna(val)]
 
                     if rep_values:
-                        rep_values_seconds = [val / 1000.0 for val in rep_values]
+                        rep_values_seconds = [val / 1000000000.0 for val in rep_values]
                         mean_val = float(np.mean(rep_values_seconds))
                         std_val = float(np.std(rep_values_seconds, ddof=1)) if len(rep_values_seconds) > 1 else 0.0
                     else:
@@ -177,7 +177,7 @@ class BenchmarkPlotter:
 
             for algo_name in algorithm_names:
                 values = df[algo_name].values
-                means_data[algo_name] = [float(val) / 1000.0 for val in values]
+                means_data[algo_name] = [float(val) / 1000000000.0 for val in values]
                 stds_data[algo_name] = [0.0] * len(values)
 
             means_df = pd.DataFrame(means_data)

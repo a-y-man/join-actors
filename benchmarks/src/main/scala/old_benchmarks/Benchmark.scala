@@ -138,7 +138,7 @@ def toFile(
     file,
     results
       .map((name, measurements) =>
-        val times = measurements.map(Measurement.time).map(_.toMillis)
+        val times = measurements.map(Measurement.time).map(_.toNanos)
         s"${name} $sep ${times.mkString(sep)}"
       )
       .mkString("\n")

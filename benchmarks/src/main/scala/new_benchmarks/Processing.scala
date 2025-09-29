@@ -14,9 +14,9 @@ final case class ProcessedRepetitions(
 )
 
 def processRepetitions(repetitions: Repetitions): ProcessedRepetitions =
-  val millis = repetitions.map(_.duration.toMillis)
+  val nanos = repetitions.map(_.duration.toNanos)
 
-  val averageMillis = millis.sum.toDouble / millis.size
+  val averageNanos = nanos.sum.toDouble / nanos.size
 
   val matchesOpt =
     val matchesPerRun = repetitions.map(_.matches)
@@ -27,15 +27,15 @@ def processRepetitions(repetitions: Repetitions): ProcessedRepetitions =
   val homogeneousMatches = matchesOpt.flatMap: seq =>
     if seq.distinct.size == 1 then Some(seq.head) else None
 
-  if millis.size > 1 then
+  if nanos.size > 1 then
     ProcessedRepetitions(
-      millis,
-      averageMillis,
-      Some(standardDeviation(millis, averageMillis)),
+      nanos,
+      averageNanos,
+      Some(standardDeviation(nanos, averageNanos)),
       matchesOpt,
       homogeneousMatches
     )
-  else ProcessedRepetitions(millis, averageMillis, None, matchesOpt, homogeneousMatches)
+  else ProcessedRepetitions(nanos, averageNanos, None, matchesOpt, homogeneousMatches)
 
 type ProcessedBenchmarkResults = Seq[ProcessedRepetitions]
 def processBenchmarkResults(results: BenchmarkResults): ProcessedBenchmarkResults =
