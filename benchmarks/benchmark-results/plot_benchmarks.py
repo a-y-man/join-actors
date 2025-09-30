@@ -16,6 +16,17 @@ Examples:
     # Plot execution time and throughput plots
     python plot_benchmarks.py --throughput
 
+    # Plot combined performance and         # Customize throughput plot
+        ax2.set_xlabel(x_label, fontweight='bold')
+        ax2.set_ylabel(r'Matches per Second - Log Scale', fontweight='bold')
+        
+        # Set title with appropriate padding for multiline titles
+        throughput_title = f"{title} - Throughput"
+        title_lines = throughput_title.count('\n') + 1
+        title_pad = 20 + (title_lines - 1) * 15  # Extra padding for each additional line
+        ax2.set_title(throughput_title, fontweight='bold', pad=title_pad)ughput plots as subplots
+    python plot_benchmarks.py --combined
+
     # Plot specific files with custom labels
     python plot_benchmarks.py --files data/file1.csv data/file2.csv --labels "Benchmark 1" "Benchmark 2"
 
@@ -45,11 +56,11 @@ plt.rcParams.update({
     'font.serif': ['Times', 'Computer Modern Roman'],
     'font.size': 16,
     'axes.labelsize': 18,
-    'axes.titlesize': 20,
+    'axes.titlesize': 18,
     'xtick.labelsize': 16,
     'ytick.labelsize': 16,
     'legend.fontsize': 14,
-    'figure.titlesize': 22,
+    'figure.titlesize': 20,
     'axes.grid': True,
     'grid.alpha': 0.3,
     'axes.spines.top': False,
@@ -67,7 +78,7 @@ class BenchmarkPlotter:
         self.output_dir.mkdir(exist_ok=True)
         self.figsize = figsize
         
-        # Color palette for algorithms
+        # High contrast color palette for algorithms (excluding baseline matchers)
         self.colors = [
             '#1f77b4',  # Blue
             '#ff7f0e',  # Orange  
@@ -87,15 +98,55 @@ class BenchmarkPlotter:
         # Markers for data points
         self.markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h']
     
+    def get_algorithm_color(self, algorithm_name: str, index: int) -> str:
+        """Get color for algorithm, using darker colors for baseline matchers."""
+        clean_name = algorithm_name.lower()
+        
+        # Check for baseline stateless and stateful matchers
+        if 'baseline stateless' in clean_name:
+            return '#1a1a1a'  # Very dark gray/black
+        elif 'baseline stateful' in clean_name:
+            return '#4a4a4a'  # Dark gray
+        else:
+            return self.colors[index % len(self.colors)]
+    
     def extract_title_from_filename(self, filename: str) -> str:
-        """Extract a clean title from the CSV filename."""
+        """Extract a clean title from the CSV filename and break long titles into multiple lines."""
         # Remove timestamp prefix and file extension
         title = re.sub(r'^\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_', '', filename)
         title = re.sub(r'\.csv$', '', title)
         
         # Clean up the title
         title = title.replace('_', ' ').title()
-        return title
+        
+        # Break long titles into multiple lines
+        return self.break_long_title(title)
+    
+    def break_long_title(self, title: str, max_line_length: int = 45) -> str:
+        """Break long titles into multiple lines for better readability."""
+        if len(title) <= max_line_length:
+            return title
+        
+        words = title.split()
+        lines = []
+        current_line = []
+        current_length = 0
+        
+        for word in words:
+            # Check if adding this word would exceed the line length
+            if current_length + len(word) + len(current_line) > max_line_length and current_line:
+                lines.append(' '.join(current_line))
+                current_line = [word]
+                current_length = len(word)
+            else:
+                current_line.append(word)
+                current_length += len(word)
+        
+        # Add the last line
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        return '\n'.join(lines)
     
     def parse_csv_file(self, filepath: str) -> Tuple[pd.DataFrame, str, str, Optional[pd.Series]]:
         """Parse a CSV file and extract data, x-label, title, and matches column."""
@@ -269,7 +320,7 @@ class BenchmarkPlotter:
         df, x_label, title, _ = self.parse_csv_file(filepath)
         
         if custom_label:
-            title = custom_label
+            title = self.break_long_title(custom_label)
         
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
@@ -286,8 +337,10 @@ class BenchmarkPlotter:
             # Clean algorithm name for legend
             clean_name = self.clean_algorithm_name(algorithm)
             
+            # Get color for algorithm (darker for baseline matchers)
+            color = self.get_algorithm_color(clean_name, i)
+            
             # Plot line with markers and error bars
-            color = self.colors[i % len(self.colors)]
             ax.errorbar(x_values, y_means, yerr=y_stds,
                        color=color,
                        linestyle=self.line_styles[i % len(self.line_styles)],
@@ -302,7 +355,11 @@ class BenchmarkPlotter:
         # Customize plot
         ax.set_xlabel(x_label, fontweight='bold')
         ax.set_ylabel(r'Execution Time (seconds) - Log Scale', fontweight='bold')
-        ax.set_title(title, fontweight='bold', pad=20)
+        
+        # Set title with appropriate padding for multiline titles
+        title_lines = title.count('\n') + 1
+        title_pad = 15 + (title_lines - 1) * 12  # Reduced padding for closer spacing
+        ax.set_title(title, fontweight='bold', pad=title_pad, fontsize=16, ha='center')
         
         # Set y-axis to log scale by default
         ax.set_yscale('log')
@@ -336,7 +393,7 @@ class BenchmarkPlotter:
         df, x_label, title, matches_series = self.parse_csv_file(filepath)
         
         if custom_label:
-            title = custom_label
+            title = self.break_long_title(custom_label)
         
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
@@ -355,33 +412,52 @@ class BenchmarkPlotter:
             default_matches = fallback_matches if fallback_matches is not None else 50.0
 
             matches_per_second = []
+            matches_per_second_errors = []
             
             for j, (x_val, time_mean, time_std) in enumerate(zip(x_values, y_means, y_stds)):
                 matches_value = match_counts[j] if match_counts[j] is not None else default_matches
                 if time_mean > 0 and matches_value is not None:
                     mps = matches_value / time_mean
                     matches_per_second.append(mps)
+                    
+                    # Calculate error propagation for matches per second
+                    # If mps = matches/time, then error = matches * time_std / time^2
+                    if time_std > 0:
+                        mps_error = matches_value * time_std / (time_mean ** 2)
+                    else:
+                        mps_error = 0.0
+                    matches_per_second_errors.append(mps_error)
                 else:
                     matches_per_second.append(0)
+                    matches_per_second_errors.append(0)
             
             # Clean algorithm name for legend
             clean_name = self.clean_algorithm_name(algorithm)
             
-            # Plot line with markers (no error bars for throughput)
-            color = self.colors[i % len(self.colors)]
-            ax.plot(x_values, matches_per_second,
-                   color=color,
-                   linestyle=self.line_styles[i % len(self.line_styles)],
-                   marker=self.markers[i % len(self.markers)],
-                   markersize=6,
-                   linewidth=2,
-                   label=clean_name,
-                   alpha=0.8)
+            # Get color for algorithm (darker for baseline matchers)
+            color = self.get_algorithm_color(clean_name, i)
+            
+            # Plot line with markers and error bars for throughput
+            ax.errorbar(x_values, matches_per_second, yerr=matches_per_second_errors,
+                       color=color,
+                       linestyle=self.line_styles[i % len(self.line_styles)],
+                       marker=self.markers[i % len(self.markers)],
+                       markersize=6,
+                       linewidth=2,
+                       capsize=4,
+                       capthick=1.5,
+                       label=clean_name,
+                       alpha=0.8)
         
         # Customize plot - use identical x-axis setup as execution time plot
         ax.set_xlabel(x_label, fontweight='bold')
         ax.set_ylabel(r'Matches per Second - Log Scale', fontweight='bold')
-        ax.set_title(f"{title} - Throughput", fontweight='bold', pad=20)
+        
+        # Set title with appropriate padding for multiline titles
+        throughput_title = f"{title} - Throughput"
+        title_lines = throughput_title.count('\n') + 1
+        title_pad = 15 + (title_lines - 1) * 12  # Reduced padding for closer spacing
+        ax.set_title(throughput_title, fontweight='bold', pad=title_pad, fontsize=16, ha='center')
         
         # Set y-axis to log scale by default
         ax.set_yscale('log')
@@ -406,6 +482,144 @@ class BenchmarkPlotter:
                    facecolor='white', edgecolor='none', format='pdf')
         
         print(f"Throughput plot saved: {output_path}")
+        plt.close()
+        
+        return str(output_path)
+    
+    def plot_combined_performance_throughput(self, filepath: str, custom_label: Optional[str] = None) -> str:
+        """Generate a combined plot with performance and throughput as subplots sharing one legend."""
+        df, x_label, title, matches_series = self.parse_csv_file(filepath)
+        
+        if custom_label:
+            title = self.break_long_title(custom_label)
+        
+        # Parse algorithm repetitions and calculate means/stds
+        algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
+        
+        # Create figure with subplots - wider to accommodate both plots
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        
+        # Plot performance (execution time) on left subplot
+        lines = []  # Store line objects for shared legend
+        labels = []  # Store labels for shared legend
+        
+        for i, algorithm in enumerate(algorithm_names):
+            x_values = means_df[means_df.columns[0]].values
+            y_means = means_df[algorithm].values
+            y_stds = stds_df[algorithm].values
+            
+            # Clean algorithm name for legend
+            clean_name = self.clean_algorithm_name(algorithm)
+            
+            # Get color for algorithm (darker for baseline matchers)
+            color = self.get_algorithm_color(clean_name, i)
+            
+            # Plot line with markers and error bars on performance plot
+            line = ax1.errorbar(x_values, y_means, yerr=y_stds,
+                               color=color,
+                               linestyle=self.line_styles[i % len(self.line_styles)],
+                               marker=self.markers[i % len(self.markers)],
+                               markersize=6,
+                               linewidth=2,
+                               capsize=4,
+                               capthick=1.5,
+                               alpha=0.8)
+            
+            # Store for shared legend
+            lines.append(line)
+            labels.append(clean_name)
+        
+        # Customize performance plot
+        ax1.set_xlabel(x_label, fontweight='bold')
+        ax1.set_ylabel(r'Execution Time (seconds) - Log Scale', fontweight='bold')
+        
+        # Set title with appropriate padding for multiline titles
+        performance_title = f"{title} - Performance"
+        title_lines = performance_title.count('\n') + 1
+        title_pad = 15 + (title_lines - 1) * 12  # Reduced padding for closer spacing
+        ax1.set_title(performance_title, fontweight='bold', pad=title_pad, fontsize=16, ha='center')
+        ax1.set_yscale('log')
+        ax1.set_xticks(x_values)
+        ax1.set_xticklabels([str(int(x)) for x in x_values])
+        
+        # Plot throughput on right subplot
+        for i, algorithm in enumerate(algorithm_names):
+            x_values = means_df[means_df.columns[0]].values
+            y_means = means_df[algorithm].values
+            y_stds = stds_df[algorithm].values
+            
+            match_counts = self.extract_match_counts(matches_series, len(x_values))
+            fallback_matches = next((val for val in match_counts if val is not None), None)
+            if fallback_matches is None:
+                raise ValueError("No match counts found in CSV for throughput calculation.")
+            default_matches = fallback_matches
+
+            matches_per_second = []
+            matches_per_second_errors = []
+            
+            for j, (x_val, time_mean, time_std) in enumerate(zip(x_values, y_means, y_stds)):
+                matches_value = match_counts[j] if match_counts[j] is not None else default_matches
+                if time_mean > 0 and matches_value is not None:
+                    mps = matches_value / time_mean
+                    matches_per_second.append(mps)
+                    
+                    # Calculate error propagation for matches per second
+                    # If mps = matches/time, then error = matches * time_std / time^2
+                    if time_std > 0:
+                        mps_error = matches_value * time_std / (time_mean ** 2)
+                    else:
+                        mps_error = 0.0
+                    matches_per_second_errors.append(mps_error)
+                else:
+                    matches_per_second.append(0)
+                    matches_per_second_errors.append(0)
+            
+            # Clean algorithm name for legend
+            clean_name = self.clean_algorithm_name(algorithm)
+            
+            # Get color for algorithm (darker for baseline matchers)
+            color = self.get_algorithm_color(clean_name, i)
+            
+            # Plot line with markers and error bars for throughput
+            ax2.errorbar(x_values, matches_per_second, yerr=matches_per_second_errors,
+                        color=color,
+                        linestyle=self.line_styles[i % len(self.line_styles)],
+                        marker=self.markers[i % len(self.markers)],
+                        markersize=6,
+                        linewidth=2,
+                        capsize=4,
+                        capthick=1.5,
+                        alpha=0.8)
+        
+        # Customize throughput plot
+        ax2.set_xlabel(x_label, fontweight='bold')
+        ax2.set_ylabel(r'Matches per Second - Log Scale', fontweight='bold')
+        
+        # Set title with same padding calculation as performance plot for alignment
+        throughput_title = f"{title} - Throughput"
+        throughput_title_lines = throughput_title.count('\n') + 1
+        throughput_title_pad = 15 + (throughput_title_lines - 1) * 12  # Reduced padding for closer spacing
+        ax2.set_title(throughput_title, fontweight='bold', pad=throughput_title_pad, fontsize=16, ha='center')
+        ax2.set_yscale('log')
+        ax2.set_xticks(x_values)
+        ax2.set_xticklabels([str(int(x)) for x in x_values])
+        
+        # Add shared legend at the bottom center
+        fig.legend(lines, labels, frameon=True, fancybox=True, shadow=True,
+                  bbox_to_anchor=(0.5, -0.02), loc='upper center',
+                  ncol=min(len(labels), 4), columnspacing=1.5, handletextpad=0.5)
+        
+        # Adjust layout to accommodate shared legend
+        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.08)
+        
+        # Save combined plot
+        output_filename = f"{Path(filepath).stem}_combined_plot.pdf"
+        output_path = self.output_dir / output_filename
+        plt.savefig(output_path, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none', format='pdf')
+        
+        print(f"Combined plot saved: {output_path}")
         plt.close()
         
         return str(output_path)
@@ -472,6 +686,12 @@ def main():
         help='Generate throughput plots (matches per second) in addition to execution time plots'
     )
     
+    parser.add_argument(
+        '--combined',
+        action='store_true',
+        help='Generate combined plots with performance and throughput as subplots sharing one legend'
+    )
+    
     args = parser.parse_args()
     
     # Enable LaTeX if requested
@@ -503,24 +723,34 @@ def main():
         print(f"Warning: Number of labels ({len(args.labels)}) doesn't match number of files ({len(csv_files)})")
         args.labels = None
     
-    # Generate individual plots
-    print("\nGenerating execution time plots...")
-    for i, filepath in enumerate(csv_files):
-        try:
-            label = args.labels[i] if args.labels else None
-            plotter.plot_single_file(filepath, label)
-        except Exception as e:
-            print(f"Error plotting {filepath}: {e}")
-    
-    # Generate throughput plots if requested
-    if args.throughput:
-        print("\nGenerating throughput plots (matches per second)...")
+    # Generate combined plots if requested (skip individual plots)
+    if args.combined:
+        print("\nGenerating combined performance and throughput plots...")
         for i, filepath in enumerate(csv_files):
             try:
                 label = args.labels[i] if args.labels else None
-                plotter.plot_matches_per_second(filepath, label)
+                plotter.plot_combined_performance_throughput(filepath, label)
             except Exception as e:
-                print(f"Error plotting throughput for {filepath}: {e}")
+                print(f"Error plotting combined plot for {filepath}: {e}")
+    else:
+        # Generate individual plots
+        print("\nGenerating execution time plots...")
+        for i, filepath in enumerate(csv_files):
+            try:
+                label = args.labels[i] if args.labels else None
+                plotter.plot_single_file(filepath, label)
+            except Exception as e:
+                print(f"Error plotting {filepath}: {e}")
+        
+        # Generate throughput plots if requested
+        if args.throughput:
+            print("\nGenerating throughput plots (matches per second)...")
+            for i, filepath in enumerate(csv_files):
+                try:
+                    label = args.labels[i] if args.labels else None
+                    plotter.plot_matches_per_second(filepath, label)
+                except Exception as e:
+                    print(f"Error plotting throughput for {filepath}: {e}")
     
     print(f"\nAll plots saved to: {args.output_dir}/")
 
