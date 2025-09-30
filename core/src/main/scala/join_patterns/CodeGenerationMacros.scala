@@ -213,10 +213,6 @@ private def generateGuard(using quotes: Quotes)(
       else
         val clauses = extractClauses(term.asExprOf[Boolean])
 
-//        for c <- clauses do
-//          println(c.asTerm)
-//          println(s"\t${getAllVariableNames(c.asTerm)}")
-
         val clausesAndVariableNames =
           for c <- clauses yield
             (c, getAllVariableNames(c.asTerm))
@@ -232,9 +228,6 @@ private def generateGuard(using quotes: Quotes)(
           .filter(_.getCount == 1)
           .map(_.getElement)
           .toScala(Seq)
-
-//        println(s"All types: ${typesData.map(_._1.typeSymbol.name)}")
-//        println(s"Types appearing once: $typesAppearingOnce")
 
         val typeNamesAndFilteringClauses =
           for t <- typesAppearingOnce yield
@@ -253,12 +246,8 @@ private def generateGuard(using quotes: Quotes)(
 
             t -> clauses
 
-//        println(s"Type names and filtering clauses: ${typeNamesAndFilteringClauses.map{ (t, c) => (t, c.map(_.show)) }}")
-
         val typeNamesAndFilterExpressions = typeNamesAndFilteringClauses.map: (t, cs) =>
           (t, reconstructConjunctionTree(cs))
-
-//        println(s"Type names and filter expressions: ${typeNamesAndFilterExpressions.map((t, e) => (t, e.show))}")
 
         // Construct filtering lambdas
         val filteringLambdas = typeNamesAndFilterExpressions.iterator
@@ -268,13 +257,6 @@ private def generateGuard(using quotes: Quotes)(
             (t, lambda)
           }
           .toMap
-
-//        println(s"Type names and filter lambdas: ${filteringLambdas.map((t, e) => (t, e.show))}")
-
-
-//        val filteringClauses = typeNamesAndFilteringClauses.flatMap(_._2)
-//        val finalGuardClauses = clauses.filterNot(filteringClauses.contains(_))
-//        val finalGuardExpression = reconstructConjunctionTree(finalGuardClauses)
 
         val guardLambda = '{ (lookupEnv: LookupEnv) => ${ replaceInnersWithLookupEnv(term.asExprOf[Boolean], innersForSplice, 'lookupEnv) }}
 

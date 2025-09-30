@@ -51,7 +51,7 @@ def monitor(matcher: MatcherFactory) = Actor[Event, Unit] {
           if ts2 - ts1 >= TEN_MIN
             && !used.contains(rid1) =>
         self ! Fault(mid1, rid1, ts1) // Re-enqueue latest request
-        self ! Mark(ts2, used + mid1) // Re-enqueue "used" mark for this request
+        self ! Mark(ts2, used + rid1) // Re-enqueue "used" mark for this request
         println(s"Request ${rid1} not taken for ${(ts2 - ts1) / ONE_MIN} minutes!")
         Continue
 

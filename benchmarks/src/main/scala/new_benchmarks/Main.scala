@@ -192,7 +192,7 @@ object Main:
       commonConfig,
       ComplexSmartHouse,
       config,
-      "Complex Smart House" + describeMatches(matches),
+      "Smart House Benchmark", // + describeMatches(matches),
       "Number of random messages per match"
     )
 
@@ -226,9 +226,7 @@ object Main:
       newCommonConfig,
       Size,
       config,
-      "Performance of join pattern" + (if noise.value then " with noise" else "") + describeMatches(
-        matches
-      ),
+      "Performance of join pattern" + (if noise.value then " with noise" else ""), // + describeMatches(matches),
       "Size of join pattern"
     )
 
@@ -280,14 +278,14 @@ object Main:
 
     val descriptor = variantEnum match
       case GuardedSizeVariant.Normal => ""
-      case GuardedSizeVariant.Noisy => " and noise"
-      case GuardedSizeVariant.NonMatchingPayloads => " and non-satisfying payloads"
+      case GuardedSizeVariant.Noisy => " with noise"
+      case GuardedSizeVariant.NonMatchingPayloads => " with non-satisfying payloads"
 
     runAndOutput(
       newCommonConfig,
       GuardedSize,
       config,
-      "Performance of guarded join pattern " + descriptor + describeMatches(matches),
+      "Performance of guarded join pattern matching" + descriptor, //+ describeMatches(matches),
       "Size of join pattern"
     )
 
