@@ -19,8 +19,8 @@ QUICK_WARMUP ?= 2
 QUICK_REPS ?= 3
 
 # Main Benchmark Parameters
-WARMUP ?= 4
-REPS ?= 8
+WARMUP ?= 2
+REPS ?= 5
 
 # Base arguments for benchmark types
 COMMON_ARGS := --warmup $(WARMUP) --repetitions $(REPS) --matchers $(SELECTED_MATCHERS) -p $(DATA_DIR) --suppress-plot --smoothen
@@ -32,9 +32,9 @@ NOISE_MESSAGES_IN_SIZE := 50
 NON_MATCHING_MESSAGES_IN_SIZE := 10
 
 # Main benchmark argument sets (include common args)
-SIZE_ARGS := $(COMMON_ARGS) --min-param 1 --max-param 5 -m 5
+SIZE_ARGS := $(COMMON_ARGS) --min-param 1 --max-param 5 -m 10
 BOUNDED_BUFFER_ARGS := $(COMMON_ARGS) --bufferBound 1000 --count 10
-SMART_HOUSE_ARGS := $(COMMON_ARGS) --param-step 4 -m 50 --max-param 24
+SMART_HOUSE_ARGS := $(COMMON_ARGS) --param-step 4 -m 10 --max-param 24
 
 # Quick benchmark additional arguments (to be combined with COMMON_ARGS)
 QUICK_SIZE_EXTRA := --min-param 1 --max-param 5 -m 2 
@@ -169,8 +169,8 @@ bench-quick-complex-smart-house:
 	$(call run_benchmark,quick complex smart house,complex-smart-house $(COMMON_ARGS_QUICK) $(QUICK_SMART_HOUSE_EXTRA))
 
 # Benchmark Suites
-MAIN_BENCHMARKS := bench-size bench-size-noise bench-size-guards bench-size-guards-noise bench-size-guards-non-matching bench-bounded-buffer bench-simple-smart-house bench-complex-smart-house
-QUICK_BENCHMARKS := bench-quick-size bench-quick-size-noise bench-quick-size-guards bench-quick-size-guards-noise bench-quick-size-guards-non-matching bench-quick-bounded-buffer bench-quick-simple-smart-house bench-quick-complex-smart-house
+MAIN_BENCHMARKS := bench-size bench-size-noise bench-size-guards bench-size-guards-noise bench-size-guards-non-matching bench-bounded-buffer bench-complex-smart-house
+QUICK_BENCHMARKS := bench-quick-size bench-quick-size-noise bench-quick-size-guards bench-quick-size-guards-noise bench-quick-size-guards-non-matching bench-quick-bounded-buffer bench-quick-complex-smart-house
 
 bench-all: $(MAIN_BENCHMARKS)
 	@echo "✓ All main benchmarks completed!"
