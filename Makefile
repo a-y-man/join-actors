@@ -19,7 +19,7 @@ QUICK_WARMUP ?= 2
 QUICK_REPS ?= 3
 
 # Main Benchmark Parameters
-WARMUP ?= 2
+WARMUP ?= 5
 REPS ?= 5
 
 # Base arguments for benchmark types
