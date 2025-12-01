@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.1.1"
-ThisBuild / scalaVersion := "3.7.3"
+ThisBuild / scalaVersion := "3.7.4"
 
 lazy val versions = new {
     val scalaTest  = "3.2.19"
