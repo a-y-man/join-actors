@@ -14,11 +14,11 @@ sbt "benchmarks/run [benchmark name] [parameters]"
 
 `benchmark_name` can be set to any of the following, allowing access to all implemented benchmarks:
 
-- [`simple-smart-house`](src/main/scala/new_benchmarks/simple_smart_house)
-- [`complex-smart-house`](src/main/scala/new_benchmarks/complex_smart_house)
-- [`bounded-buffer`](src/main/scala/new_benchmarks/bounded_buffer)
-- [`size`](src/main/scala/new_benchmarks/size)
-- [`size-with-guards`](src/main/scala/new_benchmarks/size_with_guards)
+- [`simple-smart-house`](src/main/scala/benchmarks/simple_smart_house)
+- [`complex-smart-house`](src/main/scala/benchmarks/complex_smart_house)
+- [`bounded-buffer`](src/main/scala/benchmarks/bounded_buffer)
+- [`size`](src/main/scala/benchmarks/size)
+- [`size-with-guards`](src/main/scala/benchmarks/size_with_guards)
 
 All benchmarks have the following parameters in common:
 

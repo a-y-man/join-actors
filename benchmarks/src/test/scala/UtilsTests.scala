@@ -1,9 +1,10 @@
-package new_benchmarks
+package benchmarks
 
-import new_benchmarks.size_with_guards.GenerateGuardedSizeMsgs.*
+import benchmarks.size_with_guards.GenerateGuardedSizeMsgs.*
 import org.scalatest.Assertions.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import benchmarks.genNMatchingMsgSeqs
 
 class UtilsTests extends AnyFunSuite with Matchers:
   test("genNNonMatchingMsgs generates correct number of messages") {
