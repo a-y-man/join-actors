@@ -2,7 +2,7 @@
 """
 Benchmark Plot Generator
 
-This script generates LaTeX-styled matplotlib plots from CSV benchmark data files.
+This script generates pdf plots from CSV benchmark data files.
 It processes individual CSV files and creates PDF plots for execution time and 
 optionally throughput (matches per second) for each one.
 
@@ -16,15 +16,7 @@ Examples:
     # Plot execution time and throughput plots
     python plot_benchmarks.py --throughput
 
-    # Plot combined performance and         # Customize throughput plot
-        ax2.set_xlabel(x_label, fontweight='bold')
-        ax2.set_ylabel(r'Matches per Second - Log Scale', fontweight='bold')
-        
-        # Set title with appropriate padding for multiline titles
-        throughput_title = f"{title} - Throughput"
-        title_lines = throughput_title.count('\n') + 1
-        title_pad = 20 + (title_lines - 1) * 15  # Extra padding for each additional line
-        ax2.set_title(throughput_title, fontweight='bold', pad=title_pad)ughput plots as subplots
+    # Plot combined execution time and throughput plots as subplots
     python plot_benchmarks.py --combined
 
     # Plot specific files with custom labels
@@ -32,6 +24,12 @@ Examples:
 
     # Save plots to a specific directory
     python plot_benchmarks.py --output-dir plots/
+
+    # Show improvement factor tables comparing algorithms to baselines
+    python plot_benchmarks.py --show-improvement-table
+
+    # Show only improvement factor tables without generating plots
+    python plot_benchmarks.py --table-only
 
     # Customize plot style (smaller size with larger fonts by default)
     python plot_benchmarks.py --figsize 10 6
@@ -47,6 +45,8 @@ from pathlib import Path
 import re
 from typing import List, Optional, Tuple
 import warnings
+from prettytable import PrettyTable, TableStyle
+
 warnings.filterwarnings('ignore')
 
 # LaTeX-style matplotlib configuration with larger fonts for smaller plots
@@ -73,10 +73,11 @@ plt.rcParams.update({
 class BenchmarkPlotter:
     """Generate plots from benchmark CSV data."""
     
-    def __init__(self, output_dir: str = "plots", figsize: Tuple[int, int] = (8, 5)):
+    def __init__(self, output_dir: str = "plots", figsize: Tuple[int, int] = (8, 5), show_improvement_table: bool = False):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.figsize = figsize
+        self.show_improvement_table = show_improvement_table
         
         # High contrast color palette for algorithms (excluding baseline matchers)
         self.colors = [
@@ -103,9 +104,9 @@ class BenchmarkPlotter:
         clean_name = algorithm_name.lower()
         
         # Check for baseline stateless and stateful matchers
-        if 'baseline stateless' in clean_name:
+        if 'baseline bruteforcematcher' in clean_name:
             return '#1a1a1a'  # Very dark gray/black
-        elif 'baseline stateful' in clean_name:
+        elif 'baseline statefultreematcher' in clean_name:
             return '#4a4a4a'  # Dark gray
         else:
             return self.colors[index % len(self.colors)]
@@ -298,32 +299,185 @@ class BenchmarkPlotter:
         # Remove common suffixes like _8, _16, etc.
         name = re.sub(r'_\d+$', '', name)
         
-        # Convert camelCase to spaced words
-        name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
-        
         # Clean up specific algorithm names
-        replacements = {
-            'Algorithm': '',
-            'BruteForce': 'Brute Force',
-            'StatefulTreeBased': 'Stateful Tree-Based',
-            'WhileLazy': 'While Lazy',
-            'FilteringParallel': 'Filtering Parallel'
-        }
+        # replacements = {
+        #     'Algorithm': '',
+        #     'BruteForce': 'BruteForce',
+        #     'StatefulTreeBased': 'StatefulTree',
+        #     'WhileLazy': 'WhileLazyMatcher',
+        #     'FilteringParallel': 'FilteringParallelMatcher'
+        # }
         
-        for old, new in replacements.items():
-            name = name.replace(old, new)
+        # for old, new in replacements.items():
+        #     name = name.replace(old, new)
         
         return name.strip()
     
+    def print_improvement_factor_table(self, filepath: str, algorithm_names: List[str], means_df: pd.DataFrame, matches_series: Optional[pd.Series] = None) -> None:
+        """Print a table showing improvement factors compared to baseline algorithms using prettytable."""
+        
+        # Extract filename for table title
+        filename = Path(filepath).stem
+        title = self.extract_title_from_filename(filename + '.csv')
+        
+        print(f"\nIMPROVEMENT FACTOR TABLE: {title}")
+        print("=" * 80)
+        
+        # Extract match counts for calculating matches per second
+        x_values = means_df[means_df.columns[0]].values
+        match_counts = self.extract_match_counts(matches_series, len(x_values))
+        fallback_matches = next((val for val in match_counts if val is not None), None)
+        if fallback_matches is None:
+            print("Warning: No match counts found in CSV. Cannot calculate matches per second.")
+            return
+        default_matches = fallback_matches
+        
+        # Identify baseline algorithms
+        baseline_brute_force = None
+        baseline_stateful_tree = None
+        
+        for algo_name in algorithm_names:
+            clean_name = algo_name.strip()
+            if clean_name == "Baseline BruteForceMatcher":
+                baseline_brute_force = algo_name
+            elif clean_name == "Baseline StatefulTreeMatcher":
+                baseline_stateful_tree = algo_name
+        
+        # Group non-baseline algorithms
+        non_baseline_algorithms = []
+        for algo_name in algorithm_names:
+            clean_name = algo_name.strip()
+            if not clean_name.startswith("Baseline "):
+                non_baseline_algorithms.append(algo_name)
+        
+        # Get x-axis values and labels
+        x_label = means_df.columns[0]
+        
+        # Create the main table
+        table = PrettyTable()
+        table.set_style(TableStyle.MARKDOWN)
+        
+        # Set up table headers
+        headers = ["Algorithm", "vs Baseline"] + [f"{x_label}: {int(x)}" for x in x_values]
+        table.field_names = headers
+        
+        # Configure table alignment and formatting
+        table.align["Algorithm"] = "l"
+        table.align["vs Baseline"] = "l"
+        for header in headers[2:]:  # Performance columns
+            table.align[header] = "r"
+        
+        # Calculate baseline matches per second
+        baseline_mps_data = {}
+        
+        if baseline_brute_force:
+            baseline_times = means_df[baseline_brute_force].values
+            baseline_mps = []
+            for i, (time_val, x_val) in enumerate(zip(baseline_times, x_values)):
+                matches_value = match_counts[i] if match_counts[i] is not None else default_matches
+                if time_val > 0 and matches_value is not None:
+                    mps = matches_value / time_val
+                    baseline_mps.append(mps)
+                else:
+                    baseline_mps.append(0.0)
+            baseline_mps_data[baseline_brute_force] = baseline_mps
+            
+            row = ["Baseline BruteForceMatcher", "(reference)"] + [f"{mps:.0f} mps" for mps in baseline_mps]
+            table.add_row(row)
+        
+        if baseline_stateful_tree:
+            baseline_times = means_df[baseline_stateful_tree].values
+            baseline_mps = []
+            for i, (time_val, x_val) in enumerate(zip(baseline_times, x_values)):
+                matches_value = match_counts[i] if match_counts[i] is not None else default_matches
+                if time_val > 0 and matches_value is not None:
+                    mps = matches_value / time_val
+                    baseline_mps.append(mps)
+                else:
+                    baseline_mps.append(0.0)
+            baseline_mps_data[baseline_stateful_tree] = baseline_mps
+            
+            row = ["Baseline StatefulTreeMatcher", "(reference)"] + [f"{mps:.0f} mps" for mps in baseline_mps]
+            table.add_row(row)
+        
+        # Add separator row
+        table.add_row(["-" * 20, "-" * 15] + ["-" * 12] * len(x_values))
+        
+        # Add improvement factor rows for each algorithm (two rows per algorithm)
+        for algo_name in sorted(non_baseline_algorithms):
+            algo_times = means_df[algo_name].values
+            clean_display_name = self.clean_algorithm_name(algo_name)
+            
+            # Calculate algorithm matches per second
+            algo_mps = []
+            for i, (time_val, x_val) in enumerate(zip(algo_times, x_values)):
+                matches_value = match_counts[i] if match_counts[i] is not None else default_matches
+                if time_val > 0 and matches_value is not None:
+                    mps = matches_value / time_val
+                    algo_mps.append(mps)
+                else:
+                    algo_mps.append(0.0)
+            
+            # First row: comparison with Baseline BruteForceMatcher
+            if baseline_brute_force:
+                brute_force_mps = baseline_mps_data[baseline_brute_force]
+                improvement_factors_bf = []
+                for algo_mp, baseline_mp in zip(algo_mps, brute_force_mps):
+                    if baseline_mp > 0 and algo_mp > 0:
+                        improvement_factor = algo_mp / baseline_mp
+                        improvement_factors_bf.append(f"{improvement_factor:.2f}x")
+                    else:
+                        improvement_factors_bf.append("N/A")
+                
+                row = [clean_display_name, "Baseline BruteForceMatcher"] + improvement_factors_bf
+                table.add_row(row)
+            
+            # Second row: comparison with Baseline StatefulTreeMatcher
+            if baseline_stateful_tree:
+                stateful_tree_mps = baseline_mps_data[baseline_stateful_tree]
+                improvement_factors_st = []
+                for algo_mp, baseline_mp in zip(algo_mps, stateful_tree_mps):
+                    if baseline_mp > 0 and algo_mp > 0:
+                        improvement_factor = algo_mp / baseline_mp
+                        improvement_factors_st.append(f"{improvement_factor:.2f}x")
+                    else:
+                        improvement_factors_st.append("N/A")
+                
+                row = ["", "Baseline StatefulTreeMatcher"] + improvement_factors_st
+                table.add_row(row)
+        
+        print(table)
+        print("=" * 80)
+        print("Note: Baseline values show matches per second (mps).")
+        print("Improvement factors show how many times better throughput each algorithm achieves")
+        print("compared to the specified baseline algorithm. Higher values indicate better performance.\n")
+    
+    def process_table_only(self, filepath: str, custom_label: Optional[str] = None) -> None:
+        """Process a CSV file and show only the improvement factor table without generating plots."""
+        df, x_label, title, matches_series = self.parse_csv_file(filepath)
+        
+        if custom_label:
+            title = self.break_long_title(custom_label)
+        
+        # Parse algorithm repetitions and calculate means/stds
+        algorithm_names, means_df, _ = self.parse_algorithm_repetitions(df)
+        
+        # Print improvement factor table
+        self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+    
     def plot_single_file(self, filepath: str, custom_label: Optional[str] = None) -> str:
         """Generate a plot for a single CSV file with error bars."""
-        df, x_label, title, _ = self.parse_csv_file(filepath)
+        df, x_label, title, matches_series = self.parse_csv_file(filepath)
         
         if custom_label:
             title = self.break_long_title(custom_label)
         
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
+        
+        # Print improvement factor table if requested
+        if self.show_improvement_table:
+            self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
         
         # Create figure
         fig, ax = plt.subplots(figsize=self.figsize)
@@ -409,7 +563,10 @@ class BenchmarkPlotter:
             
             match_counts = self.extract_match_counts(matches_series, len(x_values))
             fallback_matches = next((val for val in match_counts if val is not None), None)
-            default_matches = fallback_matches if fallback_matches is not None else 50.0
+            if fallback_matches is None:
+                raise ValueError("No match counts found in CSV for throughput calculation.")
+            default_matches = fallback_matches
+
 
             matches_per_second = []
             matches_per_second_errors = []
@@ -429,6 +586,7 @@ class BenchmarkPlotter:
                     matches_per_second_errors.append(mps_error)
                 else:
                     matches_per_second.append(0)
+                    print(f"Warning: Zero or negative execution time for algorithm '{algorithm}' at x={x_val}. Setting matches per second to 0.")
                     matches_per_second_errors.append(0)
             
             # Clean algorithm name for legend
@@ -486,8 +644,8 @@ class BenchmarkPlotter:
         
         return str(output_path)
     
-    def plot_combined_performance_throughput(self, filepath: str, custom_label: Optional[str] = None) -> str:
-        """Generate a combined plot with performance and throughput as subplots sharing one legend."""
+    def create_combined_execution_throughput_plot(self, filepath: str, custom_label: Optional[str] = None) -> str:
+        """Generate a combined plot with execution time and throughput as subplots sharing one legend."""
         df, x_label, title, matches_series = self.parse_csv_file(filepath)
         
         if custom_label:
@@ -496,10 +654,14 @@ class BenchmarkPlotter:
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
         
+        # Print improvement factor table if requested
+        if self.show_improvement_table:
+            self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+        
         # Create figure with subplots - wider to accommodate both plots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
         
-        # Plot performance (execution time) on left subplot
+        # Plot execution time (execution time) on left subplot
         lines = []  # Store line objects for shared legend
         labels = []  # Store labels for shared legend
         
@@ -514,7 +676,10 @@ class BenchmarkPlotter:
             # Get color for algorithm (darker for baseline matchers)
             color = self.get_algorithm_color(clean_name, i)
             
-            # Plot line with markers and error bars on performance plot
+            if (algorithm.lower().startswith('baselinebruteforcematcher') or algorithm.lower().startswith('filteringparallel')) and 'non_satisfying' in Path(filepath).name.lower():
+                print(f"Warning: y-errors for execution time plot of algorithm '{algorithm}' at x-values {x_values} are {y_stds}")
+
+            # Plot line with markers and error bars on execution time plot
             line = ax1.errorbar(x_values, y_means, yerr=y_stds,
                                color=color,
                                linestyle=self.line_styles[i % len(self.line_styles)],
@@ -529,15 +694,15 @@ class BenchmarkPlotter:
             lines.append(line)
             labels.append(clean_name)
         
-        # Customize performance plot
+        # Customize execution time plot
         ax1.set_xlabel(x_label, fontweight='bold')
         ax1.set_ylabel(r'Execution Time (seconds) - Log Scale', fontweight='bold')
         
         # Set title with appropriate padding for multiline titles
-        performance_title = f"{title} - Performance"
-        title_lines = performance_title.count('\n') + 1
+        execution_time_title = f"{title} - Execution Time"
+        title_lines = execution_time_title.count('\n') + 1
         title_pad = 15 + (title_lines - 1) * 12  # Reduced padding for closer spacing
-        ax1.set_title(performance_title, fontweight='bold', pad=title_pad, fontsize=16, ha='center')
+        ax1.set_title(execution_time_title, fontweight='bold', pad=title_pad, fontsize=16, ha='center')
         ax1.set_yscale('log')
         ax1.set_xticks(x_values)
         ax1.set_xticklabels([str(int(x)) for x in x_values])
@@ -595,7 +760,7 @@ class BenchmarkPlotter:
         ax2.set_xlabel(x_label, fontweight='bold')
         ax2.set_ylabel(r'Matches per Second - Log Scale', fontweight='bold')
         
-        # Set title with same padding calculation as performance plot for alignment
+        # Set title with same padding calculation as execution time plot for alignment
         throughput_title = f"{title} - Throughput"
         throughput_title_lines = throughput_title.count('\n') + 1
         throughput_title_pad = 15 + (throughput_title_lines - 1) * 12  # Reduced padding for closer spacing
@@ -689,10 +854,26 @@ def main():
     parser.add_argument(
         '--combined',
         action='store_true',
-        help='Generate combined plots with performance and throughput as subplots sharing one legend'
+        help='Generate combined plots with execution time and throughput as subplots sharing one legend'
+    )
+    
+    parser.add_argument(
+        '--show-improvement-table',
+        action='store_true',
+        help='Print improvement factor tables comparing algorithms to their baseline versions'
+    )
+    
+    parser.add_argument(
+        '--table-only',
+        action='store_true',
+        help='Show only improvement factor tables without generating any plots'
     )
     
     args = parser.parse_args()
+    
+    # If table-only mode is requested, automatically enable improvement table
+    if args.table_only:
+        args.show_improvement_table = True
     
     # Enable LaTeX if requested
     if args.latex:
@@ -701,7 +882,8 @@ def main():
     # Initialize plotter
     plotter = BenchmarkPlotter(
         output_dir=args.output_dir,
-        figsize=tuple(args.figsize)
+        figsize=tuple(args.figsize),
+        show_improvement_table=args.show_improvement_table
     )
     
     # Determine which files to process
@@ -723,13 +905,24 @@ def main():
         print(f"Warning: Number of labels ({len(args.labels)}) doesn't match number of files ({len(csv_files)})")
         args.labels = None
     
-    # Generate combined plots if requested (skip individual plots)
-    if args.combined:
-        print("\nGenerating combined performance and throughput plots...")
+    # Handle table-only mode
+    if args.table_only:
+        print("\nGenerating improvement factor tables only...")
         for i, filepath in enumerate(csv_files):
             try:
                 label = args.labels[i] if args.labels else None
-                plotter.plot_combined_performance_throughput(filepath, label)
+                plotter.process_table_only(filepath, label)
+            except Exception as e:
+                print(f"Error processing table for {filepath}: {e}")
+        return
+    
+    # Generate combined plots if requested (skip individual plots)
+    if args.combined:
+        print("\nGenerating combined execution time and throughput plots...")
+        for i, filepath in enumerate(csv_files):
+            try:
+                label = args.labels[i] if args.labels else None
+                plotter.create_combined_execution_throughput_plot(filepath, label)
             except Exception as e:
                 print(f"Error plotting combined plot for {filepath}: {e}")
     else:
