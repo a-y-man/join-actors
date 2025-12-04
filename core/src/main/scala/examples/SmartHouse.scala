@@ -27,9 +27,11 @@ This function defines a smart house example using join patterns.
 def smartHouseExample(matcher: MatcherFactory) =
   var lastNotification = Date(0L)
   var lastMotionInBathroom = Date(0L)
-  def isSorted: Seq[Date] => Boolean = times =>
+  
+  inline def isSorted: Seq[Date] => Boolean = times =>
     times.sliding(2).forall { case Seq(x, y) => x.before(y) || x == y }
-  def bathroomOccupied =
+  
+  inline def bathroomOccupied =
     (
         times: Seq[Date],
         rooms: Seq[String],
@@ -38,7 +40,7 @@ def smartHouseExample(matcher: MatcherFactory) =
         value: Int
     ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
 
-  def occupiedHome = (
+  inline def occupiedHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
       mRoom0: String,
@@ -49,7 +51,7 @@ def smartHouseExample(matcher: MatcherFactory) =
       _ == true
     ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
 
-  def emptyHome = (
+  inline def emptyHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
       mRoom0: String,
@@ -141,7 +143,6 @@ def smartHouseMsgs(n: Int)(generator: Int => Vector[Action]): Vector[Action] =
 
   intercalateCorrectMsgs(correctMsgs, randomMsgs)
 
-// val msgs = smartHouseMsgs(numberOfRandomMsgs)(GenerateActions.genActionsOfSizeN)
 def runSmartHouseExample(
     matcher: MatcherFactory,
     msgs: Vector[Action]

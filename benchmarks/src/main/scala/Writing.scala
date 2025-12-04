@@ -55,7 +55,16 @@ private def saveToFile(
           case None => ""
 
       Some("Matches" +: matchesPerParam)
-    else None
+    else 
+      val matchesPerParam = paramRange.indices.map: idx =>
+        val candidate = results.view.flatMap: (_, algoResults) =>
+          algoResults(idx).matches
+        candidate.headOption match
+          case Some(value) => value(idx).toString
+          case None => ""
+
+      Some("Matches" +: matchesPerParam)
+      // None
   val stringedResults =
     if repetitions > 1 then
       results.flatMap: (algo, algoResults) =>

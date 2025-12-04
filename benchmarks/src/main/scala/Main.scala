@@ -274,8 +274,6 @@ object Main:
 
     val config = GuardedSizeConfig(matches, variantEnum, numberOfNoiseMsgs, nonMatchingPayload)
 
-    println(s"${config}")
-
     val descriptor = variantEnum match
       case GuardedSizeVariant.Normal => ""
       case GuardedSizeVariant.Noisy => " with noise"

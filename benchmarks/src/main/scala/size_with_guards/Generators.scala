@@ -25,7 +25,7 @@ def guardedSize1(matcher: MatcherFactory) =
   Actor[GuardedSizeMsg, (Long, Int)] {
     receive { (_: ActorRef[GuardedSizeMsg]) =>
       {
-        case A(x) if x >= 0 =>
+        case A(x) if x >= 0 && x <= 100 =>
           matches += 1
           Continue
         case Terminate() =>
@@ -89,6 +89,7 @@ def guardedSize5(matcher: MatcherFactory) =
           matches += 1
           Continue
         case Terminate() =>
+          println(s"matches: $matches")
           Stop((System.currentTimeMillis(), matches))
       }
     }(matcher)
