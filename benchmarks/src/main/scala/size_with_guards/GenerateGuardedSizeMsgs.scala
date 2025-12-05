@@ -10,39 +10,39 @@ object GenerateGuardedSizeMsgs:
       yield A(x)
 
   private val genB: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(201, 300)
       yield B(x)
 
   private val genC: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(301, 400)
       yield C(x)
 
   private val genD: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(401, 500)
       yield D(x)
 
   private val genE: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(501, 600)
       yield E(x)
 
   private val genF: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(601, 700)
       yield F(x)
 
   private val genG: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(701, 800)
       yield G(x)
 
   private val genH: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(801, 900)
       yield H(x)
 
   private val genI: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(901, 1000)
       yield I(x)
 
   private val genJ: Gen[GuardedSizeMsg] =
-    for x <- Gen.choose(101, 200)
+    for x <- Gen.choose(1001, 1100)
       yield J(x)
 
   private val genAA: Gen[Vector[GuardedSizeMsg]] =
