@@ -51,9 +51,9 @@ warnings.filterwarnings('ignore')
 
 # LaTeX-style matplotlib configuration with larger fonts for smaller plots
 plt.rcParams.update({
-    'text.usetex': True,  # Set to True if LaTeX is installed
-    'font.family': 'serif',
-    'font.serif': ['Times', 'Computer Modern Roman'],
+    'text.usetex': False,  # Set to True if LaTeX is installed
+    'font.family': 'sans-serif',
+    'font.sans-serif': ['DejaVu Sans', 'Arial', 'Helvetica'],
     'font.size': 16,
     'axes.labelsize': 18,
     'axes.titlesize': 18,
@@ -73,11 +73,15 @@ plt.rcParams.update({
 class BenchmarkPlotter:
     """Generate plots from benchmark CSV data."""
     
-    def __init__(self, output_dir: str = "plots", figsize: Tuple[int, int] = (8, 5), show_improvement_table: bool = False):
+    def __init__(self, output_dir: str = "plots", figsize: Tuple[int, int] = (8, 5), show_improvement_table: bool = False, save_tables: bool = False, table_output_file: Optional[str] = None, table_title: Optional[str] = None):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.figsize = figsize
         self.show_improvement_table = show_improvement_table
+        self.save_tables = save_tables
+        self.table_output_file = table_output_file
+        self.table_title = table_title
+        self.table_content = []  # Store table content for batch writing
         
         # High contrast color palette for algorithms (excluding baseline matchers)
         self.colors = [
@@ -313,12 +317,17 @@ class BenchmarkPlotter:
         
         return name.strip()
     
-    def print_improvement_factor_table(self, filepath: str, algorithm_names: List[str], means_df: pd.DataFrame, matches_series: Optional[pd.Series] = None) -> None:
-        """Print a table showing improvement factors compared to baseline algorithms using prettytable."""
+    def print_improvement_factor_table(self, filepath: str, algorithm_names: List[str], means_df: pd.DataFrame, matches_series: Optional[pd.Series] = None) -> str:
+        """Print a table showing improvement factors compared to baseline algorithms using prettytable and return markdown string."""
         
         # Extract filename for table title
         filename = Path(filepath).stem
         title = self.extract_title_from_filename(filename + '.csv')
+        
+        # Build markdown output
+        markdown_lines = []
+        markdown_lines.append(f"\n## {title}\n")
+        markdown_lines.append("=" * 80)
         
         print(f"\nIMPROVEMENT FACTOR TABLE: {title}")
         print("=" * 80)
@@ -329,7 +338,9 @@ class BenchmarkPlotter:
         fallback_matches = next((val for val in match_counts if val is not None), None)
         if fallback_matches is None:
             print("Warning: No match counts found in CSV. Cannot calculate matches per second.")
-            return
+            markdown_lines.append("\n**Warning:** No match counts found in CSV. Cannot calculate improvement factors.\n")
+            markdown_lines.append("\n" + "=" * 80 + "\n")
+            return "\n".join(markdown_lines)
         default_matches = fallback_matches
         
         # Identify baseline algorithms
@@ -338,16 +349,19 @@ class BenchmarkPlotter:
         
         for algo_name in algorithm_names:
             clean_name = algo_name.strip()
-            if clean_name == "Baseline BruteForceMatcher":
+            # Check for both "Baseline XYZ" and just "XYZ" patterns
+            if clean_name == "Baseline BruteForceMatcher" or clean_name == "BruteForceMatcher":
                 baseline_brute_force = algo_name
-            elif clean_name == "Baseline StatefulTreeMatcher":
+            elif clean_name == "Baseline StatefulTreeMatcher" or clean_name == "StatefulTreeMatcher":
                 baseline_stateful_tree = algo_name
         
-        # Group non-baseline algorithms
+        # Group non-baseline algorithms (exclude the two baseline matchers)
         non_baseline_algorithms = []
         for algo_name in algorithm_names:
             clean_name = algo_name.strip()
-            if not clean_name.startswith("Baseline "):
+            # Exclude baseline algorithms from the non-baseline list
+            if clean_name not in ["Baseline BruteForceMatcher", "BruteForceMatcher", 
+                                   "Baseline StatefulTreeMatcher", "StatefulTreeMatcher"]:
                 non_baseline_algorithms.append(algo_name)
         
         # Get x-axis values and labels
@@ -361,11 +375,15 @@ class BenchmarkPlotter:
         headers = ["Algorithm", "vs Baseline"] + [f"{x_label}: {int(x)}" for x in x_values]
         table.field_names = headers
         
-        # Configure table alignment and formatting
+        # Configure table alignment and formatting - set very large max_width to prevent line wrapping
         table.align["Algorithm"] = "l"
         table.align["vs Baseline"] = "l"
         for header in headers[2:]:  # Performance columns
             table.align[header] = "r"
+        
+        # Set very large max_width for all columns to prevent wrapping
+        for field in table.field_names:
+            table.max_width[field] = 1000
         
         # Calculate baseline matches per second
         baseline_mps_data = {}
@@ -451,6 +469,17 @@ class BenchmarkPlotter:
         print("Note: Baseline values show matches per second (mps).")
         print("Improvement factors show how many times better throughput each algorithm achieves")
         print("compared to the specified baseline algorithm. Higher values indicate better performance.\n")
+        
+        # Add table to markdown output
+        markdown_lines.append("\n")
+        markdown_lines.append(str(table))
+        markdown_lines.append("\n")
+        markdown_lines.append("**Note:** Baseline values show matches per second (mps). ")
+        markdown_lines.append("Improvement factors show how many times better throughput each algorithm achieves ")
+        markdown_lines.append("compared to the specified baseline algorithm. Higher values indicate better performance.\n")
+        markdown_lines.append("\n" + "=" * 80 + "\n")
+        
+        return "\n".join(markdown_lines)
     
     def process_table_only(self, filepath: str, custom_label: Optional[str] = None) -> None:
         """Process a CSV file and show only the improvement factor table without generating plots."""
@@ -462,8 +491,10 @@ class BenchmarkPlotter:
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, _ = self.parse_algorithm_repetitions(df)
         
-        # Print improvement factor table
-        self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+        # Print improvement factor table and save if requested
+        markdown_content = self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+        if self.save_tables:
+            self.table_content.append(markdown_content)
     
     def plot_single_file(self, filepath: str, custom_label: Optional[str] = None) -> str:
         """Generate a plot for a single CSV file with error bars."""
@@ -475,9 +506,11 @@ class BenchmarkPlotter:
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
         
-        # Print improvement factor table if requested
+        # Print improvement factor table if requested and save if needed
         if self.show_improvement_table:
-            self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+            markdown_content = self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+            if self.save_tables:
+                self.table_content.append(markdown_content)
         
         # Create figure
         fig, ax = plt.subplots(figsize=self.figsize)
@@ -654,9 +687,11 @@ class BenchmarkPlotter:
         # Parse algorithm repetitions and calculate means/stds
         algorithm_names, means_df, stds_df = self.parse_algorithm_repetitions(df)
         
-        # Print improvement factor table if requested
+        # Print improvement factor table if requested and save if needed
         if self.show_improvement_table:
-            self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+            markdown_content = self.print_improvement_factor_table(filepath, algorithm_names, means_df, matches_series)
+            if self.save_tables:
+                self.table_content.append(markdown_content)
         
         # Create figure with subplots - wider to accommodate both plots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
@@ -788,6 +823,33 @@ class BenchmarkPlotter:
         plt.close()
         
         return str(output_path)
+    
+    def write_tables_to_file(self) -> None:
+        """Write accumulated improvement factor tables to the output file."""
+        if not self.save_tables or not self.table_output_file:
+            return
+        
+        if not self.table_content:
+            print("No table content to save.")
+            return
+        
+        # Filter out None values and ensure all items are strings
+        valid_content = [str(content) for content in self.table_content if content is not None and content]
+        
+        if not valid_content:
+            print("No valid table content to save.")
+            return
+        
+        with open(self.table_output_file, 'w') as f:
+            if self.table_title:
+                f.write(f"# {self.table_title}\n\n")
+            else:
+                f.write("# Improvement Factor Tables\n\n")
+                f.write("This document contains improvement factor tables for all benchmarks, ")
+                f.write("showing how each algorithm compares to baseline implementations.\n\n")
+            f.write("\n".join(valid_content))
+        
+        print(f"Improvement factor tables written to: {self.table_output_file}")
 
 
 def find_csv_files(data_dir: str) -> List[str]:
@@ -869,10 +931,34 @@ def main():
         help='Show only improvement factor tables without generating any plots'
     )
     
+    parser.add_argument(
+        '--save-tables',
+        action='store_true',
+        help='Save improvement factor tables to a markdown file'
+    )
+    
+    parser.add_argument(
+        '--table-output',
+        type=str,
+        default='improvement-factor-tables.md',
+        help='Output file for improvement factor tables (default: improvement-factor-tables.md)'
+    )
+    
+    parser.add_argument(
+        '--table-title',
+        type=str,
+        default=None,
+        help='Custom title for the table file (e.g., "Table 2: Size Benchmark")'
+    )
+    
     args = parser.parse_args()
     
     # If table-only mode is requested, automatically enable improvement table
     if args.table_only:
+        args.show_improvement_table = True
+    
+    # If save-tables is requested, enable show_improvement_table
+    if args.save_tables:
         args.show_improvement_table = True
     
     # Enable LaTeX if requested
@@ -883,7 +969,10 @@ def main():
     plotter = BenchmarkPlotter(
         output_dir=args.output_dir,
         figsize=tuple(args.figsize),
-        show_improvement_table=args.show_improvement_table
+        show_improvement_table=args.show_improvement_table,
+        save_tables=args.save_tables,
+        table_output_file=args.table_output if args.save_tables else None,
+        table_title=args.table_title if hasattr(args, 'table_title') else None
     )
     
     # Determine which files to process
@@ -914,6 +1003,11 @@ def main():
                 plotter.process_table_only(filepath, label)
             except Exception as e:
                 print(f"Error processing table for {filepath}: {e}")
+        
+        # Write accumulated tables to file if requested
+        if args.save_tables:
+            plotter.write_tables_to_file()
+        
         return
     
     # Generate combined plots if requested (skip individual plots)
@@ -944,6 +1038,10 @@ def main():
                     plotter.plot_matches_per_second(filepath, label)
                 except Exception as e:
                     print(f"Error plotting throughput for {filepath}: {e}")
+    
+    # Write accumulated tables to file if requested
+    if args.save_tables:
+        plotter.write_tables_to_file()
     
     print(f"\nAll plots saved to: {args.output_dir}/")
 
