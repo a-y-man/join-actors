@@ -16,67 +16,18 @@ the aforementioned techniques.
 
 Additionally, the library uses the Actor model as a practical example to
 demonstrate the application of join patterns. At present, we are employing a
-simple homemade actor model implementation.
+simple homemade actor model implementation. 
+
+The formal foundation upon which this library is based can be found in the
+[ECOOP'24 paper](https://doi.org/10.4230/LIPIcs.ECOOP.2024.17). A comprehensive description of the implementation of the
+library can be found in the [Programming Journal 25 paper](https://doi.org/10.22152/programming-journal.org/2026/11/4).
 
 ## Code base structure
 
-The source code for the join patterns library is organized as follows:
-
-- [`join-actors/core`](core): Contains the core implementation of the join patterns library.
-
-  - [`join-actors/core/src/main/scala/`](core/src/main/scala/): Has the following subpackages:
-
-    - [`actor`](core/src/main/scala/actor): Contains the prototype actor implementation.
-    
-    - [`api`](core/src/main/scala/api): Re-exports the API of the library for easy importing in user code with `import join_actors.api.*` 
-
-    - [`join_patterns`](core/src/main/scala/join_patterns): Contains the implementation of the join pattern
-      matching algorithm and code generation macros.
-      - [`matching`](core/src/main/scala/join_patterns/matching): Contains all implemented join pattern matching algorithms 
-        - [`Matcher.scala`](core/src/main/scala/join_patterns/matching/Matcher.scala): The matcher trait that is implemented by the
-          different join pattern matching algorithms. This also contains the 
-          `MatcherFactory` implementation that every matcher must implement.
-        - [`brute_force`](core/src/main/scala/join_patterns/matching/brute_force): The brute-force matcher implementation.
-        - [`immutable`](core/src/main/scala/join_patterns/matching/immutable): The stateful tree-based matcher
-          implementation.
-        - [`mutable`](core/src/main/scala/join_patterns/matching/mutable): The mutable, single-traversal matcher implementation
-        - [`lazy_mutable`](core/src/main/scala/join_patterns/matching/lazy_mutable): The implementation implementing the lazy matching algorithm
-        - [`while_lazy`](core/src/main/scala/join_patterns/matching/while_lazy): The implementation with lazy matching and optimized loops
-        - [`while_eager`](core/src/main/scala/join_patterns/matching/while_eager): The implementation with optimized loops, but not lazy matching
-        - [`eager_parallel`](core/src/main/scala/join_patterns/matching/eager_parallel): The non-lazy parallel matching algorithm
-        - [`lazy_parallel`](core/src/main/scala/join_patterns/matching/lazy_parallel): The lazy parallel matching algorithm
-        - [`filtering_while`](core/src/main/scala/join_patterns/matching/filtering_while): The singlethreaded filtering algorithm
-        - [`filtering_parallel`](core/src/main/scala/join_patterns/matching/filtering_parallel): The multithreaded filtering algorithm
-        - [`array_while`](core/src/main/scala/join_patterns/matching/array_while): The array-based matching algorithm
-        - [`functions`](core/src/main/scala/join_patterns/matching/functions): Utility functions for matching which are used by all algorithms
-      - [`util`](core/src/main/scala/join_patterns/util): Miscellaneous utilities used by the other code
-      - [`CodeGenerationMacros.scala`](core/src/main/scala/join_patterns/CodeGenerationMacros.scala): Defines the `receive` macro used to create join definitions
-      - [`JoinPattern.scala`](core/src/main/scala/join_patterns/JoinPattern.scala): Infrastructure code used by the macros and join pattern matching matching algorithms 
-
-    - [`examples`](core/src/main/scala/examples): Contains examples demonstrating the use of the library.
-
-- [`join-actors/benchmarks`](benchmarks): Contains the benchmarking code for the join patterns library.
-
-  - [`join-actors/benchmarks/src/main/scala/`](benchmarks/src/main/scala/): Has the following subpackages:
-
-    - [`benchmarks`](benchmarks/src/main/scala/benchmarks): The benchmarks implementation
-      - [`Benchmark.scala`](benchmarks/src/main/scala/benchmarks/Benchmark.scala): The trait implemented by all runnable benchmarks
-      - [`BenchmarkFactory.scala`](benchmarks/src/main/scala/benchmarks/BenchmarkFactory.scala): The trait implemented by all "benchmark archetype" factories
-      - [`Running.scala`](benchmarks/src/main/scala/benchmarks/Running.scala): The code used for running benchmarks
-      - [`Processing.scala`](benchmarks/src/main/scala/benchmarks/Processing.scala): The code used for processing benchmark data before writing it
-      - [`Writing.scala`](benchmarks/src/main/scala/benchmarks/Writing.scala): The code used for writing benchmark data to csv files and plots
-      - [`Utils.scala`](benchmarks/src/main/scala/benchmarks/Utils.scala): Utility functions used by the benchmark suite
-      - [`mixin/MessageFeedBenchmark.scala`](benchmarks/src/main/scala/benchmarks/mixin/MessageFeedBenchmark.scala): A superclass containing code common to some benchmark implementations
-      - [`simple_smart_house`](benchmarks/src/main/scala/benchmarks/simple_smart_house), [`complex_smart_house`](benchmarks/src/main/scala/benchmarks/complex_smart_house), [`bounded_buffer`](benchmarks/src/main/scala/benchmarks/bounded_buffer), [`size`](benchmarks/src/main/scala/benchmarks/size), [`size_with_guards`](benchmarks/src/main/scala/benchmarks/size_with_guards): Benchmark implementations
-  - [`join-actors/benchmarks/data`](benchmarks/data): The default directory for data files generated by the benchmarks.
-    - Every benchmark creates a file of the form `{{yyyy_MM_dd_HH_mm_ss}}_{{benchmark_description}}.csv/`. This file contains:
-      - A column containing parameter values
-      - For each algorithm used in the benchmark:
-        - Columns for the data from every repetition
-        - A column containing the average of the repetition results
-        - A column containing the standard deviation of the repetition results
-    - Unless the `--suppressPlot` flag is given, a plot of the results will also be created. The points of the plot are made from
-      the average results, and the error bars show standard deviations
+- [`core/`](core) - Core join patterns library implementation
+  - [`core/src/main/scala/join_patterns/`](core/src/main/scala/join_patterns) - Implementation of join patterns
+  - [`core/src/main/scala/examples/`](core/src/main/scala/examples) - Usage examples
+- [`benchmarks/`](benchmarks) - Performance benchmarking suite
 
 ## API usage
 
@@ -162,6 +113,8 @@ The library can be compiled by installing a [Java Development Kit (version 21 or
 [sbt (version 1.9 or later)](https://www.scala-sbt.org/) and running `sbt compile`. Then, `sbt` will download the required
 dependencies (including the Scala 3 compiler).
 
+### Using sbt directly
+
 To compile the library, run the following command from the root directory (where
 the `build.sbt` file is located):
 
@@ -182,6 +135,16 @@ run the following command:
 sbt "core/run factory-simple --matcher stateful"
 ```
 
+### Using the Makefile
+
+A `Makefile` is provided for convenient access to common tasks. Run `make help` to see all available targets:
+
+```bash
+make help
+```
+
+### Available matchers
+
 The `--matcher` flag can be set to any of the following, allowing access to all implemented matchers:
 
 - [`brute`](core/src/main/scala/join_patterns/matching/brute_force)
@@ -200,5 +163,10 @@ There are other examples available in the [`examples`](core/src/main/scala/examp
 
 ## Benchmarks
 
-See the [benchmarks README](benchmarks/README.md) for more information on how to
-run the benchmarks.
+See the [benchmarks README](benchmarks/README.md) for more information on how to run the benchmarks.
+
+## References
+
+- Philipp Haller, Ayman Hussein, Hernán Melgratti, Alceste Scalas, and Emilio Tuosto. Fair Join Pattern Matching for Actors. In 38th European Conference on Object-Oriented Programming (ECOOP 2024). Leibniz International Proceedings in Informatics (LIPIcs), Volume 313, pp. 17:1-17:28, Schloss Dagstuhl – Leibniz-Zentrum für Informatik (2024) https://doi.org/10.4230/LIPIcs.ECOOP.2024.17
+
+- Ayman Hussein, Philipp Haller, Ioannis Karras, Hernán Melgratti, Alceste Scalas, and Emilio Tuosto. ‘JoinActors: A Modular Library for Actors with Join Patterns’. The Art, Science, and Engineering of Programming. 15 February 2026. https://doi.org/10.22152/programming-journal.org/2026/11/4
