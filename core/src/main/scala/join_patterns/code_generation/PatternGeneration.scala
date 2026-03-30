@@ -58,6 +58,150 @@ private[code_generation] def buildExtractorTuples[M](using quotes: Quotes, tm: T
   * @return
   *   a join pattern expression.
   */
+
+/** Extracts Bind symbols from pattern trees (excluding wildcards `_`). */
+private[code_generation] def extractPatternBindSymbols(using quotes: Quotes)(
+    patterns: List[quotes.reflect.Tree]
+): List[(String, quotes.reflect.Symbol)] =
+  import quotes.reflect.*
+
+  val accumulator = new TreeAccumulator[List[(String, Symbol)]]:
+    override def foldTree(acc: List[(String, Symbol)], tree: Tree)(owner: Symbol): List[(String, Symbol)] =
+      tree match
+        case b @ Bind(name, _) if name != "_" => (name, b.symbol) :: foldOverTree(acc, tree)(owner)
+        case e                                => foldOverTree(acc, e)(owner)
+
+  patterns.flatMap(p => accumulator.foldTree(Nil, p)(Symbol.spliceOwner))
+
+/** Checks whether `name` is declared in any enclosing scope of `bindSym`,
+  * indicating that the pattern variable shadows an outer binding.
+  */
+private[code_generation] def isNameInEnclosingScope(using quotes: Quotes)(
+    name: String,
+    bindSym: quotes.reflect.Symbol
+): Boolean =
+  import quotes.reflect.*
+
+  def check(sym: Symbol): Boolean =
+    if sym.isNoSymbol || sym.isPackageDef then false
+    else
+      val found = sym.declarations.exists(d =>
+        d.name == name && d != bindSym && !d.isNoSymbol
+      )
+      if found then true
+      else check(sym.maybeOwner)
+
+  // Start from the Bind symbol's owner (the enclosing scope that contains the CaseDef)
+  check(bindSym.maybeOwner)
+
+/** Finds inner bindings in a term whose names collide with pattern variable names.
+  *
+  * Only detects bindings that create genuinely new scopes:
+  *   - Function/lambda parameters (`Flags.Param`): e.g. `list.map(x => x + 1)` where `x`
+  *     is also a pattern variable — the `TreeMap` would incorrectly replace the lambda's `x`.
+  *   - Nested match `Bind` nodes: e.g. `val match { case A(x) => ... }` inside the RHS.
+  *
+  * Regular `ValDef`s (including those from `inline` function expansion) are excluded
+  * because the name-based `TreeMap` handles them correctly — the inlined alias is
+  * initialised with the replaced pattern variable value.
+  */
+private[code_generation] def findInnerShadowingBindings(using quotes: Quotes)(
+    term: quotes.reflect.Term,
+    fieldBindingNames: Set[String]
+): List[String] =
+  import quotes.reflect.*
+
+  val accumulator = new TreeAccumulator[List[String]]:
+    override def foldTree(acc: List[String], tree: Tree)(owner: Symbol): List[String] =
+      tree match
+        case vd @ ValDef(name, _, _)
+            if fieldBindingNames.contains(name) && vd.symbol.flags.is(Flags.Param) =>
+          name :: foldOverTree(acc, tree)(owner)
+        case Bind(name, _) if fieldBindingNames.contains(name) =>
+          name :: foldOverTree(acc, tree)(owner)
+        case _ =>
+          foldOverTree(acc, tree)(owner)
+
+  accumulator.foldTree(Nil, term)(Symbol.spliceOwner).distinct
+
+/** Validates that join pattern bindings do not shadow variables from outer or inner scopes.
+  *
+  * The guard and RHS substitution (`replaceInnersWithLookupEnv`, `generateRhs`)
+  * replaces `Ident` nodes by **name**, not by Symbol identity. This means:
+  *
+  *   - If a pattern binds `x` and an outer scope also defines `x`, the developer
+  *     cannot reference the outer `x` in the guard/RHS — it will silently become
+  *     a `LookupEnv` lookup for the pattern-bound value.
+  *
+  *   - If a pattern binds `x` and the guard/RHS contains an inner binding
+  *     (lambda parameter, val, nested match) also named `x`, the `TreeMap`
+  *     will incorrectly replace the inner `x` with a `LookupEnv` lookup.
+  *
+  * Both cases are reported as compile errors so the developer can rename variables.
+  */
+private[code_generation] def checkForShadowedBindings(using quotes: Quotes)(
+    typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])],
+    selfRefName: String,
+    guard: Option[quotes.reflect.Term],
+    rhsTerm: quotes.reflect.Term,
+    patterns: List[quotes.reflect.Tree]
+): Unit =
+  import quotes.reflect.*
+
+  val fieldBindingNames = typesData
+    .flatMap(_._2)
+    .map(_._1)
+    .filter(_ != "_")
+    .toSet
+
+  var hasErrors = false
+
+  // 1. Detect pattern bindings that shadow variables in enclosing scopes.
+  //    This includes the self ActorRef parameter and any val/var/def visible
+  //    at the receive call site.
+  val bindSymbols = extractPatternBindSymbols(patterns)
+  for (name, bindSym) <- bindSymbols do
+    if isNameInEnclosingScope(name, bindSym) then
+      report.error(
+        s"Pattern variable '$name' shadows a binding with the same name in an enclosing scope. " +
+          s"Use a different name to avoid ambiguity.",
+        bindSym.pos.getOrElse(Position.ofMacroExpansion)
+      )
+      hasErrors = true
+
+  // 2. Detect inner bindings in the guard/RHS that shadow pattern variables.
+  //    These cause incorrect substitution because the TreeMap replaces by name.
+  val termsToCheck = guard.toList :+ rhsTerm
+  for term <- termsToCheck do
+    val shadows = findInnerShadowingBindings(term, fieldBindingNames)
+    for name <- shadows do
+      report.error(
+        s"Inner binding '$name' in the guard or body shadows pattern variable '$name'. " +
+          s"The name-based substitution would incorrectly replace inner references. " +
+          s"Use a different name for the inner binding."
+      )
+      hasErrors = true
+
+  // 3. Detect duplicate variable names across constructors in composite patterns.
+  //    Scala's own checker usually catches this, but this is defense-in-depth.
+  val allBindings = typesData.flatMap { (typeRepr, fields) =>
+    fields.collect { case (name, _) if name != "_" => (name, typeRepr.typeSymbol.name) }
+  }
+  val duplicates = allBindings
+    .groupBy(_._1)
+    .collect { case (name, occurrences) if occurrences.size > 1 =>
+      occurrences.map(_._2).mkString(", ")
+    }
+  for constructors <- duplicates do
+    report.error(
+      s"Variable name is bound multiple times across constructors ($constructors) in the same join pattern. " +
+        s"Each binding must have a unique name."
+    )
+    hasErrors = true
+
+  if hasErrors then
+    report.errorAndAbort("Join pattern has shadowed variable bindings (see errors above).")
+
 private[code_generation] def generateJP[M, T](using
     quotes: Quotes,
     tm: Type[M],
@@ -71,6 +215,7 @@ private[code_generation] def generateJP[M, T](using
   import quotes.reflect.*
 
   val typesData = extractConstructorData(patterns)
+  checkForShadowedBindings(typesData, selfRefName, guard, rhsTerm, patterns)
   val (predicate, filters) = generateGuard(guard, typesData)
   val extractors = buildExtractorTuples[M](typesData, filters)
 

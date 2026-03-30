@@ -35,32 +35,32 @@ def smartHouseExample(matcher: MatcherFactory) =
     (
         times: Seq[Date],
         rooms: Seq[String],
-        mStatus: Boolean,
-        lStatus: Boolean,
-        value: Int
-    ) => isSorted(times) && rooms.forall(_ == "bathroom") && mStatus && !lStatus && value <= 40
+        motionActive: Boolean,
+        lightOn: Boolean,
+        luxLevel: Int
+    ) => isSorted(times) && rooms.forall(_ == "bathroom") && motionActive && !lightOn && luxLevel <= 40
 
   inline def occupiedHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
-      mRoom0: String,
-      mRoom1: String,
-      cRoom: String
+      room0: String,
+      room1: String,
+      contactRoom: String
   ) =>
     isSorted(times) && statuses.forall(
       _ == true
-    ) && mRoom0 == "front_door" && cRoom == "front_door" && mRoom1 == "entrance_hall"
+    ) && room0 == "front_door" && contactRoom == "front_door" && room1 == "entrance_hall"
 
   inline def emptyHome = (
       times: Seq[Date],
       statuses: Seq[Boolean],
-      mRoom0: String,
-      mRoom1: String,
-      cRoom: String
+      room0: String,
+      room1: String,
+      contactRoom: String
   ) =>
     isSorted(times) && statuses.forall(
       _ == true
-    ) && mRoom0 == "entrance_hall" && cRoom == "front_door" && mRoom1 == "front_door"
+    ) && room0 == "entrance_hall" && contactRoom == "front_door" && room1 == "front_door"
 
   Actor[Action, Unit] {
     receive { (selfRef: ActorRef[Action]) =>
