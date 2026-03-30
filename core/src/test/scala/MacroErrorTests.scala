@@ -4,19 +4,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers.*
 import scala.compiletime.testing.{typeCheckErrors, Error}
 
-/** Compile-time negative tests verifying that the `receive` macro
-  * produces helpful error messages for invalid pattern syntax.
-  *
-  * Uses `scala.compiletime.testing.typeCheckErrors` to capture macro errors
-  * without failing compilation.
-  *
-  * Note: `typeCheckErrors` has a known limitation with this macro — patterns
-  * with named bindings (e.g. `case Ping(n)`) produce a spurious `Expr.ofList`
-  * type mismatch inside the synthetic compilation context. Tests requiring
-  * named bindings are therefore limited to negative checks (errors expected
-  * regardless). Shadowing detection is validated by integration: the SmartHouse
-  * example compilation correctly rejects colliding lambda parameter names.
-  */
 class MacroErrorTests extends AnyFunSuite:
 
   test("string literal pattern produces error") {
@@ -50,8 +37,6 @@ class MacroErrorTests extends AnyFunSuite:
   }
 
   test("duplicate variable name across constructors in &:& pattern produces error") {
-    // Scala's own pattern checker catches this first ("duplicate pattern variable"),
-    // but our checkForShadowedBindings provides defense-in-depth.
     val errors = typeCheckErrors("""
       import join_actors.api.*
       import join_actors.actor.Result.Stop
@@ -116,4 +101,24 @@ class MacroErrorTests extends AnyFunSuite:
       }(BruteForceMatcher)
     """)
     assert(errors.isEmpty, s"Wildcard single pattern should compile, got: ${errors.map(_.message)}")
+  }
+
+  test("pattern type not a subtype of M produces error") {
+    val errors = typeCheckErrors("""
+      import join_actors.api.*
+      import join_actors.actor.Result.Stop
+
+      sealed trait Evt
+      case class Ping(n: Int) extends Evt
+      case class Unrelated(s: String)
+
+      receive { (self: ActorRef[Evt]) =>
+        { case Unrelated(_) => Stop(()) }
+      }(BruteForceMatcher)
+    """)
+    assert(errors.nonEmpty, "Expected a compile error for pattern type not subtype of M")
+    assert(
+      errors.exists(_.message.contains("not a subtype")),
+      s"Error should mention 'not a subtype', got: ${errors.map(_.message)}"
+    )
   }

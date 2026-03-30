@@ -202,6 +202,28 @@ private[code_generation] def checkForShadowedBindings(using quotes: Quotes)(
   if hasErrors then
     report.errorAndAbort("Join pattern has shadowed variable bindings (see errors above).")
 
+/** Verifies that each message constructor type in the pattern is a subtype of `M`.
+  *
+  * Since the `receive` macro accepts `PartialFunction[Any, ...]`, Scala does not
+  * enforce that pattern constructors match the declared message type. This check
+  * ensures at compile time that every `case Foo(...)` pattern uses a type `Foo <: M`,
+  * preventing silent runtime mismatches where a constructor would never match.
+  */
+private[code_generation] def checkPatternSubtypesOfM[M](using quotes: Quotes, tm: Type[M])(
+    typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])]
+): Unit =
+  import quotes.reflect.*
+
+  val mType = TypeRepr.of[M].dealias.simplified
+
+  for (constructorType, _) <- typesData do
+    val ct = constructorType.dealias.simplified
+    if !(ct <:< mType) then
+      report.errorAndAbort(
+        s"Message pattern type '${ct.show}' is not a subtype of the declared message type '${mType.show}'. " +
+          s"All patterns in a join definition must match subtypes of the actor's message type."
+      )
+
 private[code_generation] def generateJP[M, T](using
     quotes: Quotes,
     tm: Type[M],
@@ -215,6 +237,7 @@ private[code_generation] def generateJP[M, T](using
   import quotes.reflect.*
 
   val typesData = extractConstructorData(patterns)
+  checkPatternSubtypesOfM[M](typesData)
   checkForShadowedBindings(typesData, selfRefName, guard, rhsTerm, patterns)
   val (predicate, filters) = generateGuard(guard, typesData)
   val extractors = buildExtractorTuples[M](typesData, filters)
