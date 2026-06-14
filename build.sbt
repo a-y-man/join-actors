@@ -1,5 +1,5 @@
 version      := "0.1.1"
-scalaVersion := "3.8.2"
+scalaVersion := "3.7.1"
 
 lazy val commonDependencies = Seq(
   "com.lihaoyi"         %% "os-lib"     % Versions.osLib,
