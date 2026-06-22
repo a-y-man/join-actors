@@ -34,7 +34,7 @@ import MsgPlain.*
 
 class SingletonPatterns extends AnyFunSuite:
   test("Single Empty Message, no Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
     forAll(matchers) { matcher =>
       val actor = Actor[Msg, Int] {
         receive { (_: ActorRef[Msg]) =>
@@ -52,7 +52,7 @@ class SingletonPatterns extends AnyFunSuite:
   }
 
   test("Single Empty Message, Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
     val ifZero = (i: Int) => i == 0
 
     forAll(matchers) { matcher =>
@@ -76,7 +76,7 @@ class SingletonPatterns extends AnyFunSuite:
   }
 
   test("Single Message, One Int Member, no Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
 
     forAll(matchers) { matcher =>
       val actor = Actor[Msg, Int](receive { (_: ActorRef[Msg]) =>
@@ -94,7 +94,7 @@ class SingletonPatterns extends AnyFunSuite:
   }
 
   test("Single Message, One Int Member, Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
     val ifZero = (i: Int) => i == 0
 
     forAll(matchers) { matcher =>
@@ -209,7 +209,7 @@ class SingletonPatterns extends AnyFunSuite:
 
 class CompositePatterns extends AnyFunSuite:
   test("Multiple Empty Messages, no Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
     forAll(matchers) { matcher =>
       val actor = Actor[Msg, Int] {
         receive { (_: ActorRef[Msg]) =>
@@ -236,7 +236,7 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("One Tupled Empty Message, no Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
 
     forAll(matchers) { matcher =>
       val actor = Actor[Msg, Int] {
@@ -256,7 +256,7 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("Multiple Empty Messages, Predicate") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
     val isZero: Int => Boolean = (n: Int) => n == 0
 
     forAll(matchers) { matcher =>
@@ -282,7 +282,7 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("Multiple Messages of the same Class, One Int Member, no Predicate") {
-    val (i0, i1) = (Random.nextInt, Random.nextInt)
+    val (i0, i1) = (Random.nextInt(), Random.nextInt())
     val expected = i0
 
     forAll(matchers) { matcher =>
@@ -363,7 +363,7 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("Multiple Messages with irrelevant message types for the join-patterns") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
 
     forAll(matchers) { matcher =>
       val actor = Actor[Msg, Int] {
@@ -398,7 +398,7 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("Multiple Messages with irrelevant message types for the join-patterns, with guards") {
-    val expected = Random.nextInt
+    val expected = Random.nextInt()
 
     forAll(matchers) { matcher =>
       val actor = Actor[Msg, Int] {
@@ -438,7 +438,7 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("Multiple Messages of the same Class, One Int Member, Predicate") {
-    val (result0, result1) = (Random.nextInt(Int.MaxValue - 1) + 1, Random.nextInt)
+    val (result0, result1) = (Random.nextInt(Int.MaxValue - 1) + 1, Random.nextInt())
     val expected = result0
     val ifNotZero = (i: Int) => i != 0
 
@@ -466,7 +466,8 @@ class CompositePatterns extends AnyFunSuite:
   }
 
   test("Wildcard field names, no Predicate") {
-    val (result0, result1, result2) = (Random.nextInt, Random.nextInt.toString, Random.nextInt)
+    val (result0, result1, result2) =
+      (Random.nextInt(), Random.nextInt().toString, Random.nextInt())
     val expected = result1 + result2
 
     forAll(matchers) { matcher =>
@@ -488,7 +489,7 @@ class CompositePatterns extends AnyFunSuite:
 
   test("Wildcard field names, Predicate") {
     val (result0, result1, result2, result3) =
-      (Random.nextInt, Random.nextInt.toString, Random.nextInt, Random.nextBoolean)
+      (Random.nextInt(), Random.nextInt().toString, Random.nextInt(), Random.nextBoolean())
     val expected = if result3 then result2 else result0
     val is: Boolean => Boolean =
       (boolean: Boolean) => boolean

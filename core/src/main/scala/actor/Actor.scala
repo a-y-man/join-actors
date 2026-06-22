@@ -33,7 +33,7 @@ import Result.*
   */
 class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   private val mailbox: Mailbox[M] = Mailbox[M]
-  private val self                = ActorRef(mailbox)
+  private val self = ActorRef(mailbox)
 
   /** Starts the actor and returns a future that will be completed with the result produced by the
     * actor, and the actor reference.
@@ -42,7 +42,7 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
     *   A tuple containing the future result and the actor reference.
     */
   def start(): (Future[T], ActorRef[M]) =
-    val promise = Promise[T]
+    val promise = Promise[T]()
 
     ec.execute(() => run(promise))
 
@@ -57,27 +57,28 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   @tailrec
   private def run(promise: Promise[T]): Unit =
     matcher(mailbox)(self) match
-      case Continue    => run(promise)
+      case Continue => run(promise)
       case Stop(value) => promise.success(value)
 
-
-/**
- * A simple actor implementation that processes messages of type M and produces a result of type T.
- * 
- * This actor does not use the receive macro and directly uses regular Scala partial functions for
- * message handling.
- *
- * @param f A function that takes an ActorRef and returns a partial function for message handling.
- * @tparam M The type of messages this actor can receive.
- * @tparam T The type of the final result produced when the actor stops.
- */
+/** A simple actor implementation that processes messages of type M and produces a result of type T.
+  *
+  * This actor does not use the receive macro and directly uses regular Scala partial functions for
+  * message handling.
+  *
+  * @param f
+  *   A function that takes an ActorRef and returns a partial function for message handling.
+  * @tparam M
+  *   The type of messages this actor can receive.
+  * @tparam T
+  *   The type of the final result produced when the actor stops.
+  */
 class SimpleActor[M, T](private val f: ActorRef[M] => PartialFunction[Any, Result[T]]):
 
   private val mailbox: Mailbox[M] = Mailbox[M]
   private val self = ActorRef(mailbox)
 
   def start(): (Future[T], ActorRef[M]) =
-    val promise = Promise[T]
+    val promise = Promise[T]()
 
     ec.execute(() => run(promise))
 
