@@ -5,26 +5,27 @@ scalacOptions += "-feature"
 ThisBuild / githubWorkflowJavaVersions := List(JavaSpec.temurin("25"))
 
 libraryDependencies ++= Seq(
-  "com.lihaoyi"          %% "os-lib" % Versions.osLib,
-  "com.lihaoyi"          %% "mainargs" % Versions.mainargs,
-  "org.scalacheck"       %% "scalacheck" % Versions.scalaCheck,
-  "org.scalactic"        %% "scalactic" % Versions.scalactic               % Test,
-  "org.scalatestplus"    %% "scalacheck-1-19" % s"${Versions.scalaTest}.0" % Test,
-  "org.scalatest"        %% "scalatest" % Versions.scalaTest               % Test,
-  "org.scalatest"        %% "scalatest-funsuite" % Versions.scalaTest      % Test,
-  "org.felher"            % "s3te-compile_3.5" % "0.0.2" % Compile,
-  "com.google.guava"      % "guava" % "33.6.0-jre"       % Compile,
-  "org.jfree"             % "jfreechart" % "1.5.5",
-  "com.google.code.gson"  % "gson" % Versions.gson,
+  "com.lihaoyi" %% "os-lib" % Versions.osLib,
+  "com.lihaoyi" %% "mainargs" % Versions.mainargs,
+  "org.scalacheck" %% "scalacheck" % Versions.scalaCheck,
+  "org.scalactic" %% "scalactic" % Versions.scalactic % Test,
+  "org.scalatestplus" %% "scalacheck-1-19" % s"${Versions.scalaTest}.0" % Test,
+  "org.scalatest" %% "scalatest" % Versions.scalaTest % Test,
+  "org.scalatest" %% "scalatest-funsuite" % Versions.scalaTest % Test,
+  "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile,
+  "com.google.guava" % "guava" % "33.6.0-jre" % Compile,
+  "org.jfree" % "jfreechart" % "1.5.5",
+  "com.google.code.gson" % "gson" % Versions.gson
 )
-
 
 lazy val joinActors =
   rootProject.autoAggregate
     .settings(
       name := "joinActors",
       publish / skip := true,
-      assembly / skip := true
+      assembly / skip := true,
+      githubWorkflowCheck / aggregate := false,
+      githubWorkflowGenerate / aggregate := false
     )
 
 lazy val core =
