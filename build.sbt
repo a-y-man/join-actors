@@ -10,6 +10,10 @@ ThisBuild / githubWorkflowBuild := Seq(
 ThisBuild / githubWorkflowPublishTargetBranches := Nil
 ThisBuild / githubWorkflowIncludeClean := false
 
+// sbt 2 runs `run` in a separate JVM started in the subproject's directory; keep the repository
+// root as working directory, since the Makefile and the code use paths relative to it.
+run / baseDirectory := (ThisBuild / baseDirectory).value
+
 libraryDependencies ++= Seq(
   "org.scalactic" %% "scalactic" % Versions.scalactic % Test,
   "org.scalatestplus" %% "scalacheck-1-19" % s"${Versions.scalaTest}.0" % Test,
@@ -48,6 +52,9 @@ lazy val benchmarks =
     .settings(
       name := "benchmarks",
       libraryDependencies += "org.jfree" % "jfreechart" % Versions.jfreechart,
+      // A fixed heap for stable measurements; `run` gets its own JVM in sbt 2, so .sbtopts
+      // no longer applies to it.
+      run / javaOptions ++= Seq("-Xms16G", "-Xmx16G"),
       publish / skip := true,
       assembly / skip := true
     )
