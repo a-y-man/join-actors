@@ -7,11 +7,17 @@ import benchmarks.bounded_buffer.BoundedBuffer.*
 import InternalEvent.*
 import ExternalEvent.*
 
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
+
+/** Producers and consumers block on replies, so each gets its own virtual thread. */
+private given ExecutionContext =
+  ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
 
 class BoundedBuffer(private val matcher: MatcherFactory, private val config: Config)
     extends Benchmark[PassPrereqs]:

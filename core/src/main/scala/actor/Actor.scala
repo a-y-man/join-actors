@@ -2,18 +2,35 @@ package join_actors.actor
 
 import join_patterns.matching.Matcher
 
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedTransferQueue as Mailbox
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.util.*
+import scala.util.control.NonFatal
 
-implicit val ec: ExecutionContext =
-  ExecutionContext.fromExecutorService(
-    Executors.newVirtualThreadPerTaskExecutor()
-  )
+/** Runs each actor's message loop on its own virtual thread. Deliberately not an implicit
+  * `ExecutionContext`: user code chooses its own execution context for its futures.
+  */
+private val actorExecutor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
+
+/** Runs `loop` on its own virtual thread and completes the returned future with its result. If
+  * `loop` throws, the future fails with that exception instead of never completing. `cleanup` runs
+  * in both cases.
+  */
+private def runActorLoop[T](loop: () => T, cleanup: () => Unit): Future[T] =
+  val promise = Promise[T]()
+  actorExecutor.execute { () =>
+    try promise.success(loop())
+    catch
+      case e: Throwable =>
+        promise.tryFailure(e)
+        if !NonFatal(e) then throw e
+    finally cleanup()
+  }
+  promise.future
 
 enum Result[+T]:
   case Stop(value: T)
@@ -38,27 +55,23 @@ class Actor[M, T](private val matcher: Matcher[M, Result[T]]):
   /** Starts the actor and returns a future that will be completed with the result produced by the
     * actor, and the actor reference.
     *
+    * The future fails if a join pattern (its guard or right-hand side) throws an exception; the
+    * actor then stops. Once the actor stops, its matcher is closed.
+    *
     * @return
     *   A tuple containing the future result and the actor reference.
     */
   def start(): (Future[T], ActorRef[M]) =
-    val promise = Promise[T]()
-
-    ec.execute(() => run(promise))
-
-    (promise.future, self)
+    (runActorLoop(() => run(), () => matcher.close()), self)
 
   /** Runs the actor's message processing loop recursively until a stop signal is received, and
-    * completes the provided promise with the resulting value.
-    *
-    * @param promise
-    *   The promise to be completed with the actor's result.
+    * returns the resulting value.
     */
   @tailrec
-  private def run(promise: Promise[T]): Unit =
+  private def run(): T =
     matcher(mailbox)(self) match
-      case Continue => run(promise)
-      case Stop(value) => promise.success(value)
+      case Continue => run()
+      case Stop(value) => value
 
 /** A simple actor implementation that processes messages of type M and produces a result of type T.
   *
@@ -77,15 +90,12 @@ class SimpleActor[M, T](private val f: ActorRef[M] => PartialFunction[Any, Resul
   private val mailbox: Mailbox[M] = Mailbox[M]
   private val self = ActorRef(mailbox)
 
+  /** Starts the actor. As for [[Actor.start]], the future fails if the handler throws. */
   def start(): (Future[T], ActorRef[M]) =
-    val promise = Promise[T]()
-
-    ec.execute(() => run(promise))
-
-    (promise.future, self)
+    (runActorLoop(() => run(), () => ()), self)
 
   @tailrec
-  private def run(promise: Promise[T]): Unit =
+  private def run(): T =
     f(self).applyOrElse[M, Result[T]](mailbox.take(), _ => Continue) match
-      case Continue => run(promise)
-      case Stop(value) => promise.success(value)
+      case Continue => run()
+      case Stop(value) => value

@@ -9,7 +9,7 @@ import join_patterns.util.*
 import java.util
 import java.util.Map.Entry as MapEntry
 import java.util.TreeMap as JavaTreeMap
-import java.util.concurrent.{Executors, Future}
+import java.util.concurrent.{ExecutorService, Future}
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.{ArrayBuffer, ArrayDeque, Map as MutableMap, TreeMap as MutableTreeMap}
 import scala.concurrent.{ExecutionContext, Promise}
@@ -17,12 +17,10 @@ import scala.jdk.CollectionConverters.*
 import scala.util.boundary
 import scala.util.boundary.break
 
-class ParallelMatchingArray[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int):
+class ParallelMatchingArray[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int, private val executorService: ExecutorService):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 
   private var nodes = Array[Node](MessageIdxs() -> pattern.getPatternInfo.patternBins)
-
-  private val executorService = Executors.newFixedThreadPool(numThreads)
 
   private type Node = (MessageIdxs, PatternBins)
   private type IterResult[Mres, Tres] = Either[CandidateMatch[Mres, Tres], ArrayBuffer[Node]]

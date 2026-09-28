@@ -3,7 +3,10 @@ package join_patterns.matching
 import join_actors.actor.ActorRef
 import join_patterns.types.*
 
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.LinkedTransferQueue as Mailbox
+import java.util.concurrent.atomic.AtomicInteger
 import scala.Console
 import scala.collection.immutable.ArraySeq
 import scala.collection.immutable.TreeMap
@@ -78,7 +81,12 @@ object CandidateMatches:
   * @tparam M the message type that the matcher will process
   * @tparam T the result type produced by successful pattern matching
   */
-trait Matcher[M, T]:
+trait Matcher[M, T] extends AutoCloseable:
+
+  /** Releases resources held by the matcher, such as the thread pool of a parallel matcher. The
+    * actor calls this when it stops, normally or because of a failure.
+    */
+  override def close(): Unit = ()
 
   /** The matcher constructor that takes a mailbox and an actor reference and returns the result of
     * the join pattern.
@@ -104,3 +112,18 @@ trait Matcher[M, T]:
  */
 trait MatcherFactory:
   def apply[M, T]: JoinDefinition[M, T] => Matcher[M, T]
+
+private val matchingPoolThreadCount = AtomicInteger()
+
+/** Creates the thread pool of a parallel matcher. One pool is shared by all matching trees of a
+  * matcher and is shut down by the matcher's `close()`. The threads are daemons, so a matcher that
+  * is never closed cannot keep the JVM alive.
+  */
+def newMatchingPool(numThreads: Int): ExecutorService =
+  Executors.newFixedThreadPool(
+    numThreads,
+    (r: Runnable) =>
+      val t = Thread(r, s"join-matcher-${matchingPoolThreadCount.incrementAndGet()}")
+      t.setDaemon(true)
+      t
+  )

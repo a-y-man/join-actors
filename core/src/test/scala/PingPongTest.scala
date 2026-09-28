@@ -12,7 +12,7 @@ import test.utils.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.Random
@@ -32,9 +32,9 @@ class PingPongTest extends AnyFunSuite:
 
       ponger ! Ping(pinger, 0)
 
-      val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+      val finalResult = Await.result(results, Duration(30, TimeUnit.SECONDS))
 
-      finalResult map { results => assert(results forall (_ == maxHits)) }
+      assert(finalResult forall (_ == maxHits))
     }
   }
 
@@ -50,8 +50,8 @@ class PingPongTest extends AnyFunSuite:
 
       ponger ! Ping(pinger, 0)
 
-      val finalResult = Await.ready(results, Duration(30, TimeUnit.SECONDS))
+      val finalResult = Await.result(results, Duration(30, TimeUnit.SECONDS))
 
-      finalResult map { results => assert(results forall (_ == maxHits)) }
+      assert(finalResult forall (_ == maxHits))
     }
   }

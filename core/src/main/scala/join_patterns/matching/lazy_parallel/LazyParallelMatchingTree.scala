@@ -8,7 +8,7 @@ import join_patterns.util.*
 
 import java.util.TreeMap as JavaTreeMap
 import java.util.Map.Entry as MapEntry
-import java.util.concurrent.{Executors, Future}
+import java.util.concurrent.{ExecutorService, Future}
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable.ArrayDeque
 import scala.collection.mutable.{ArrayBuffer, Map as MutableMap, TreeMap as MutableTreeMap}
@@ -17,13 +17,11 @@ import scala.util.boundary
 import scala.util.boundary.break
 import scala.jdk.CollectionConverters.*
 
-class LazyParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int):
+class LazyParallelMatchingTree[M, T](private val pattern: JoinPattern[M, T], private val patternIdx: Int, private val numThreads: Int, private val executorService: ExecutorService):
   private val patternExtractors = pattern.getPatternInfo.patternExtractors
 
   private val nodes = JavaTreeMap[MessageIdxs, PatternBins](sizeBiasedOrdering)
   nodes.put(MessageIdxs(), pattern.getPatternInfo.patternBins)
-
-  private val executorService = Executors.newFixedThreadPool(numThreads)
 
   private type Node = (MessageIdxs, PatternBins)
   private type IterResult[Mres, Tres] = Either[CandidateMatch[Mres, Tres], ArrayBuffer[Node]]

@@ -2,7 +2,15 @@ package join_actors.examples
 
 import org.scalacheck.Gen
 
+import java.util.concurrent.Executors
+import scala.concurrent.ExecutionContext
 import scala.util.*
+
+/** Execution context for the futures the example drivers start themselves (producers, consumers,
+  * ...). They block on replies, so each gets its own virtual thread.
+  */
+given ExecutionContext =
+  ExecutionContext.fromExecutorService(Executors.newVirtualThreadPerTaskExecutor())
 
 def printResult[A](result: Try[A]): Unit = result match
   case Failure(exception) => println("Failed with: " + exception.getMessage)
