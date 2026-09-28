@@ -4,4 +4,4 @@ object Versions:
   val scalactic = "3.2.20"
   val osLib = "0.11.8"
   val mainargs = "0.7.8"
-  val gson = "2.14.0"
+  val jfreechart = "1.5.5"

@@ -1,21 +1,20 @@
-version := "0.1.1"
-scalaVersion := "3.8.4"
-scalacOptions += "-feature"
+ThisBuild / version := "0.1.1"
+ThisBuild / scalaVersion := "3.8.4"
+ThisBuild / scalacOptions += "-feature"
 
 ThisBuild / githubWorkflowJavaVersions := List(JavaSpec.temurin("25"))
+ThisBuild / githubWorkflowBuildSbtStepPreamble := Nil
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(List("testFull"), name = Some("Build and test"))
+)
+ThisBuild / githubWorkflowPublishTargetBranches := Nil
+ThisBuild / githubWorkflowIncludeClean := false
 
 libraryDependencies ++= Seq(
-  "com.lihaoyi" %% "os-lib" % Versions.osLib,
-  "com.lihaoyi" %% "mainargs" % Versions.mainargs,
-  "org.scalacheck" %% "scalacheck" % Versions.scalaCheck,
   "org.scalactic" %% "scalactic" % Versions.scalactic % Test,
   "org.scalatestplus" %% "scalacheck-1-19" % s"${Versions.scalaTest}.0" % Test,
   "org.scalatest" %% "scalatest" % Versions.scalaTest % Test,
-  "org.scalatest" %% "scalatest-funsuite" % Versions.scalaTest % Test,
-  "org.felher" % "s3te-compile_3.5" % "0.0.2" % Compile,
-  "com.google.guava" % "guava" % "33.6.0-jre" % Compile,
-  "org.jfree" % "jfreechart" % "1.5.5",
-  "com.google.code.gson" % "gson" % Versions.gson
+  "org.scalatest" %% "scalatest-funsuite" % Versions.scalaTest % Test
 )
 
 lazy val joinActors =
@@ -23,15 +22,18 @@ lazy val joinActors =
     .settings(
       name := "joinActors",
       publish / skip := true,
-      assembly / skip := true,
-      githubWorkflowCheck / aggregate := false,
-      githubWorkflowGenerate / aggregate := false
+      assembly / skip := true
     )
 
 lazy val core =
   (project in file("core"))
     .settings(
       name := "core",
+      libraryDependencies ++= Seq(
+        "com.lihaoyi" %% "os-lib" % Versions.osLib,
+        "com.lihaoyi" %% "mainargs" % Versions.mainargs,
+        "org.scalacheck" %% "scalacheck" % Versions.scalaCheck
+      ),
       assembly / mainClass := Some("core.Main"),
       assembly / assemblyJarName := "joinActors.jar",
       assembly / assemblyMergeStrategy := {
@@ -45,6 +47,7 @@ lazy val benchmarks =
     .dependsOn(core % "compile->compile;test->test")
     .settings(
       name := "benchmarks",
+      libraryDependencies += "org.jfree" % "jfreechart" % Versions.jfreechart,
       publish / skip := true,
       assembly / skip := true
     )
