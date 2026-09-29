@@ -30,13 +30,19 @@ private[code_generation] def generateExtractor(using
         case (id: Ident) :: _ => id
         case _ =>
           report.errorAndAbort("Internal macro error: generateExtractor expected at least one Ident parameter")
-      val isMemberName: Symbol => Boolean =
-        (p: Symbol) => p.name.head == '_' && p.name.tail.toIntOption.isDefined
-      val memberSymbols: List[Symbol] = outerType.typeSymbol.methodMembers
-        .filter(isMemberName(_))
-        .sortBy(_.name)
+      // Look the accessors up by exact name: sorting `_1, _2, ...` as strings would put `_10`
+      // before `_2`.
+      val accessors: Map[String, Symbol] =
+        outerType.typeSymbol.methodMembers.map(m => m.name -> m).toMap
       val args = varNames.zipWithIndex.map { (name, i) =>
-        Expr.ofTuple(Expr(name), Select(p0, memberSymbols(i)).asExprOf[Any])
+        val accessor = accessors.getOrElse(
+          s"_${i + 1}",
+          report.errorAndAbort(
+            s"Cannot bind field ${i + 1} of `${outerType.show}`: it has no `_${i + 1}` accessor. " +
+              s"Join patterns can only destructure case classes with as many fields as sub-patterns."
+          )
+        )
+        Expr.ofTuple(Expr(name), Select(p0, accessor).asExprOf[Any])
       }
       ('{ LookupEnv(${ Varargs[(String, Any)](args) }*) }).asTerm
   )
