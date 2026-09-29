@@ -124,13 +124,13 @@ private[code_generation] def getJoinDefinition[M, T](
         case (defn @ DefDef(_, List(TermParamClause(params)), _, Some(Block(_, Block(body, _))))) :: _ =>
           body match
             case DefDef(_, _, _, Some(Match(_, cases))) :: _ =>
-              val selfRefName = params match
-                case p :: _ => p.name
+              val selfSym = params match
+                case p :: _ => p.symbol
                 case Nil =>
                   report.errorAndAbort(
                     "Expected receive { (self: ActorRef[M]) => ... } but the function has no parameters"
                   )
-              val jps = cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfRefName))
+              val jps = cases.flatMap(`case` => generateJoinPattern[M, T](`case`, selfSym))
               jps
             case _ =>
               errorTreeWithHint(

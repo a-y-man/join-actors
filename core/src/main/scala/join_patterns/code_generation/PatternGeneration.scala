@@ -53,8 +53,8 @@ private[code_generation] def buildExtractorTuples[M](using quotes: Quotes, tm: T
   *   the optional guard predicate.
   * @param rhsTerm
   *   the right-hand side of the pattern.
-  * @param selfRefName
-  *   the name of the self ActorRef parameter.
+  * @param selfSym
+  *   the symbol of the self ActorRef parameter.
   * @return
   *   a join pattern expression.
   */
@@ -73,117 +73,52 @@ private[code_generation] def extractPatternBindSymbols(using quotes: Quotes)(
 
   patterns.flatMap(p => accumulator.foldTree(Nil, p)(Symbol.spliceOwner))
 
-/** Checks whether `name` is declared in any enclosing scope of `bindSym`,
-  * indicating that the pattern variable shadows an outer binding.
+/** Pairs each pattern variable with the symbol of its `Bind` and the type of its field.
+  *
+  * Guards and right-hand sides refer to pattern variables through these symbols, so a different
+  * variable that has the same name (an inner `val`, `def`, lambda parameter, nested pattern
+  * variable, or a definition in an enclosing scope) is never mistaken for a pattern variable.
+  * Wildcards are not bindings and are left out.
   */
-private[code_generation] def isNameInEnclosingScope(using quotes: Quotes)(
-    name: String,
-    bindSym: quotes.reflect.Symbol
-): Boolean =
+private[code_generation] def extractPatternBindings(using quotes: Quotes)(
+    patterns: List[quotes.reflect.Tree],
+    typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])]
+): List[(String, quotes.reflect.Symbol, quotes.reflect.TypeRepr)] =
   import quotes.reflect.*
 
-  def check(sym: Symbol): Boolean =
-    if sym.isNoSymbol || sym.isPackageDef then false
-    else
-      val found = sym.declarations.exists(d =>
-        d.name == name && d != bindSym && !d.isNoSymbol
+  val symbolOf = extractPatternBindSymbols(patterns).toMap
+  typesData.flatMap(_._2).collect {
+    case (name, tpe) if name != "_" =>
+      val sym = symbolOf.getOrElse(
+        name,
+        report.errorAndAbort(s"Internal macro error: no binding symbol found for pattern variable '$name'")
       )
-      if found then true
-      else check(sym.maybeOwner)
+      (name, sym, tpe)
+  }
 
-  // Start from the Bind symbol's owner (the enclosing scope that contains the CaseDef)
-  check(bindSym.maybeOwner)
-
-/** Finds inner bindings in a term whose names collide with pattern variable names.
+/** Validates the variable bindings of a join pattern.
   *
-  * Only detects bindings that create genuinely new scopes:
-  *   - Function/lambda parameters (`Flags.Param`): e.g. `list.map(x => x + 1)` where `x`
-  *     is also a pattern variable — the `TreeMap` would incorrectly replace the lambda's `x`.
-  *   - Nested match `Bind` nodes: e.g. `val match { case A(x) => ... }` inside the RHS.
+  * Pattern variables are identified by symbol when guards and right-hand sides are rewritten, so
+  * shadowing of a pattern variable by an inner or outer definition is harmless and not reported.
+  * What is still rejected:
   *
-  * Regular `ValDef`s (including those from `inline` function expansion) are excluded
-  * because the name-based `TreeMap` handles them correctly — the inlined alias is
-  * initialised with the replaced pattern variable value.
+  *   - a name bound more than once across the constructors of one join pattern. Bound values are
+  *     passed to the guard and right-hand side in a map keyed by variable name, so the names of a
+  *     join pattern must be unique. (Scala's own checker usually catches this already; this is
+  *     defense-in-depth.)
+  *   - a guard that refers to the actor's `self` reference. A guard is evaluated by the matcher
+  *     on messages before the actor handles them, when there is no actor context to refer to.
   */
-private[code_generation] def findInnerShadowingBindings(using quotes: Quotes)(
-    term: quotes.reflect.Term,
-    fieldBindingNames: Set[String]
-): List[String] =
-  import quotes.reflect.*
-
-  val accumulator = new TreeAccumulator[List[String]]:
-    override def foldTree(acc: List[String], tree: Tree)(owner: Symbol): List[String] =
-      tree match
-        case vd @ ValDef(name, _, _)
-            if fieldBindingNames.contains(name) && vd.symbol.flags.is(Flags.Param) =>
-          name :: foldOverTree(acc, tree)(owner)
-        case Bind(name, _) if fieldBindingNames.contains(name) =>
-          name :: foldOverTree(acc, tree)(owner)
-        case _ =>
-          foldOverTree(acc, tree)(owner)
-
-  accumulator.foldTree(Nil, term)(Symbol.spliceOwner).distinct
-
-/** Validates that join pattern bindings do not shadow variables from outer or inner scopes.
-  *
-  * The guard and RHS substitution (`replaceInnersWithLookupEnv`, `generateRhs`)
-  * replaces `Ident` nodes by **name**, not by Symbol identity. This means:
-  *
-  *   - If a pattern binds `x` and an outer scope also defines `x`, the developer
-  *     cannot reference the outer `x` in the guard/RHS — it will silently become
-  *     a `LookupEnv` lookup for the pattern-bound value.
-  *
-  *   - If a pattern binds `x` and the guard/RHS contains an inner binding
-  *     (lambda parameter, val, nested match) also named `x`, the `TreeMap`
-  *     will incorrectly replace the inner `x` with a `LookupEnv` lookup.
-  *
-  * Both cases are reported as compile errors so the developer can rename variables.
-  */
-private[code_generation] def checkForShadowedBindings(using quotes: Quotes)(
+private[code_generation] def checkPatternBindings(using quotes: Quotes)(
     typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])],
-    selfRefName: String,
-    guard: Option[quotes.reflect.Term],
-    rhsTerm: quotes.reflect.Term,
-    patterns: List[quotes.reflect.Tree]
+    selfSym: quotes.reflect.Symbol,
+    guard: Option[quotes.reflect.Term]
 ): Unit =
   import quotes.reflect.*
 
-  val fieldBindingNames = typesData
-    .flatMap(_._2)
-    .map(_._1)
-    .filter(_ != "_")
-    .toSet
-
   var hasErrors = false
 
-  // 1. Detect pattern bindings that shadow variables in enclosing scopes.
-  //    This includes the self ActorRef parameter and any val/var/def visible
-  //    at the receive call site.
-  val bindSymbols = extractPatternBindSymbols(patterns)
-  for (name, bindSym) <- bindSymbols do
-    if isNameInEnclosingScope(name, bindSym) then
-      report.error(
-        s"Pattern variable '$name' shadows a binding with the same name in an enclosing scope. " +
-          s"Use a different name to avoid ambiguity.",
-        bindSym.pos.getOrElse(Position.ofMacroExpansion)
-      )
-      hasErrors = true
-
-  // 2. Detect inner bindings in the guard/RHS that shadow pattern variables.
-  //    These cause incorrect substitution because the TreeMap replaces by name.
-  val termsToCheck = guard.toList :+ rhsTerm
-  for term <- termsToCheck do
-    val shadows = findInnerShadowingBindings(term, fieldBindingNames)
-    for name <- shadows do
-      report.error(
-        s"Inner binding '$name' in the guard or body shadows pattern variable '$name'. " +
-          s"The name-based substitution would incorrectly replace inner references. " +
-          s"Use a different name for the inner binding."
-      )
-      hasErrors = true
-
-  // 3. Detect duplicate variable names across constructors in composite patterns.
-  //    Scala's own checker usually catches this, but this is defense-in-depth.
+  // 1. Duplicate variable names across constructors in composite patterns.
   val allBindings = typesData.flatMap { (typeRepr, fields) =>
     fields.collect { case (name, _) if name != "_" => (name, typeRepr.typeSymbol.name) }
   }
@@ -199,8 +134,22 @@ private[code_generation] def checkForShadowedBindings(using quotes: Quotes)(
     )
     hasErrors = true
 
+  // 2. `self` used in a guard.
+  val selfUses = new TreeAccumulator[List[Ident]]:
+    override def foldTree(acc: List[Ident], tree: Tree)(owner: Symbol): List[Ident] =
+      tree match
+        case id: Ident if id.symbol == selfSym => id :: acc
+        case e                                 => foldOverTree(acc, e)(owner)
+  for term <- guard.toList; use <- selfUses.foldTree(Nil, term)(Symbol.spliceOwner) do
+    report.error(
+      s"The guard of a join pattern cannot refer to `${selfSym.name}`: guards are evaluated on " +
+        s"messages before the actor handles them. Use `${selfSym.name}` in the body of the case instead.",
+      use.pos
+    )
+    hasErrors = true
+
   if hasErrors then
-    report.errorAndAbort("Join pattern has shadowed variable bindings (see errors above).")
+    report.errorAndAbort("Join pattern has invalid variable bindings (see errors above).")
 
 /** Verifies that each message constructor type in the pattern is a subtype of `M`.
   *
@@ -232,17 +181,17 @@ private[code_generation] def generateJP[M, T](using
     patterns: List[quotes.reflect.Tree],
     guard: Option[quotes.reflect.Term],
     rhsTerm: quotes.reflect.Term,
-    selfRefName: String
+    selfSym: quotes.reflect.Symbol
 ): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
   val typesData = extractConstructorData(patterns)
   checkPatternSubtypesOfM[M](typesData)
-  checkForShadowedBindings(typesData, selfRefName, guard, rhsTerm, patterns)
-  val (predicate, filters) = generateGuard(guard, typesData)
+  checkPatternBindings(typesData, selfSym, guard)
+  val bindings = extractPatternBindings(patterns, typesData)
+  val (predicate, filters) = generateGuard(guard, typesData, bindings)
   val extractors = buildExtractorTuples[M](typesData, filters)
 
-  val fieldBindings = typesData.flatMap(_._2)
   val size = typesData.size
 
   val patternInfo: Expr[PatternInfo[M]] =
@@ -283,7 +232,7 @@ private[code_generation] def generateJP[M, T](using
       }
 
   val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
-    generateRhs[M, T](rhsTerm, fieldBindings, selfRefName).asExprOf[(LookupEnv, ActorRef[M]) => T]
+    generateRhs[M, T](rhsTerm, bindings, selfSym).asExprOf[(LookupEnv, ActorRef[M]) => T]
 
   '{
     JoinPattern(
@@ -300,6 +249,8 @@ private[code_generation] def generateJP[M, T](using
   *   the optional guard predicate.
   * @param rhsTerm
   *   the right-hand side of the pattern.
+  * @param selfSym
+  *   the symbol of the self ActorRef parameter.
   * @return
   *   a join pattern expression with empty pattern bins and extractors.
   */
@@ -307,13 +258,17 @@ private[code_generation] def generateWildcardPattern[M, T](using
     quotes: Quotes,
     tm: Type[M],
     tt: Type[T]
-)(guard: Option[quotes.reflect.Term], rhsTerm: quotes.reflect.Term): Expr[JoinPattern[M, T]] =
+)(
+    guard: Option[quotes.reflect.Term],
+    rhsTerm: quotes.reflect.Term,
+    selfSym: quotes.reflect.Symbol
+): Expr[JoinPattern[M, T]] =
   import quotes.reflect.*
 
-  val (predicate, filter) = generateGuard(guard, List())
-  val rhs: Expr[(LookupEnv, ActorRef[M]) => T] = '{ (_: LookupEnv, _: ActorRef[M]) =>
-    ${ rhsTerm.asExprOf[T] }
-  }
+  checkPatternBindings(Nil, selfSym, guard)
+  val (predicate, filter) = generateGuard(guard, Nil, Nil)
+  val rhs: Expr[(LookupEnv, ActorRef[M]) => T] =
+    generateRhs[M, T](rhsTerm, Nil, selfSym).asExprOf[(LookupEnv, ActorRef[M]) => T]
   val size = 1
 
   val patternInfo: Expr[PatternInfo[M]] = '{
@@ -341,8 +296,8 @@ private[code_generation] def generateWildcardPattern[M, T](using
   *
   * @param joinPattern
   *   the case definition to process.
-  * @param selfRefName
-  *   the name of the self ActorRef parameter.
+  * @param selfSym
+  *   the symbol of the self ActorRef parameter.
   * @return
   *   an optional join pattern expression, or `None` if the pattern is unsupported.
   */
@@ -352,7 +307,7 @@ private[code_generation] def generateJoinPattern[M, T](using
     tt: Type[T]
 )(
     joinPattern: quotes.reflect.CaseDef,
-    selfRefName: String
+    selfSym: quotes.reflect.Symbol
 ): Option[Expr[JoinPattern[M, T]]] =
   import quotes.reflect.*
   joinPattern match
@@ -361,14 +316,14 @@ private[code_generation] def generateJoinPattern[M, T](using
         case t @ TypedOrTest(Unapply(fun, Nil, subPatterns), _) =>
           fun match
             case Select(_, "unapply") =>
-              Some(generateJP[M, T](List(t), guard, rhsTerm, selfRefName))
+              Some(generateJP[M, T](List(t), guard, rhsTerm, selfSym))
             case TypeApply(Select(_, "unapply"), _) =>
-              Some(generateJP[M, T](subPatterns, guard, rhsTerm, selfRefName))
+              Some(generateJP[M, T](subPatterns, guard, rhsTerm, selfSym))
         case andOperatorApplication @ Unapply(_, _, _) =>
           val patterns = getConstructorPatternsFromAndOps[M, T](andOperatorApplication)
-          Some(generateJP[M, T](patterns, guard, rhsTerm, selfRefName))
+          Some(generateJP[M, T](patterns, guard, rhsTerm, selfSym))
         case w: Wildcard =>
-          Some(generateWildcardPattern[M, T](guard, rhsTerm))
+          Some(generateWildcardPattern[M, T](guard, rhsTerm, selfSym))
         case default =>
           errorTreeWithHint(
             "Unsupported case pattern",

@@ -52,12 +52,9 @@ class MacroErrorTests extends AnyFunSuite:
     assert(errors.nonEmpty, "Expected a compile error for duplicate pattern variable 'n'")
   }
 
-  test("named binding patterns produce errors in typeCheckErrors context") {
-    // Patterns with named bindings hit a type inference limitation in typeCheckErrors:
-    // Expr.ofList produces a type mismatch because the JoinPattern type parameters
-    // are not properly resolved in the synthetic compilation context.
-    // This means we cannot distinguish our shadowing errors from this spurious error.
-    // Shadowing detection is validated by integration (SmartHouse example).
+  test("pattern variable named like the self parameter is allowed") {
+    // Pattern variables are identified by symbol, so shadowing `self` is unambiguous: inside the
+    // case, `self` is the pattern variable.
     val errors = typeCheckErrors("""
       import join_actors.api.*
       import join_actors.actor.Result.Stop
@@ -66,10 +63,28 @@ class MacroErrorTests extends AnyFunSuite:
       case class Ping(x: Int) extends Evt
 
       receive { (self: ActorRef[Evt]) =>
-        { case Ping(self) => Stop(()) }
+        { case Ping(self) => Stop(self) }
       }(BruteForceMatcher)
     """)
-    assert(errors.nonEmpty, "Named binding in typeCheckErrors should produce errors")
+    assert(errors.isEmpty, s"Shadowing self should compile, got: ${errors.map(_.message)}")
+  }
+
+  test("guard that refers to self produces a clear error") {
+    val errors = typeCheckErrors("""
+      import join_actors.api.*
+      import join_actors.actor.Result.Stop
+
+      sealed trait Evt
+      case class Ping(x: Int) extends Evt
+
+      receive { (self: ActorRef[Evt]) =>
+        { case Ping(x) if self != null => Stop(x) }
+      }(BruteForceMatcher)
+    """)
+    assert(
+      errors.exists(_.message.contains("guard of a join pattern cannot refer to `self`")),
+      s"Expected an error about self in a guard, got: ${errors.map(_.message)}"
+    )
   }
 
   test("wildcard fields do not trigger errors") {

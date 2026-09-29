@@ -47,71 +47,73 @@ private[code_generation] def generateExtractor(using
       ('{ LookupEnv(${ Varargs[(String, Any)](args) }*) }).asTerm
   )
 
-/** Substitutes all occurrences of an identifier in a term with a replacement expression.
-  *
-  * @param rhs
-  *   the term to transform.
-  * @param identToBeReplaced
-  *   the name of the identifier to replace.
-  * @param replacementExpr
-  *   the replacement term.
-  * @param sym
-  *   the owning symbol for ownership transfer.
-  * @return
-  *   the transformed term.
+/** Builds the expression that reads the pattern variable `name` from a `LookupEnv`, cast to the
+  * type of the field it is bound to.
   */
-private[code_generation] def substitute(using quotes: Quotes)(
-    rhs: quotes.reflect.Term,
-    identToBeReplaced: String,
-    replacementExpr: quotes.reflect.Term
-)(sym: quotes.reflect.Symbol): quotes.reflect.Term =
+private[code_generation] def lookupBinding(using quotes: Quotes)(
+    lookupEnv: Expr[LookupEnv],
+    name: String,
+    tpe: quotes.reflect.TypeRepr
+): quotes.reflect.Term =
   import quotes.reflect.*
 
-  val transform = new TreeMap:
-    override def transformTerm(term: Term)(owner: Symbol): Term =
-      term match
-        case t: Ident if identToBeReplaced == t.name =>
-          replacementExpr.changeOwner(owner)
-        case x =>
-          super.transformTerm(x)(owner)
+  val inner = '{ ${ lookupEnv }(${ Expr(name) }) }
+  tpe.asType match
+    case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
 
-  transform.transformTerm(rhs.changeOwner(sym))(sym)
-
-/** Collects all `Ident` (variable) names used inside a term. */
-private[code_generation] def getAllVariableNames(using quotes: Quotes)(
-    term: quotes.reflect.Term
+/** Collects the names of the pattern variables that a term refers to.
+  *
+  * References are identified by the symbol of the pattern variable's `Bind`, not by name, so a
+  * local `val`, `def`, lambda parameter or nested pattern variable that merely has the same name
+  * is not mistaken for the pattern variable.
+  */
+private[code_generation] def getReferencedBindings(using quotes: Quotes)(
+    term: quotes.reflect.Term,
+    bindings: List[(String, quotes.reflect.Symbol, quotes.reflect.TypeRepr)]
 ): List[String] =
   import quotes.reflect.*
+
+  val nameOf: Map[Symbol, String] = bindings.map((name, sym, _) => sym -> name).toMap
 
   val folder = new TreeAccumulator[List[String]]:
     override def foldTree(acc: List[String], tree: Tree)(owner: Symbol): List[String] =
       tree match
-        case Ident(name) => name :: acc
-        case e           => foldOverTree(acc, e)(owner)
+        case id: Ident if nameOf.contains(id.symbol) => nameOf(id.symbol) :: acc
+        case e                                       => foldOverTree(acc, e)(owner)
 
-  folder.foldTree(List(), term)(Symbol.spliceOwner)
+  folder.foldTree(List(), term)(Symbol.spliceOwner).distinct
 
-/** Replaces bound variable references in an expression with `LookupEnv` lookups,
-  * casting each to the original type.
+/** Creates a guard lambda `LookupEnv => Boolean` from a guard expression, replacing references to
+  * pattern variables with `LookupEnv` lookups, cast to the type of their field.
+  *
+  * Only identifiers that refer to the pattern variable's own symbol are replaced (see
+  * [[getReferencedBindings]]).
   */
-private[code_generation] def replaceInnersWithLookupEnv[T](using quotes: Quotes, tt: Type[T])(
-    exp: Expr[T],
-    fieldBindingsWithTypes: List[(String, Type[?])],
-    lookupEnvExpr: Expr[LookupEnv]
-): Expr[T] =
+private[code_generation] def generateGuardLambda(using quotes: Quotes)(
+    exp: Expr[Boolean],
+    bindings: List[(String, quotes.reflect.Symbol, quotes.reflect.TypeRepr)]
+): Expr[LookupEnv => Boolean] =
   import quotes.reflect.*
 
-  val transform = new TreeMap:
-    override def transformTerm(term: Term)(owner: Symbol): Term =
-      term match
-        case Ident(n) if fieldBindingsWithTypes.exists(_._1 == n) =>
-          val inner = '{ (${ lookupEnvExpr })(${ Expr(n) }) }
-          fieldBindingsWithTypes.find(_._1 == n).map(_._2) match
-            case Some(tpe) => tpe match
-              case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-            case None =>
-              report.errorAndAbort(s"Internal macro error: variable '$n' not found in pattern bindings")
-        case x =>
-          super.transformTerm(x)(owner)
+  val bySymbol: Map[Symbol, (String, TypeRepr)] =
+    bindings.map((name, sym, tpe) => sym -> (name, tpe)).toMap
 
-  transform.transformTerm(exp.asTerm)(Symbol.spliceOwner).asExprOf[T]
+  Lambda(
+    owner = Symbol.spliceOwner,
+    tpe = MethodType(List("lookupEnv"))(_ => List(TypeRepr.of[LookupEnv]), _ => TypeRepr.of[Boolean]),
+    rhsFn = (sym: Symbol, params: List[Tree]) =>
+      val lookupEnvExpr = params match
+        case (id: Ident) :: _ => id.asExprOf[LookupEnv]
+        case _ =>
+          report.errorAndAbort("Internal macro error: generateGuardLambda expected a LookupEnv parameter")
+      val transform = new TreeMap:
+        override def transformTerm(term: Term)(owner: Symbol): Term =
+          term match
+            case id: Ident if bySymbol.contains(id.symbol) =>
+              val (name, tpe) = bySymbol(id.symbol)
+              lookupBinding(lookupEnvExpr, name, tpe)
+            case x =>
+              super.transformTerm(x)(owner)
+
+      transform.transformTerm(exp.asTerm.changeOwner(sym))(sym)
+  ).asExprOf[LookupEnv => Boolean]

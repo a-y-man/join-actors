@@ -74,17 +74,19 @@ private[code_generation] def buildFilteringClauses[Q <: Quotes](
   *   the optional guard predicate term.
   * @param typesData
   *   constructor types and their field bindings.
+  * @param bindings
+  *   the pattern variables of the case: name, symbol of the `Bind`, and type of the field.
   * @return
   *   a tuple of (full guard lambda, map of type name → per-type filtering lambda).
   */
 private[code_generation] def generateGuard(using quotes: Quotes)(
     guard: Option[quotes.reflect.Term],
-    typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])]
+    typesData: List[(quotes.reflect.TypeRepr, List[(String, quotes.reflect.TypeRepr)])],
+    bindings: List[(String, quotes.reflect.Symbol, quotes.reflect.TypeRepr)]
 ): (Expr[GuardFilter], Map[String, Expr[GuardFilter]]) =
   import quotes.reflect.*
 
   val fieldBindings = typesData.flatMap(_._2)
-  val fieldBindingsWithTypes = fieldBindings.map((n, t) => (n, t.asType))
 
   val emptyFilteringLambdas = Map[String, Expr[GuardFilter]]()
 
@@ -97,7 +99,7 @@ private[code_generation] def generateGuard(using quotes: Quotes)(
         val clauses = extractClauses(term.asExprOf[Boolean])
 
         val clausesAndVariableNames =
-          for c <- clauses yield (c, getAllVariableNames(c.asTerm))
+          for c <- clauses yield (c, getReferencedBindings(c.asTerm, bindings))
 
         val typeNamesAndVariables =
           typesData.map((repr, lst) => (repr.typeSymbol.name, lst.map(_._1)))
@@ -110,16 +112,9 @@ private[code_generation] def generateGuard(using quotes: Quotes)(
           (t, reconstructConjunctionTree(cs))
 
         val filteringLambdas = typeNamesAndFilterExpressions.iterator
-          .map { (t, exp) =>
-            val lambda = '{ (lookupEnv: LookupEnv) =>
-              ${ replaceInnersWithLookupEnv(exp, fieldBindingsWithTypes, 'lookupEnv) }
-            }
-            (t, lambda)
-          }
+          .map((t, exp) => (t, generateGuardLambda(exp, bindings)))
           .toMap
 
-        val guardLambda = '{ (lookupEnv: LookupEnv) =>
-          ${ replaceInnersWithLookupEnv(term.asExprOf[Boolean], fieldBindingsWithTypes, 'lookupEnv) }
-        }
+        val guardLambda = generateGuardLambda(term.asExprOf[Boolean], bindings)
 
         (guardLambda, filteringLambdas)
