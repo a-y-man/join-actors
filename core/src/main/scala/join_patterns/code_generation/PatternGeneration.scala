@@ -318,7 +318,21 @@ private[code_generation] def generateJoinPattern[M, T](using
             case Select(_, "unapply") =>
               Some(generateJP[M, T](List(t), guard, rhsTerm, selfSym))
             case TypeApply(Select(_, "unapply"), _) =>
-              Some(generateJP[M, T](subPatterns, guard, rhsTerm, selfSym))
+              errorTreeWithHint(
+                "Unsupported message constructor type",
+                "Extractors with type parameters, such as generic case classes, are not supported; " +
+                  "use a message class without type parameters",
+                fun
+              )
+              None
+            case other =>
+              errorTreeWithHint(
+                "Unsupported extractor in a join pattern",
+                "Only the pattern of a case class, like `MsgType(field1, field2)`, is supported " +
+                  "(sequence patterns such as `Msg(xs*)` are not)",
+                other
+              )
+              None
         case andOperatorApplication @ Unapply(_, _, _) =>
           val patterns = getConstructorPatternsFromAndOps[M, T](andOperatorApplication)
           Some(generateJP[M, T](patterns, guard, rhsTerm, selfSym))

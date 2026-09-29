@@ -33,6 +33,9 @@ lazy val core =
   (project in file("core"))
     .settings(
       name := "core",
+      // Verify every `receive` macro expansion in the tests. Not enabled for the main sources:
+      // mainargs' own ParserForClass macro fails this check (a quote-scope bug inside mainargs).
+      Test / scalacOptions += "-Xcheck-macros",
       libraryDependencies ++= Seq(
         "com.lihaoyi" %% "os-lib" % Versions.osLib,
         "com.lihaoyi" %% "mainargs" % Versions.mainargs,
