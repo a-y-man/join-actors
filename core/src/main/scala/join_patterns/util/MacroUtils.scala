@@ -6,10 +6,7 @@ def errorTree(using quotes: Quotes)(msg: String, token: quotes.reflect.Tree): Un
   import quotes.reflect.*
 
   val t = token.show(using Printer.TreeStructure)
-
-  token.symbol.pos match
-    case Some(pos) => report.error(f"$msg: $t", pos)
-    case None      => report.error(f"$msg: $t")
+  report.error(f"$msg: $t", token.pos)
 
 def errorTreeWithHint(using quotes: Quotes)(
     msg: String,
@@ -19,11 +16,20 @@ def errorTreeWithHint(using quotes: Quotes)(
   import quotes.reflect.*
 
   val t = token.show(using Printer.TreeStructure)
-  val fullMsg = s"$msg: $t\n  Hint: $hint"
+  report.error(s"$msg: $t\n  Hint: $hint", token.pos)
 
-  token.symbol.pos match
-    case Some(pos) => report.error(fullMsg, pos)
-    case None      => report.error(fullMsg)
+/** Like [[errorTreeWithHint]], but stops the macro expansion: use it where the expansion cannot
+  * sensibly continue, so the user sees the actual problem and not follow-up errors.
+  */
+def abortTreeWithHint(using quotes: Quotes)(
+    msg: String,
+    hint: String,
+    token: quotes.reflect.Tree
+): Nothing =
+  import quotes.reflect.*
+
+  val t = token.show(using Printer.TreeStructure)
+  report.errorAndAbort(s"$msg: $t\n  Hint: $hint", token.pos)
 
 def macroAssert(using quotes: Quotes)(
     cond: Boolean,

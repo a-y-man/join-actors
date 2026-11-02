@@ -28,12 +28,54 @@ private[code_generation] def extractPayloads(using quotes: Quotes)(
     case Bind(n, w @ Wildcard()) => (n, w.tpe.dealias.simplified)
     case w @ Wildcard()          => ("_", w.tpe.dealias.simplified)
     case e =>
-      errorTreeWithHint(
+      abortTreeWithHint(
         s"Unsupported payload binding",
         "Expected `name: Type`, `_: Type`, or `_` wildcard",
         t
       )
-      ("", TypeRepr.of[Nothing])
+
+/** Whether `fun` is the `unapply` that the compiler generates for the case class matched by `tt`.
+  *
+  * A join pattern is destructured through the case class's own fields. A user-defined extractor
+  * (`object Even { def unapply(n: N): Option[Int] = ... }`, or a hand-written `unapply` in the
+  * companion) has different semantics that the macro would silently ignore.
+  */
+private[code_generation] def isCaseClassUnapply(using quotes: Quotes)(
+    fun: quotes.reflect.Tree,
+    tt: quotes.reflect.TypeTree
+): Boolean =
+  import quotes.reflect.*
+
+  val cls = tt.tpe.dealias.simplified.typeSymbol
+  cls.flags.is(Flags.Case) && fun.symbol.flags.is(Flags.Synthetic)
+
+/** Rejects payload patterns that test the type of a field, like `case Msg(x: Int)` for a field
+  * declared as `Any`.
+  *
+  * A type test would have to decide whether the message matches at all, but the matchers only
+  * classify messages by their constructor. The test would be silently dropped and a message with
+  * another payload type would match and then fail with a `ClassCastException`.
+  */
+private[code_generation] def checkNoPayloadTypeTests(using quotes: Quotes)(
+    constructor: quotes.reflect.TypeRef,
+    payloads: List[(quotes.reflect.Tree, (String, quotes.reflect.TypeRepr))]
+): Unit =
+  import quotes.reflect.*
+
+  val fields = constructor.typeSymbol.caseFields
+  for
+    ((tree, (name, written)), i) <- payloads.zipWithIndex
+    field <- fields.lift(i)
+    declared = constructor.memberType(field).dealias.simplified
+    if !(written.dealias.simplified =:= declared)
+  do
+    abortTreeWithHint(
+      "Unsupported type test on a message field",
+      s"`${if name == "_" then "_" else name}: ${written.show}` tests the type of a field that is declared as " +
+        s"`${declared.show}`. Join patterns cannot test payload types; bind the field without a " +
+        s"type, or with its declared type, and test it in the guard",
+      tree
+    )
 
 /** Extracts constructor type and field binding data from a list of pattern trees.
   *
@@ -48,17 +90,32 @@ private[code_generation] def extractConstructorData(using quotes: Quotes)(
   import quotes.reflect.*
 
   patterns.map {
-    case TypedOrTest(Unapply(Select(s, "unapply"), _, binds), tt: TypeTree) =>
+    case TypedOrTest(Unapply(fun @ Select(s, "unapply"), _, binds), tt: TypeTree)
+        if isCaseClassUnapply(fun, tt) =>
       tt.tpe.dealias.simplified match
         case tp: TypeRef =>
-          tp -> binds.map(extractPayloads(_))
+          val payloads = binds.map(extractPayloads(_))
+          checkNoPayloadTypeTests(tp, binds.zip(payloads))
+          tp -> payloads
+        case other =>
+          abortTreeWithHint(
+            "Unsupported message constructor type",
+            s"`${other.show}` is not a plain class type; generic message classes are not supported",
+            tt
+          )
+    case TypedOrTest(Unapply(fun, _, _), _) =>
+      abortTreeWithHint(
+        "Unsupported extractor in a join pattern",
+        "Only the pattern of a case class, like `MsgType(field1, field2)`, is supported. " +
+          "A user-defined `unapply` is not applied, so it cannot be used here",
+        fun
+      )
     case default =>
-      errorTreeWithHint(
+      abortTreeWithHint(
         "Unsupported message constructor type",
         "Expected a case class pattern like `MsgType(field1, field2)`",
         default
       )
-      TypeRepr.of[Nothing] -> List()
   }
 
 /** Recursively extracts individual constructor patterns from nested `&:&` operator applications.
