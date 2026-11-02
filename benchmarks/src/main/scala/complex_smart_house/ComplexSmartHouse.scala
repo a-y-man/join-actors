@@ -73,8 +73,8 @@ class ComplexSmartHouse(private val matcher: MatcherFactory, private val config:
         // E1. Turn on the lights of the bathroom if someone enters in it, and its ambient light is less than 40 lux.
         {
           case Motion(_: Int, mStatus: Boolean, mRoom: String, t0: Date)
-            &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
-            &:& Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
+              &:& AmbientLight(_: Int, value: Int, alRoom: String, t1: Date)
+              &:& Light(_: Int, lStatus: Boolean, lRoom: String, t2: Date)
               if bathroomOccupied(
                 List(t0, t1, t2),
                 List(mRoom, lRoom, alRoom),
@@ -89,8 +89,8 @@ class ComplexSmartHouse(private val matcher: MatcherFactory, private val config:
 
           // E5. Detect home arrival or leaving based on a particular sequence of messages, and activate the corresponding scene.
           case Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date)
-            &:& Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date)
-            &:& Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+              &:& Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date)
+              &:& Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
               if occupiedHome(
                 List(t0, t1, t2),
                 List(mStatus0, mStatus1, cStatus),
@@ -103,8 +103,8 @@ class ComplexSmartHouse(private val matcher: MatcherFactory, private val config:
             Continue
 
           case Motion(_: Int, mStatus0: Boolean, mRoom0: String, t0: Date)
-            &:& Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date)
-            &:& Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
+              &:& Contact(_: Int, cStatus: Boolean, cRoom: String, t1: Date)
+              &:& Motion(_: Int, mStatus1: Boolean, mRoom1: String, t2: Date)
               if emptyHome(
                 List(t0, t1, t2),
                 List(mStatus0, mStatus1, cStatus),
