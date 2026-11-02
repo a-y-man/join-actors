@@ -11,12 +11,17 @@ import scala.quoted.{Expr, Quotes, Type}
   * 1. Substitutes the `self` reference with the actual `ActorRef` parameter
   * 2. Replaces bound variable references with `LookupEnv` lookups, cast to their original types
   *
+  * Both substitutions are by symbol, not by name: only references to the pattern variable's own
+  * `Bind` (or to the `self` parameter of the `receive` function) are replaced. A local `val`,
+  * `def`, lambda parameter or nested pattern variable that happens to have the same name is left
+  * alone.
+  *
   * @param rhs
   *   the right-hand side term from the case clause.
-  * @param fieldBindings
-  *   the field names and types available in this pattern.
-  * @param selfRefName
-  *   the name of the self ActorRef parameter to substitute.
+  * @param bindings
+  *   the pattern variables of the case: name, symbol of the `Bind`, and type of the field.
+  * @param selfSym
+  *   the symbol of the self ActorRef parameter to substitute.
   * @return
   *   a `Block` containing the RHS lambda.
   */
@@ -26,14 +31,17 @@ private[code_generation] def generateRhs[M, T](using
     tm: Type[M]
 )(
     rhs: quotes.reflect.Term,
-    fieldBindings: List[(String, quotes.reflect.TypeRepr)],
-    selfRefName: String
+    bindings: List[(String, quotes.reflect.Symbol, quotes.reflect.TypeRepr)],
+    selfSym: quotes.reflect.Symbol
 ): quotes.reflect.Block =
   import quotes.reflect.*
 
+  val bySymbol: Map[Symbol, (String, TypeRepr)] =
+    bindings.map((name, sym, tpe) => sym -> (name, tpe)).toMap
+
   Lambda(
     owner = Symbol.spliceOwner,
-    tpe = MethodType(List("_", s"$selfRefName"))(
+    tpe = MethodType(List("_", selfSym.name))(
       _ =>
         List(
           TypeRepr.of[LookupEnv],
@@ -48,20 +56,15 @@ private[code_generation] def generateRhs[M, T](using
           report.errorAndAbort(
             "Internal macro error: generateRhs expected (LookupEnv, ActorRef) parameters"
           )
-      val rhsWithSelf = substitute(rhs, selfRefName, actorRefObj)(sym)
+      val lookupEnvExpr = lookupEnv.asExprOf[LookupEnv]
       val transform = new TreeMap:
         override def transformTerm(term: Term)(owner: Symbol): Term = term match
-          case Ident(n) if fieldBindings.exists(_._1 == n) =>
-            val inner = '{ (${ lookupEnv.asExprOf[LookupEnv] })(${ Expr(n) }) }
-            fieldBindings.find(_._1 == n).map(_._2.asType) match
-              case Some(tpe) =>
-                tpe match
-                  case '[innerType] => ('{ ${ inner }.asInstanceOf[innerType] }).asTerm
-              case None =>
-                report.errorAndAbort(
-                  s"Internal macro error: variable '$n' not found in pattern bindings"
-                )
+          case id: Ident if id.symbol == selfSym =>
+            actorRefObj.changeOwner(owner)
+          case id: Ident if bySymbol.contains(id.symbol) =>
+            val (name, tpe) = bySymbol(id.symbol)
+            lookupBinding(lookupEnvExpr, name, tpe)
           case x => super.transformTerm(x)(owner)
 
-      transform.transformTerm(rhsWithSelf.changeOwner(sym))(sym)
+      transform.transformTerm(rhs.changeOwner(sym))(sym)
   )
