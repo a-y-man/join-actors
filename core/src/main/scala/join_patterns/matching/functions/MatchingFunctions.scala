@@ -1,7 +1,6 @@
 package join_patterns.matching.functions
 
 import join_patterns.matching.*
-import join_patterns.matching.immutable.MatchingTree
 import join_patterns.types.{*, given}
 
 import scala.collection.immutable.TreeMap
@@ -114,15 +113,3 @@ def findFairestMatch[M, T](
 def removeProcessedMsgs[M](messages: MutMap[Int, M], processedMsgs: MessageIdxs): MutMap[Int, M] =
   // messages.filterNot((_, idx) => processedMsgs.contains(idx))
   messages --= processedMsgs
-
-def appendToFile(filename: String, content: String): Unit =
-  val fileFolder = os.pwd / "core" / "logs"
-  os.makeDir.all(fileFolder)
-  os.write.append(fileFolder / filename, content)
-
-def logMTreeAndMailBoxSize[M](mTrees: List[MatchingTree], msgCount: Int): String =
-  val mTreesSize = mTrees.map(_.size - 1).sum
-  s"${msgCount + 1},$mTreesSize"
-
-def logMailBoxSizeAndMsgCnt[M](mBox: MutMap[Int, M], msgCount: Int): String =
-  s"$msgCount,${mBox.size}"
