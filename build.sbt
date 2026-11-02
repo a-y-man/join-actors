@@ -1,60 +1,54 @@
-version      := "0.1.1"
-scalaVersion := "3.8.2"
+ThisBuild / version := "0.1.1"
+ThisBuild / scalaVersion := "3.9.0"
+ThisBuild / scalacOptions += "-feature"
 
-lazy val commonDependencies = Seq(
-  "com.lihaoyi"         %% "os-lib"     % Versions.osLib,
-  "com.lihaoyi"         %% "mainargs"   % Versions.mainargs,
-  "com.google.code.gson" % "gson"       % Versions.gson,
-  "org.jfree"            % "jfreechart" % "1.5.5"
+ThisBuild / githubWorkflowJavaVersions := List(JavaSpec.temurin("25"))
+ThisBuild / githubWorkflowBuildSbtStepPreamble := Nil
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(List("testFull"), name = Some("Build and test"))
 )
-lazy val testDependencies = Seq(
-  "org.scalacheck"    %% "scalacheck"         % Versions.scalaCheck,
-  "org.scalactic"     %% "scalactic"          % Versions.scalactic         % Test,
-  "org.scalatestplus" %% "scalacheck-1-18"    % s"${Versions.scalaTest}.0" % Test,
-  "org.scalatest"     %% "scalatest"          % Versions.scalaTest         % Test,
-  "org.scalatest"     %% "scalatest-funsuite" % Versions.scalaTest         % Test,
-  "org.felher"         % "s3te-compile_3.5"   % "0.0.2"                    % Compile,
-  "com.google.guava"   % "guava"              % "33.4.8-jre"               % Compile,
-)
+ThisBuild / githubWorkflowPublishTargetBranches := Nil
+ThisBuild / githubWorkflowIncludeClean := false
 
-// Common settings for all projects
-lazy val commonSettings = Seq(
-  libraryDependencies ++= commonDependencies ++ testDependencies
-)
+// sbt 2 runs `run` in a separate JVM started in the subproject's directory; keep the repository
+// root as working directory, since the Makefile and the code use paths relative to it.
+run / baseDirectory := (ThisBuild / baseDirectory).value
+// The forked `run` reads it, but sbt's unused-key lint does not see that.
+Global / excludeLintKeys += (run / baseDirectory)
 
-assemblyMergeStrategy := {
-  case PathList("META-INF", _*) => MergeStrategy.discard
-  case _                        => MergeStrategy.first
-}
-
-lazy val commonScalacOptions = Seq("-feature")
+libraryDependencies += "org.scalatest" %% "scalatest" % Versions.scalaTest % Test
 
 lazy val joinActors =
-  (project in file("."))
-    .aggregate(core, benchmarks)
+  rootProject.autoAggregate
     .settings(
-      name           := "joinActors",
-      publish / skip := true,
-      assembly / skip := true
+      name := "joinActors",
+      publish / skip := true
     )
 
 lazy val core =
   (project in file("core"))
     .settings(
       name := "core",
-      commonSettings,
-      scalacOptions ++= commonScalacOptions ++ Seq(), // "-Xcheck-macros"
-      assembly / mainClass := Some("core.Main"),
-      assembly / assemblyJarName := "joinActors.jar"
+      // Verify every `receive` macro expansion in the tests. Not enabled for the main sources:
+      // mainargs' own ParserForClass macro fails this check (a quote-scope bug inside mainargs).
+      Test / scalacOptions += "-Xcheck-macros",
+      libraryDependencies ++= Seq(
+        "com.lihaoyi" %% "mainargs" % Versions.mainargs,
+        "org.scalacheck" %% "scalacheck" % Versions.scalaCheck
+      )
     )
 
 lazy val benchmarks =
   (project in file("benchmarks"))
-    .dependsOn(core % "compile->compile;test->test")
+    .dependsOn(core)
     .settings(
       name := "benchmarks",
-      commonSettings,
-      scalacOptions ++= commonScalacOptions,
-      publish / skip := true,
-      assembly / skip := true
+      libraryDependencies ++= Seq(
+        "com.lihaoyi" %% "os-lib" % Versions.osLib,
+        "org.jfree" % "jfreechart" % Versions.jfreechart
+      ),
+      // A fixed heap for stable measurements; `run` gets its own JVM in sbt 2, so .sbtopts
+      // no longer applies to it.
+      run / javaOptions ++= Seq("-Xms16G", "-Xmx16G"),
+      publish / skip := true
     )

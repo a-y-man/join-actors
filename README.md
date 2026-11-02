@@ -109,8 +109,8 @@ example can be found in the [FactorySimpl.scala](core/src/main/scala/examples/Fa
 
 ## Build and test
 
-The library can be compiled by installing a [Java Development Kit (version 21 or later)](https://jdk.java.net/21/) and
-[sbt (version 1.9 or later)](https://www.scala-sbt.org/) and running `sbt compile`. Then, `sbt` will download the required
+The library can be compiled by installing a [Java Development Kit (version 25 or later)](https://jdk.java.net/25/) and
+[sbt (version 2.0 or later)](https://www.scala-sbt.org/) and running `sbt compile`. Then, `sbt` will download the required
 dependencies (including the Scala 3 compiler).
 
 ### Using sbt directly
@@ -127,6 +127,9 @@ To run the tests of the core library, run the following command:
 ```bash
 sbt core/test
 ```
+
+Note that since sbt 2, `test` is incremental and only re-runs tests affected by changes.
+Use `sbt testFull` to run the whole suite (this is what CI runs).
 
 To run for instance the `Factory Simple` example with the predefined configuration
 run the following command:
